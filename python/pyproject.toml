@@ -1,0 +1,15 @@
+[project]
+name = "FactoryDesigner"
+version = "0.1.0"
+description = "Default template for PDM package"
+authors = [
+    {name = "well2333", email = "well_404@outlook.com"},
+]
+dependencies = ["pydantic>=2.12.5"]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+
+
+[tool.pdm]
+distribution = false

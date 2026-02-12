@@ -1,0 +1,258 @@
+from __future__ import annotations
+
+from typing import Dict, List
+
+from .models import BaseConfig
+from .simulators.real import simulate_cycle
+from .utils import (
+	CONSTANTS,
+	DEFAULT_INPUT_SOURCE_ID,
+	FUELS,
+	INPUT_SOURCES,
+	analyze_splitter_complexity,
+	generate_valid_denominators,
+	get_oscillating_power,
+)
+
+
+class FactoryDesigner:
+	def __init__(self, params: Dict[str, object]) -> None:
+		# 步骤 1：读取输入参数并统一为数值类型，便于后续计算
+		self.target_power = float(params["targetPower"])
+		self.min_battery_percent = float(params["minBatteryPercent"])
+		self.max_waste = float(params["maxWaste"])
+		self.primary_fuel = FUELS[str(params["primaryFuelId"])]
+		secondary_id = str(params.get("secondaryFuelId", "none"))
+		self.secondary_fuel = FUELS.get(secondary_id) if secondary_id != "none" else None
+
+		# 步骤 2：确定供料源与基础参数，速度统一用 ips
+		input_source_id = str(params.get("inputSourceId") or DEFAULT_INPUT_SOURCE_ID)
+		self.input_source = INPUT_SOURCES.get(input_source_id, INPUT_SOURCES[DEFAULT_INPUT_SOURCE_ID])
+		self.input_speed_ips = self.input_source.speed
+		self.input_interval_sec = self.input_source.interval
+		self.battery_capacity_j = CONSTANTS["BATTERY_CAPACITY_J"]
+
+		# 步骤 3：预生成可用分流分母，减少后续组合搜索成本
+		self.valid_denominators = generate_valid_denominators()
+
+	def calculate_base_power(self) -> BaseConfig:
+		# 步骤 1：以基地固定功率为起点
+		base_power = CONSTANTS["BASE_POWER_W"]
+		fuel_power = self.primary_fuel.power
+		gens_per_belt = self.input_speed_ips * self.primary_fuel.burn_time
+
+		# 步骤 2：计算仍需补足的功率，不足时直接返回基础配置
+		needed = self.target_power - base_power
+		if needed <= 0:
+			return BaseConfig(generators=0, total_power=base_power, belts=0)
+
+		# 步骤 3：根据满带功率估算发电机数量，再反推需要的传送带数
+		generators = int(needed // fuel_power)
+		total_power = base_power + generators * fuel_power
+		belts = int(-(-generators // gens_per_belt))
+
+		return BaseConfig(generators=generators, total_power=total_power, belts=belts)
+
+	def _get_combinations(self, arr: List[int], length: int) -> List[List[int]]:
+		# 步骤：生成可重复组合，用于穷举不同分母的分流方案
+		if length == 1:
+			return [[x] for x in arr]
+		combos: List[List[int]] = []
+		for i, value in enumerate(arr):
+			for sub in self._get_combinations(arr[i:], length - 1):
+				combos.append([value, *sub])
+		return combos
+
+	def calculate_oscillating_plans(
+		self, base_config: BaseConfig, fuel, is_primary: bool
+	) -> List[Dict[str, object]]:
+		# 步骤 1：若基础功率已满足需求，直接返回空方案
+		gap = self.target_power - base_config.total_power
+		if gap <= 0:
+			return []
+
+		# 步骤 2：穷举分流组合，先用理论值做快速过滤
+		solutions: List[Dict[str, object]] = []
+		max_branches = 3
+		for r in range(1, max_branches + 1):
+			combos = self._get_combinations(self.valid_denominators, r)
+			for combo in combos:
+				theory_power = sum(
+					get_oscillating_power(fuel, d, self.input_interval_sec) for d in combo
+				)
+				theory_total = base_config.total_power + theory_power
+				theory_waste = theory_total - self.target_power
+
+				if theory_waste < 0 or theory_waste > self.max_waste + 10:
+					continue
+
+				# 步骤 3：构造分支并进行周期仿真，筛出可用方案
+				branches = [{"denominator": d, "fuel": fuel} for d in combo]
+				result = simulate_cycle(
+					base_config=base_config,
+					oscillating_branches=branches,
+					fuel=fuel,
+					input_interval=self.input_interval_sec,
+					target_power=self.target_power,
+					battery_capacity=self.battery_capacity_j,
+					min_battery_percent=self.min_battery_percent,
+				)
+
+				# 步骤 4：记录复杂度与统计指标，形成完整方案
+				if result.get("success") and 0 <= result.get("waste", 0) <= self.max_waste:
+					complexity = [analyze_splitter_complexity(d) for d in combo]
+					total_splitters = sum(c.total for c in complexity)
+					solutions.append(
+						{
+							"fuel": fuel,
+							"isPrimary": is_primary,
+							"branches": [
+								{
+									"denominator": d,
+									"power": get_oscillating_power(fuel, d, self.input_interval_sec),
+									"complexity": complexity[i],
+								}
+								for i, d in enumerate(combo)
+							],
+							"branchCount": len(combo),
+							"totalSplitters": total_splitters,
+							**result,
+						}
+					)
+
+		return solutions
+
+	def solve(self) -> List[Dict[str, object]]:
+		# 步骤 1：先计算基础发电配置
+		base_config = self.calculate_base_power()
+
+		# 步骤 2：基础配置满足需求时直接返回最简单方案
+		if base_config.total_power >= self.target_power:
+			waste = base_config.total_power - self.target_power
+			if waste <= self.max_waste:
+				base_fuel_per_sec = (
+					(base_config.generators / (self.input_speed_ips * self.primary_fuel.burn_time))
+					* self.input_speed_ips
+					if base_config.generators > 0
+					else 0
+				)
+				return [
+					{
+						"baseConfig": base_config,
+						"baseFuel": self.primary_fuel,
+						"oscillating": None,
+						"oscillatingFuel": None,
+						"fuel": self.primary_fuel,
+						"isPrimary": True,
+						"inputSourceId": self.input_source.id,
+						"avgPower": base_config.total_power,
+						"waste": waste,
+						"variance": 0,
+						"period": 0,
+						"minBatteryPercent": 100,
+						"branchCount": 0,
+						"totalSplitters": 0,
+						"batteryLog": [self.battery_capacity_j],
+						"powerLog": [base_config.total_power],
+						"burnStateLog": [],
+						"preciseBatteryLog": [self.battery_capacity_j],
+						"precisePowerLog": [base_config.total_power],
+						"preciseBurnStateLog": [],
+						"fuelConsumption": {
+							"base": {
+								"fuel": self.primary_fuel,
+								"perSecond": base_fuel_per_sec,
+								"perMinute": base_fuel_per_sec * 60,
+								"perHour": base_fuel_per_sec * 3600,
+								"perDay": base_fuel_per_sec * 86400,
+							},
+							"oscillating": {
+								"fuel": None,
+								"perSecond": 0,
+								"perMinute": 0,
+								"perHour": 0,
+								"perDay": 0,
+							},
+						},
+					}
+				]
+
+		# 步骤 3：分别计算主燃料与副燃料的震荡方案
+		all_solutions: List[Dict[str, object]] = []
+		all_solutions.extend(
+			self.calculate_oscillating_plans(base_config, self.primary_fuel, True)
+		)
+		if self.secondary_fuel:
+			all_solutions.extend(
+				self.calculate_oscillating_plans(base_config, self.secondary_fuel, False)
+			)
+
+		# 步骤 4：按路数、方差、浪费、燃料优先级排序
+		def sort_key(item: Dict[str, object]) -> tuple:
+			return (
+				item.get("branchCount", 0),
+				round(float(item.get("variance", 0.0)), 1),
+				round(float(item.get("waste", 0.0)), 1),
+				0 if item.get("isPrimary") else 1,
+			)
+
+		all_solutions.sort(key=sort_key)
+
+		# 步骤 5：取前 5 个方案并补齐燃料消耗数据
+		top_solutions = []
+		for sol in all_solutions[:5]:
+			base_fuel_per_sec = (
+				(base_config.generators / (self.input_speed_ips * self.primary_fuel.burn_time))
+				* self.input_speed_ips
+				if base_config.generators > 0
+				else 0
+			)
+			oscillating_fuel_per_sec = (
+				sum(1 / (self.input_interval_sec * b["denominator"]) for b in sol["branches"])
+				if sol.get("branches")
+				else 0
+			)
+			top_solutions.append(
+				{
+					"baseConfig": base_config,
+					"baseFuel": self.primary_fuel,
+					"oscillating": sol.get("branches"),
+					"oscillatingFuel": sol.get("fuel"),
+					"fuel": sol.get("fuel"),
+					"isPrimary": sol.get("isPrimary"),
+					"inputSourceId": self.input_source.id,
+					"avgPower": sol.get("avgPower"),
+					"waste": sol.get("waste"),
+					"variance": sol.get("variance"),
+					"period": sol.get("period"),
+					"minBattery": sol.get("minBattery"),
+					"minBatteryPercent": sol.get("minBatteryPercent"),
+					"branchCount": sol.get("branchCount"),
+					"totalSplitters": sol.get("totalSplitters"),
+					"batteryLog": sol.get("batteryLog"),
+					"powerLog": sol.get("powerLog"),
+					"burnStateLog": sol.get("burnStateLog"),
+					"preciseBatteryLog": sol.get("preciseBatteryLog"),
+					"precisePowerLog": sol.get("precisePowerLog"),
+					"preciseBurnStateLog": sol.get("preciseBurnStateLog"),
+					"fuelConsumption": {
+						"base": {
+							"fuel": self.primary_fuel,
+							"perSecond": base_fuel_per_sec,
+							"perMinute": base_fuel_per_sec * 60,
+							"perHour": base_fuel_per_sec * 3600,
+							"perDay": base_fuel_per_sec * 86400,
+						},
+						"oscillating": {
+							"fuel": sol.get("fuel"),
+							"perSecond": oscillating_fuel_per_sec,
+							"perMinute": oscillating_fuel_per_sec * 60,
+							"perHour": oscillating_fuel_per_sec * 3600,
+							"perDay": oscillating_fuel_per_sec * 86400,
+						},
+					},
+				}
+			)
+
+		return top_solutions
+

@@ -1,0 +1,144 @@
+from __future__ import annotations
+
+import math
+from typing import Dict, List
+
+from .models import BaseConfig, Fuel
+
+
+def _lcm(a: int, b: int) -> int:
+	# 计算最小公倍数，用于对齐各分支的供料周期
+	if a == 0 or b == 0:
+		return 0
+	return abs(a * b) // math.gcd(a, b)
+
+
+def _get_cycle_period(denominators: List[int], input_interval: float) -> int:
+	# 依据分母列表计算一个完整周期的秒数，作为仿真窗口
+	if not denominators:
+		return int(input_interval)
+	intervals = [int(input_interval * d) for d in denominators]
+	period = int(input_interval)
+	for interval in intervals:
+		period = _lcm(period, interval)
+	return period
+
+
+def simulate_cycle(
+	*,
+	base_config: BaseConfig,
+	oscillating_branches: List[Dict[str, int]],
+	fuel: Fuel,
+	input_interval: float,
+	target_power: float,
+	battery_capacity: float,
+	min_battery_percent: float,
+) -> Dict[str, object]:
+	# 步骤 1：先计算周期并准备时间轴，避免无穷周期导致计算爆炸
+	denominators = [b["denominator"] for b in oscillating_branches]
+	period = _get_cycle_period(denominators, input_interval)
+
+	if period > 100000:
+		return {"success": False, "reason": "period_too_long"}
+
+	# 步骤 2：用多周期预热后再取稳定区间，保证电池状态收敛
+	num_cycles = 3
+	total_duration = int(period * num_cycles)
+
+	power_timeline = [0.0] * int(math.ceil(total_duration))
+	branch_burn_timeline = [
+		[0] * int(math.ceil(total_duration)) for _ in oscillating_branches
+	]
+
+	# 步骤 3：逐分支生成燃烧区间并累计功率时间线
+	for branch_index, branch in enumerate(oscillating_branches):
+		branch_interval = input_interval * branch["denominator"]
+		last_burn_end = 0.0
+		t = 0.0
+		while t < total_duration:
+			burn_start = max(t, last_burn_end)
+			burn_end = burn_start + fuel.burn_time
+			last_burn_end = burn_end
+
+			start_idx = int(math.floor(burn_start))
+			end_idx = min(int(math.ceil(burn_end)), total_duration)
+			for i in range(start_idx, end_idx):
+				power_timeline[i] += fuel.power
+				branch_burn_timeline[branch_index][i] = 1
+
+			t += branch_interval
+
+	# 步骤 4：取最后一个周期作为稳定段，避免初始条件干扰
+	check_start = int(math.floor(total_duration - period))
+	cycle_power = power_timeline[check_start:int(math.floor(total_duration))]
+
+	min_batt_required = battery_capacity * min_battery_percent / 100.0
+	battery = battery_capacity
+	min_battery = battery
+	battery_log: List[float] = []
+	power_log: List[float] = []
+	burn_state_log: List[List[int]] = [[] for _ in oscillating_branches]
+	precise_battery_log: List[float] = []
+	precise_power_log: List[float] = []
+	precise_burn_state_log: List[List[int]] = [[] for _ in oscillating_branches]
+
+	# 步骤 5：预热区间只更新电池，不记录曲线
+	for t in range(check_start):
+		supply = base_config.total_power + power_timeline[t]
+		battery += supply - target_power
+		if battery > battery_capacity:
+			battery = battery_capacity
+		if battery < 0:
+			return {"success": False, "reason": "battery_depleted_preheat"}
+
+	# 步骤 6：正式周期内采样曲线，同时保留 1 秒精度的精确曲线
+	sample_step = 1
+	if period >= 2000:
+		sample_step = max(1, int(math.ceil(period / 500)))
+
+	for t in range(check_start, total_duration):
+		supply = base_config.total_power + power_timeline[t]
+		battery += supply - target_power
+
+		if battery > battery_capacity:
+			battery = battery_capacity
+		if battery < min_battery:
+			min_battery = battery
+
+		if period < 2000 or ((t - check_start) % sample_step == 0):
+			battery_log.append(battery)
+			power_log.append(supply)
+			for i in range(len(burn_state_log)):
+				burn_state_log[i].append(branch_burn_timeline[i][t] or 0)
+
+		precise_battery_log.append(battery)
+		precise_power_log.append(supply)
+		for i in range(len(precise_burn_state_log)):
+			precise_burn_state_log[i].append(branch_burn_timeline[i][t] or 0)
+
+		if battery < min_batt_required:
+			return {"success": False, "reason": "battery_below_min", "minBattery": min_battery}
+
+	# 步骤 7：计算统计指标，供排序与筛选使用
+	avg_power = (sum(cycle_power) / len(cycle_power)) + base_config.total_power
+	variance = sum(
+		(p - (avg_power - base_config.total_power)) ** 2 for p in cycle_power
+	) / len(cycle_power)
+	waste = avg_power - target_power
+
+	return {
+		"success": True,
+		"period": period,
+		"avgPower": avg_power,
+		"waste": waste,
+		"variance": variance,
+		"minBattery": min_battery,
+		"minBatteryPercent": (min_battery / battery_capacity) * 100,
+		"batteryLog": battery_log,
+		"powerLog": power_log,
+		"burnStateLog": burn_state_log,
+		"preciseBatteryLog": precise_battery_log,
+		"precisePowerLog": precise_power_log,
+		"preciseBurnStateLog": precise_burn_state_log,
+	}
+
