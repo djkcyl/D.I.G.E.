@@ -21,8 +21,6 @@ class SplitterPart(BaseModel):
     """安全的最大输入速率, 超过可能导致堵塞"""
     input_cycle_count: int = 1
     """输入多少个物品完成一个周期"""
-    output_cycle_map: list[bool] = Field(default_factory=lambda: [True])
-    """单周期输出物品的映射, True 表示输出, False 表示不输出"""
     # 绘图用属性, 为一个二维矩阵，每个元素表示此格内
     # 1. 元件的属性: 元件类型、朝向
     # 2. 在整个分流器内的属性: 输入口、输出口、回收口
@@ -36,7 +34,6 @@ class DoubleSplitter(SplitterPart):
     is_complex: bool = False
     max_input_ips: float = 0.5
     input_cycle_count: int = 2
-    output_cycle_map: list[bool] = [True, False]
 
     blueprint: list[list[Part | None]] = [
         [Belt(face=PartFace.up, function=[PartFunction.recycle])],
@@ -54,7 +51,6 @@ class TripleSplitter(SplitterPart):
     is_complex: bool = False
     max_input_ips: float = 0.5
     input_cycle_count: int = 3
-    output_cycle_map: list[bool] = [True, False, False]
 
     blueprint: list[list[Part | None]] = [
         [Belt(face=PartFace.up, function=[PartFunction.recycle])],
@@ -69,37 +65,6 @@ class TripleSplitter(SplitterPart):
 
 
 # 复杂分流器
-# 1/5 分流器
-class OneFiveSplitter(SplitterPart):
-    part_id: str = "one_five_splitter"
-    is_complex: bool = True
-    max_input_ips: float = 0.25
-    input_cycle_count: int = 5
-    output_cycle_map: list[bool] = [True, False, False, False, False]
-
-    blueprint: list[list[Part | None]] = [
-        [None, Belt(face=PartFace.up, function=[PartFunction.recycle]), None],
-        [
-            Converger(
-                face=PartFace.right,
-                function=[PartFunction.input],
-            ),
-            Splitter(
-                face=PartFace.right,
-            ),
-            Splitter(
-                face=PartFace.right,
-                function=[PartFunction.output],
-            ),
-        ],
-        [
-            RightTurnBelt(face=PartFace.left),
-            BeltBridge(face=PartFace.left),
-            RightTurnBelt(face=PartFace.down),
-        ],
-    ]
-
-
 class SimplePrimeSplitter(SplitterPart):
     part_id: str = "simple_prime_splitter"
     is_complex: bool = True
@@ -165,7 +130,7 @@ class SimplePrimeSplitter(SplitterPart):
                 Splitter(
                     face=PartFace.right,
                     function=functions,
-                ) 
+                )
             )
 
         return [top_row, middle_row, bottom_row]
@@ -183,6 +148,5 @@ class SimplePrimeSplitter(SplitterPart):
             is_complex=True,
             max_input_ips=0.25,
             input_cycle_count=prime_value,
-            output_cycle_map=[True] + [False] * (prime_value - 1),
             blueprint=blueprint,
         )
