@@ -4,18 +4,19 @@ const SHARE_PARAM_KEY = 'p';
 const BASE52_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 const BASE52_LOOKUP = new Map(BASE52_ALPHABET.split('').map((char, idx) => [char, idx]));
 
-const TARGET_POWER_BITS = 15; // 0 - 32767
-const MAX_WASTE_BITS = 12;    // 0 - 4095
-const MIN_BATTERY_BITS = 7;   // 0 - 127
-const PRIMARY_FUEL_BITS = 5;  // 0 - 31
-const SECONDARY_FUEL_BITS = 5; // 0 - 31
-const INPUT_SOURCE_BITS = 2;  // 0 - 3
+const MAX_TARGET_POWER = 32767;
+const MAX_MAX_WASTE = 4095;
+const MAX_BATTERY_PERCENT = 100;
+const MIN_BRANCHES = 1;
+const MAX_BRANCHES = 5;
 
-const MAX_TARGET_POWER = Math.pow(2, TARGET_POWER_BITS) - 1;
-const MAX_MAX_WASTE = Math.pow(2, MAX_WASTE_BITS) - 1;
-const MAX_PRIMARY_INDEX = Math.pow(2, PRIMARY_FUEL_BITS) - 1;
-const MAX_SECONDARY_INDEX = Math.pow(2, SECONDARY_FUEL_BITS) - 1;
-const MAX_INPUT_SOURCE_INDEX = Math.pow(2, INPUT_SOURCE_BITS) - 1;
+const PRIMARY_FUEL_BITS = 5;
+const SECONDARY_FUEL_BITS = 5;
+const MAX_WASTE_BITS = 12;
+const MIN_BATTERY_BITS = 7;
+const TARGET_POWER_BITS = 15;
+const INPUT_SOURCE_BITS = 2;
+const MAX_BRANCHES_BITS = 3;
 
 const toBase52 = (value) => {
   let num = BigInt(value);
@@ -43,87 +44,141 @@ const fromBase52 = (value) => {
 
 const isValidNonNegativeInt = (value) => Number.isInteger(value) && value >= 0;
 
+const defaultInputIndex = INPUT_SOURCE_OPTIONS.findIndex((source) => source.id === DEFAULT_INPUT_SOURCE_ID);
+
+const maxValueFromBits = (bits) => (1 << bits) - 1;
+const bitMaskFromBits = (bits) => (1n << BigInt(bits)) - 1n;
+
+const encodeOptionIndex = (options, id, fallbackIndex = -1) => {
+  const resolvedId = typeof id === 'string' && id ? id : null;
+  const index = options.findIndex((item) => item.id === resolvedId);
+  if (index >= 0) return index;
+  return fallbackIndex;
+};
+
+const decodeOptionId = (options, index) => {
+  if (!isValidNonNegativeInt(index)) return null;
+  if (index >= options.length) return null;
+  const id = options[index]?.id;
+  return typeof id === 'string' && id ? id : null;
+};
+
+const assertOptionsFitBits = (name, options, bits) => {
+  if (options.length - 1 > maxValueFromBits(bits)) {
+    throw new Error(`Share field "${name}" exceeds bit capacity`);
+  }
+};
+
+const createNumberField = ({ index, key, bits, min = 0, max, optional = false, missingRawValue = 0 }) => {
+  const maxEncodedValue = maxValueFromBits(bits);
+  return {
+    index,
+    key,
+    bits,
+    mask: bitMaskFromBits(bits),
+    maxEncodedValue,
+    optional,
+    missingRawValue,
+    encode: (value) => {
+      const rounded = Math.round(value);
+      if (!isValidNonNegativeInt(rounded)) return null;
+      if (rounded < min || rounded > max) return null;
+      if (rounded > maxEncodedValue) return null;
+      return rounded;
+    },
+    decode: (value) => {
+      if (!isValidNonNegativeInt(value)) return null;
+      if (value < min || value > max) return null;
+      return value;
+    },
+  };
+};
+
+const createOptionField = ({ index, key, bits, options, fallbackIndex = -1, optional = false, missingRawValue = 0 }) => {
+  assertOptionsFitBits(key, options, bits);
+  const maxEncodedValue = maxValueFromBits(bits);
+  return {
+    index,
+    key,
+    bits,
+    mask: bitMaskFromBits(bits),
+    maxEncodedValue,
+    optional,
+    missingRawValue,
+    encode: (value) => {
+      const encoded = encodeOptionIndex(options, value, fallbackIndex);
+      if (!isValidNonNegativeInt(encoded) || encoded > maxEncodedValue) return null;
+      return encoded;
+    },
+    decode: (value) => decodeOptionId(options, value),
+  };
+};
+
+const SHARE_FIELDS = [
+  createOptionField({ index: 0, key: 'primaryFuelId', bits: PRIMARY_FUEL_BITS, options: FUEL_OPTIONS }),
+  createOptionField({ index: 1, key: 'secondaryFuelId', bits: SECONDARY_FUEL_BITS, options: SECONDARY_FUEL_OPTIONS }),
+  createNumberField({ index: 2, key: 'maxWaste', bits: MAX_WASTE_BITS, max: MAX_MAX_WASTE }),
+  createNumberField({ index: 3, key: 'minBatteryPercent', bits: MIN_BATTERY_BITS, max: MAX_BATTERY_PERCENT }),
+  createNumberField({ index: 4, key: 'targetPower', bits: TARGET_POWER_BITS, max: MAX_TARGET_POWER }),
+  createOptionField({
+    index: 5,
+    key: 'inputSourceId',
+    bits: INPUT_SOURCE_BITS,
+    options: INPUT_SOURCE_OPTIONS,
+    fallbackIndex: defaultInputIndex,
+  }),
+  createNumberField({
+    index: 6,
+    key: 'maxBranches',
+    bits: MAX_BRANCHES_BITS,
+    min: MIN_BRANCHES,
+    max: MAX_BRANCHES,
+    optional: true,
+    missingRawValue: 0,
+  }),
+];
+
+const LAYOUT_FIELDS = [...SHARE_FIELDS].sort((a, b) => a.index - b.index);
+
 export function encodeShareParams(params) {
   if (!params) return null;
 
-  const targetPower = Math.round(params.targetPower);
-  const minBatteryPercent = Math.round(params.minBatteryPercent);
-  const maxWaste = Math.round(params.maxWaste);
+  let packed = 0n;
+  let offset = 0n;
 
-  if (!isValidNonNegativeInt(targetPower) || targetPower > MAX_TARGET_POWER) return null;
-  if (!isValidNonNegativeInt(maxWaste) || maxWaste > MAX_MAX_WASTE) return null;
-  if (!isValidNonNegativeInt(minBatteryPercent) || minBatteryPercent > 100) return null;
+  for (const field of LAYOUT_FIELDS) {
+    const encodedValue = field.encode(params[field.key]);
+    if (!isValidNonNegativeInt(encodedValue)) return null;
+    if (encodedValue > field.maxEncodedValue) return null;
 
-  const primaryIndex = FUEL_OPTIONS.findIndex(fuel => fuel.id === params.primaryFuelId);
-  const secondaryIndex = SECONDARY_FUEL_OPTIONS.findIndex(fuel => fuel.id === params.secondaryFuelId);
-  if (primaryIndex < 0 || secondaryIndex < 0) return null;
-  if (primaryIndex > MAX_PRIMARY_INDEX || secondaryIndex > MAX_SECONDARY_INDEX) return null;
-
-  const requestedInputSourceId = params.inputSourceId || DEFAULT_INPUT_SOURCE_ID;
-  const defaultInputIndex = INPUT_SOURCE_OPTIONS.findIndex(source => source.id === DEFAULT_INPUT_SOURCE_ID);
-  const inputSourceIndex = INPUT_SOURCE_OPTIONS.findIndex(source => source.id === requestedInputSourceId);
-  const resolvedInputIndex = inputSourceIndex >= 0 ? inputSourceIndex : defaultInputIndex;
-  if (resolvedInputIndex < 0 || resolvedInputIndex > MAX_INPUT_SOURCE_INDEX) return null;
-
-  const packed = (BigInt(resolvedInputIndex) << BigInt(TARGET_POWER_BITS + MIN_BATTERY_BITS + MAX_WASTE_BITS + SECONDARY_FUEL_BITS + PRIMARY_FUEL_BITS))
-    | (BigInt(targetPower) << BigInt(MIN_BATTERY_BITS + MAX_WASTE_BITS + SECONDARY_FUEL_BITS + PRIMARY_FUEL_BITS))
-    | (BigInt(minBatteryPercent) << BigInt(MAX_WASTE_BITS + SECONDARY_FUEL_BITS + PRIMARY_FUEL_BITS))
-    | (BigInt(maxWaste) << BigInt(SECONDARY_FUEL_BITS + PRIMARY_FUEL_BITS))
-    | (BigInt(secondaryIndex) << BigInt(PRIMARY_FUEL_BITS))
-    | BigInt(primaryIndex);
+    packed |= BigInt(encodedValue) << offset;
+    offset += BigInt(field.bits);
+  }
 
   return toBase52(packed);
 }
 
 export function decodeShareParams(value) {
   if (!value || typeof value !== 'string') return null;
-  const packed = fromBase52(value);
-  if (packed === null) return null;
+  let cursor = fromBase52(value);
+  if (cursor === null) return null;
 
-  const primaryMask = (1n << BigInt(PRIMARY_FUEL_BITS)) - 1n;
-  const secondaryMask = (1n << BigInt(SECONDARY_FUEL_BITS)) - 1n;
-  const maxWasteMask = (1n << BigInt(MAX_WASTE_BITS)) - 1n;
-  const minBatteryMask = (1n << BigInt(MIN_BATTERY_BITS)) - 1n;
-  const targetPowerMask = (1n << BigInt(TARGET_POWER_BITS)) - 1n;
+  const decoded = {};
 
-  let cursor = packed;
-  const primaryIndex = Number(cursor & primaryMask);
-  cursor >>= BigInt(PRIMARY_FUEL_BITS);
-  const secondaryIndex = Number(cursor & secondaryMask);
-  cursor >>= BigInt(SECONDARY_FUEL_BITS);
-  const maxWaste = Number(cursor & maxWasteMask);
-  cursor >>= BigInt(MAX_WASTE_BITS);
-  const minBatteryPercent = Number(cursor & minBatteryMask);
-  cursor >>= BigInt(MIN_BATTERY_BITS);
-  const targetPower = Number(cursor & targetPowerMask);
-  cursor >>= BigInt(TARGET_POWER_BITS);
-  const inputSourceIndex = Number(cursor);
+  for (const field of LAYOUT_FIELDS) {
+    const rawValue = Number(cursor & field.mask);
+    cursor >>= BigInt(field.bits);
 
-  if (!isValidNonNegativeInt(targetPower) || targetPower > MAX_TARGET_POWER) return null;
-  if (!isValidNonNegativeInt(maxWaste) || maxWaste > MAX_MAX_WASTE) return null;
-  if (!isValidNonNegativeInt(minBatteryPercent) || minBatteryPercent > 100) return null;
-  if (!isValidNonNegativeInt(primaryIndex) || primaryIndex > MAX_PRIMARY_INDEX) return null;
-  if (!isValidNonNegativeInt(secondaryIndex) || secondaryIndex > MAX_SECONDARY_INDEX) return null;
-  if (!isValidNonNegativeInt(inputSourceIndex) || inputSourceIndex > MAX_INPUT_SOURCE_INDEX) return null;
+    const decodedValue = field.decode(rawValue);
+    if (decodedValue === null || decodedValue === undefined) {
+      if (field.optional && rawValue === field.missingRawValue) continue;
+      return null;
+    }
 
-  const primaryCount = FUEL_OPTIONS.length;
-  const secondaryCount = SECONDARY_FUEL_OPTIONS.length;
-  const inputSourceCount = INPUT_SOURCE_OPTIONS.length;
-  if (primaryIndex >= primaryCount || secondaryIndex >= secondaryCount || inputSourceIndex >= inputSourceCount) return null;
-  const primaryFuelId = FUEL_OPTIONS[primaryIndex]?.id;
-  const secondaryFuelId = SECONDARY_FUEL_OPTIONS[secondaryIndex]?.id;
-  const inputSourceId = INPUT_SOURCE_OPTIONS[inputSourceIndex]?.id;
+    decoded[field.key] = decodedValue;
+  }
 
-  if (!primaryFuelId || !secondaryFuelId || !inputSourceId) return null;
-
-  return {
-    targetPower,
-    minBatteryPercent,
-    maxWaste,
-    primaryFuelId,
-    secondaryFuelId,
-    inputSourceId,
-  };
+  return decoded;
 }
 
 export function getShareParamsFromUrl() {
@@ -145,9 +200,8 @@ export function buildShareUrl(params) {
 export const SHARE_LIMITS = {
   MAX_TARGET_POWER,
   MAX_MAX_WASTE,
-  MAX_PRIMARY_INDEX,
-  MAX_SECONDARY_INDEX,
-  MAX_INPUT_SOURCE_INDEX,
+  MIN_BRANCHES,
+  MAX_BRANCHES,
 };
 
 export { SHARE_PARAM_KEY };

@@ -9,6 +9,7 @@ import Announcement, { shouldShowAnnouncement } from './components/Announcement'
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import CloseButton from './components/CloseButton';
 import ShareModal from './components/ShareModal';
+import Icon from './components/Icon';
 import { FactoryDesigner } from './utils/FactoryDesigner';
 import { buildShareUrl, getShareParamsFromUrl } from './utils/shareParams';
 
@@ -21,6 +22,7 @@ const DEFAULT_PARAMS = {
   targetPower: 2656,
   minBatteryPercent: 5,
   maxWaste: 30,
+  maxBranches: 3,
   primaryFuelId: 'wulingLow',
   secondaryFuelId: 'none',
   inputSourceId: 'warehouse',
@@ -214,6 +216,7 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy }) {
         <Header
           onCalculate={runCalculation}
           onShare={handleOpenShareModal}
+          onShowStatus={showShareStatus}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
           onOpenAnnouncement={onOpenAnnouncement}
@@ -265,7 +268,7 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy }) {
             {/* 参数已修改未计算时的遮罩提示 */}
             {showDirtyOverlay && paramsDirty && (
               <div className="absolute inset-0 z-40 bg-endfield-black/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
-                <span className="material-symbols-outlined text-5xl text-endfield-yellow">sync_problem</span>
+                <Icon name="sync_problem" className="text-endfield-yellow" />
                 <p className="text-lg font-bold text-endfield-text-light tracking-wider">{t('paramsChanged')}</p>
                 <p className="text-sm text-endfield-text">{t('clickCalculateToUpdate')}</p>
                 <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 w-72 sm:w-[28rem]">
@@ -274,7 +277,7 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy }) {
                     className="min-h-10 px-3 py-2 bg-endfield-yellow hover:bg-endfield-yellow-glow hover:-translate-y-0.5 text-endfield-black font-bold tracking-wider uppercase transition-all flex items-center justify-center text-sm glow-yellow"
                   >
                     <span className="inline-flex items-center gap-2">
-                      <span className="material-symbols-outlined text-base">calculate</span>
+                      <Icon name="calculate" />
                       {t('calculate')}
                     </span>
                   </button>
@@ -288,7 +291,7 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy }) {
                       className="min-h-10 px-3 py-2 border border-endfield-yellow/40 text-endfield-yellow font-bold tracking-wider uppercase hover:bg-endfield-yellow/10 hover:-translate-y-0.5 transition-all flex items-center justify-center text-sm"
                     >
                       <span className="inline-flex items-center gap-2">
-                        <span className="material-symbols-outlined text-base">undo</span>
+                        <Icon name="undo" />
                         {t('restoreParams')}
                       </span>
                     </button>
@@ -344,7 +347,6 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy }) {
               onClick={handleDismissPrivacyFooter}
               label={t('close')}
               sizeClass="w-5 h-5"
-              iconClass="text-xs"
               className="absolute right-3 top-1/2 -translate-y-1/2"
             />
           </footer>

@@ -4,6 +4,7 @@ import { hasUnreadAnnouncementOrChangelog } from './Announcement';
 import { FUEL_OPTIONS, SECONDARY_FUEL_OPTIONS, INPUT_SOURCES, INPUT_SOURCE_OPTIONS, DEFAULT_INPUT_SOURCE_ID } from '../utils/constants';
 import { SHARE_LIMITS } from '../utils/shareParams';
 import CloseButton from './CloseButton';
+import Icon from './Icon';
 
 export default function Sidebar({ params, setParams, collapsed, onClose, onCalculate, onRandomCalculate, onOpenAnnouncement, onOpenPrivacyPolicy }) {
   const { t, locale, changeLocale, languageOptions } = useI18n();
@@ -52,6 +53,11 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
     }
     if (key === 'maxWaste') {
       const clamped = clampNumber(value, 0, SHARE_LIMITS.MAX_MAX_WASTE);
+      setParams(prev => ({ ...prev, [key]: clamped }));
+      return;
+    }
+    if (key === 'maxBranches') {
+      const clamped = clampNumber(value, SHARE_LIMITS.MIN_BRANCHES, SHARE_LIMITS.MAX_BRANCHES);
       setParams(prev => ({ ...prev, [key]: clamped }));
       return;
     }
@@ -145,7 +151,6 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
             onClick={onClose}
             label={t('close')}
             sizeClass="w-8 h-8"
-            iconClass="text-base"
           />
         </div>
         
@@ -154,7 +159,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
       {/* 目标发电量 */}
       <fieldset className="space-y-4 border-none p-0 m-0">
         <legend className="text-sm font-bold text-endfield-text uppercase tracking-widest flex items-center gap-2 p-0">
-          <span className="material-symbols-outlined text-base text-endfield-yellow" aria-hidden="true">target</span>
+          <Icon name="target" className="text-endfield-yellow" />
           {t('targetPower')}
         </legend>
         <div className="space-y-2">
@@ -180,7 +185,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
               title={t('random')}
               aria-label={t('random')}
             >
-              <span className="material-symbols-outlined text-base" aria-hidden="true">casino</span>
+              <Icon name="casino" />
             </button>
           </div>
         </div>
@@ -191,7 +196,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
       {/* 约束条件 */}
       <fieldset className="space-y-4 border-none p-0 m-0">
         <legend className="text-sm font-bold text-endfield-text uppercase tracking-widest flex items-center gap-2 p-0">
-          <span className="material-symbols-outlined text-base text-endfield-yellow" aria-hidden="true">tune</span>
+          <Icon name="tune" className="text-endfield-yellow" />
           {t('constraints')}
         </legend>
 
@@ -248,6 +253,34 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
             className="w-full bg-endfield-gray border border-endfield-gray-light px-3 py-2 text-sm text-endfield-text-light focus:border-endfield-yellow focus:outline-none"
           />
         </div>
+
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <label htmlFor="max-branches-input" className="text-sm text-endfield-text">{t('maxBranches')}</label>
+            <span className="text-sm text-endfield-text-light" aria-live="polite">{params.maxBranches ?? 3}</span>
+          </div>
+          <input
+            id="max-branches-input"
+            type="range"
+            min={SHARE_LIMITS.MIN_BRANCHES}
+            max={SHARE_LIMITS.MAX_BRANCHES}
+            step="1"
+            value={params.maxBranches ?? 3}
+            onChange={(e) => handleChange('maxBranches', parseInt(e.target.value, 10))}
+            className="w-full cursor-pointer"
+            aria-label={t('maxBranches')}
+            aria-valuemin={SHARE_LIMITS.MIN_BRANCHES}
+            aria-valuemax={SHARE_LIMITS.MAX_BRANCHES}
+            aria-valuenow={params.maxBranches ?? 3}
+          />
+          <div className="flex justify-between text-xs text-endfield-text/50 px-0.5">
+            <span>1</span>
+            <span>2</span>
+            <span>3</span>
+            <span>4</span>
+            <span>5</span>
+          </div>
+        </div>
       </fieldset>
 
       <div className="w-full shrink-0 border-t border-endfield-gray-light/90"></div>
@@ -255,7 +288,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
       {/* 燃料选择 */}
       <fieldset className="space-y-4 border-none p-0 m-0">
         <legend className="text-sm font-bold text-endfield-text uppercase tracking-widest flex items-center gap-2 p-0">
-          <span className="material-symbols-outlined text-base text-endfield-yellow" aria-hidden="true">local_gas_station</span>
+          <Icon name="local_gas_station" className="text-endfield-yellow" />
           {t('fuelConfig')}
         </legend>
 
@@ -285,9 +318,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
                   );
                 })()}
               </span>
-              <span className="material-symbols-outlined text-base" aria-hidden="true">
-                {showPrimaryFuelMenu ? 'expand_less' : 'expand_more'}
-              </span>
+              <Icon name={showPrimaryFuelMenu ? 'expand_less' : 'expand_more'} />
             </button>
 
             {showPrimaryFuelMenu && (
@@ -347,9 +378,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
                   );
                 })()}
               </span>
-              <span className="material-symbols-outlined text-base" aria-hidden="true">
-                {showSecondaryFuelMenu ? 'expand_less' : 'expand_more'}
-              </span>
+              <Icon name={showSecondaryFuelMenu ? 'expand_less' : 'expand_more'} />
             </button>
 
             {showSecondaryFuelMenu && (
@@ -391,7 +420,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
       {/* 输入来源 */}
       <fieldset className="space-y-2 border-none p-0 m-0">
         <legend className="text-sm font-bold text-endfield-text uppercase tracking-widest flex items-center gap-2 p-0">
-          <span className="material-symbols-outlined text-base text-endfield-yellow" aria-hidden="true">input</span>
+          <Icon name="input" className="text-endfield-yellow" />
           {t('inputSource')}
         </legend>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -424,7 +453,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
               aria-label={t('inputWarningPacker')}
               aria-haspopup="dialog"
             >
-              <span className="material-symbols-outlined text-sm leading-none" aria-hidden="true">info</span>
+              <Icon name="info" className="leading-none" />
             </button>
           )}
         </div>
@@ -458,7 +487,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
           onClick={() => onCalculate()}
           className="hidden md:flex w-full mt-4 h-10 bg-endfield-yellow hover:bg-endfield-yellow-glow hover:-translate-y-0.5 text-endfield-black font-bold tracking-wider uppercase transition-all items-center justify-center gap-2 text-sm glow-yellow shrink-0"
         >
-          <span className="material-symbols-outlined text-base">calculate</span>
+          <Icon name="calculate" />
           {t('calculate')}
         </button>
 
@@ -471,7 +500,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
             }}
             className="w-full h-10 bg-endfield-gray border border-endfield-gray-light hover:border-endfield-yellow transition-colors flex items-center justify-center gap-2 text-endfield-text-light hover:text-endfield-yellow"
           >
-            <span className="material-symbols-outlined text-xl">policy</span>
+            <Icon name="policy" />
             <span className="text-sm">{t('privacyPolicyDetails')}</span>
           </button>
           {/* 公告按钮 */}
@@ -482,12 +511,25 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
             }}
             className="relative w-full h-10 bg-endfield-gray border border-endfield-gray-light hover:border-endfield-yellow transition-colors flex items-center justify-center gap-2 text-endfield-text-light hover:text-endfield-yellow"
           >
-            <span className="material-symbols-outlined text-xl">campaign</span>
+            <Icon name="campaign" />
             <span className="text-sm">{t('announcement')}</span>
             {hasUnreadAnnouncementOrChangelog() && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
             )}
           </button>
+
+          {/* 加入 QQ 群 - 仅中文显示 */}
+          {locale === 'zh' && (
+            <a
+              href="https://qm.qq.com/q/zL6wp3emTQ"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full h-10 bg-endfield-gray border border-endfield-gray-light hover:border-endfield-yellow transition-colors flex items-center justify-center gap-2 text-endfield-text-light hover:text-endfield-yellow"
+            >
+              <Icon name="group" />
+              <span className="text-sm">{t('joinQQGroup')}</span>
+            </a>
+          )}
 
           {/* GitHub 链接 */}
           <a
@@ -496,9 +538,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
             rel="noopener noreferrer"
             className="w-full h-10 bg-endfield-gray border border-endfield-gray-light hover:border-endfield-yellow transition-colors flex items-center justify-center gap-2 text-endfield-text-light hover:text-endfield-yellow"
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-            </svg>
+            <Icon icon="mdi:github" />
             <span className="text-sm">GitHub</span>
           </a>
 
@@ -508,7 +548,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
               onClick={() => setShowLangMenu(!showLangMenu)}
               className="w-full h-10 bg-endfield-gray border border-endfield-gray-light hover:border-endfield-yellow transition-colors flex items-center justify-center gap-2 text-sm text-endfield-text-light"
             >
-              <span className="material-symbols-outlined text-base">language</span>
+              <Icon name="language" />
               <span>{(() => { const l = languageOptions.find(l => l.code === locale); return l ? l.nativeName : ''; })()}</span>
             </button>
 
@@ -542,7 +582,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
               onClick={scrollToCalcButton}
               className="pointer-events-auto px-4 py-1.5 bg-endfield-yellow/15 border border-endfield-yellow/40 hover:bg-endfield-yellow/25 transition-colors flex items-center gap-1.5 text-xs text-endfield-yellow tracking-wider"
             >
-              <span className="material-symbols-outlined text-sm">keyboard_double_arrow_down</span>
+              <Icon name="keyboard_double_arrow_down" />
               {t('scrollToCalculate')}
             </button>
           </div>
@@ -561,7 +601,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center gap-2 pb-3 border-b border-red-900/50">
-            <span className="material-symbols-outlined text-red-300">warning</span>
+            <Icon name="warning" className="text-red-300" />
             <h2 className="text-base font-bold text-endfield-text-light uppercase tracking-wider">
               {t('importantNote')}
             </h2>

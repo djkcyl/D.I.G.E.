@@ -1,4 +1,4 @@
-﻿# D.I.G.E.
+# D.I.G.E.
 
 D.I.G.E.（Dijiang Integrated Generator Efficiency）是一个面向《明日方舟：终末地》热能池系统的发电方案计算器，用于在目标功率、最小蓄电量与功率浪费约束下，自动求解可行且高效的发电配置。
 
@@ -114,7 +114,7 @@ scripts/
 - `SENTRY_ORG`
 - `SENTRY_PROJECT`
 
-当上述构建变量齐全时，Vite 构建阶段会自动启用 Sentry 插件上传发布信息。
+当上述构建变量齐全时，Vite 构建阶段会自动启用 Sentry 插件上传发布信息，并在上传后删除 dist 下的 .map 文件以减小部署体积。
 
 ## 贡献说明
 

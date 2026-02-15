@@ -1,4 +1,5 @@
 import { useI18n } from '../i18n';
+import Icon from './Icon';
 
 export default function ErrorState({ show, onDismiss }) {
   const { t } = useI18n();
@@ -9,7 +10,7 @@ export default function ErrorState({ show, onDismiss }) {
     <div className="fixed inset-0 bg-endfield-black/95 backdrop-blur z-50 flex items-center justify-center p-4">
       <div className="bg-endfield-gray border border-red-900/50 p-6 max-w-lg w-full relative flex flex-col gap-4 corner-mark">
         <div className="flex items-center gap-2 pb-3 border-b border-red-900/50">
-          <span className="material-symbols-outlined text-red-300">error</span>
+          <Icon name="error" className="text-red-300" />
           <h2 className="text-base font-bold text-endfield-text-light uppercase tracking-wider">
             {t('noSolutionFound')}
           </h2>

@@ -9,7 +9,7 @@
       {
         "type": "paragraph",
         "className": "mb-3 text-endfield-yellow/90",
-        "text": "Avancement du développement : le site poursuit la recherche sur les algorithmes de base et l’optimisation des solutions. En parallèle, nous améliorons la visualisation pour proposer un aperçu de blueprint plus intuitif, afin de faciliter la reproduction directe en jeu. Les mises à jour concernées seront déployées progressivement."
+        "text": "Avancement du développement : nous poursuivons la recherche sur les algorithmes de base et l’optimisation des plans. Les mises à jour concernées seront publiées progressivement."
       },
       {
         "type": "heading",
@@ -79,16 +79,27 @@
   "changelog": {
     "sections": [
       {
-        "version": "v1.7.0",
-        "title": "v1.7.0 Mises à jour",
+        "version": "v1.8.0",
+        "title": "v1.8.0 Mises à jour",
         "defaultOpen": true,
         "items": [
+          "Ajout du mode Blueprint pour afficher le plan en vue blueprint.",
+          "Ajout du paramètre « nombre maximal de branches » pour contrôler la complexité du plan."
+        ]
+      },
+      {
+        "version": "v1.7.0",
+        "title": "v1.7.0 Mises à jour",
+        "defaultOpen": false,
+        "items": [
+          "Bibliothèque d'icônes mise à jour pour un affichage plus cohérent",
           "Amélioration de l'espacement pour le texte CJK mixte",
           "Menu de langues simplifié, affichant uniquement les noms natifs",
           "Barre latérale élargie pour un meilleur affichage des textes longs",
           "Indication de défilement pour trouver le bouton Calculer",
           "Rappel intelligent après modification des paramètres (calculer/restaurer/ignorer)",
-          "Diverses améliorations des boutons et animations"
+          "Diverses améliorations des boutons et animations",
+          "Ajout de la fonction de rejoindre le groupe QQ (interface chinoise uniquement)"
         ]
       },
       {

@@ -1,4 +1,5 @@
 import { useI18n } from '../i18n';
+import Icon from './Icon';
 
 export default function PrivacyPolicyModal({ show, onClose }) {
   const { t } = useI18n();
@@ -9,7 +10,7 @@ export default function PrivacyPolicyModal({ show, onClose }) {
     <div className="fixed inset-0 bg-endfield-black/95 backdrop-blur z-50 flex items-center justify-center p-4">
       <div className="bg-endfield-gray border border-endfield-yellow/30 p-6 max-w-2xl w-full relative max-h-[90vh] flex flex-col">
         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-endfield-gray-light">
-          <span className="material-symbols-outlined text-endfield-yellow">policy</span>
+          <Icon name="policy" className="text-endfield-yellow" />
           <h2 className="text-base font-bold text-endfield-text-light uppercase tracking-wider">
             {t('privacyPolicyTitle')}
           </h2>

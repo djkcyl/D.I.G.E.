@@ -110,6 +110,49 @@ scripts/
 
 ---
 
+## 更新日志（Changelog）编写规范
+
+更新日志位于 `src/i18n/announcement/locales.*.json`，面向终端用户展示。
+
+### 编写原则
+
+| 规则 | 说明 |
+|------|------|
+| 面向用户 | 用用户能理解的语言描述，避免技术实现细节（如 Header、侧边栏、API 等） |
+| 简洁明了 | 每条更新一句话概括，不冗长 |
+| 语言限制 | 若功能仅在特定语言/地区可用，需明确说明（如「仅中文界面显示」） |
+| 同步更新 | 新增或修改条目时，必须同步更新 zh / en / ja / ko / ru / fr / de 七种语言 |
+
+### 示例
+
+- 好的：`新增加入 QQ 群功能，方便交流（仅中文界面显示）`
+- 好的：`Added QQ group join feature (Chinese only)`
+- 坏的：`新增中文用户 QQ 群入口（Header 悬停二维码、侧边栏、公告）`（技术细节、用户不关心）
+
+### 版本号与更新日志
+
+| 规则 | 说明 |
+|------|------|
+| package.json | 版本号按实际发布更新（如 1.7.1 → 1.7.2） |
+| changelog | **不新增新版本条目**。新内容追加到当前大版本的 `items` 里（如 v1.7.0），不要新增 v1.7.2 等小节 |
+
+### 文件位置
+
+```
+src/i18n/announcement/
+├── locales.zh.json
+├── locales.en.json
+├── locales.ja.json
+├── locales.ko.json
+├── locales.ru.json
+├── locales.fr.json
+└── locales.de.json
+```
+
+changelog 结构：`changelog.sections[].items` 为字符串数组，按版本分组。
+
+---
+
 ## 通用开发规范
 
 ### 代码风格
@@ -128,4 +171,16 @@ scripts/
 - 运行 `pnpm run i18n translate` 确认翻译同步
 - 确保无 linter 错误
 - 不提交包含 secrets 的文件
+
+### 提交信息（Commit Message）
+
+采用 Conventional Commits，英文小写：
+
+| 类型 | 格式 | 示例 |
+|------|------|------|
+| 功能 | `feat(scope): 描述` | `feat(v1.7.1): add QQ group entry for Chinese users` |
+| 修复 | `fix: 描述` | `fix: prevent auto-translate DOM mutation` |
+| 重构 | `refactor(scope): 描述` | `refactor(i18n): merge translate and prune into unified CLI` |
+
+版本发布时 scope 使用 `v1.x.x`。
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useI18n } from '../i18n';
+import Icon from './Icon';
 
 export default function ShareModal({ show, shareUrl, onClose, onCopy, onShare }) {
   const { t } = useI18n();
@@ -32,7 +33,7 @@ export default function ShareModal({ show, shareUrl, onClose, onCopy, onShare })
     <div className="fixed inset-0 bg-endfield-black/95 backdrop-blur z-50 flex items-center justify-center p-4">
       <div className="bg-endfield-gray border border-endfield-yellow/30 p-4 sm:p-5 max-w-xl w-full relative flex flex-col gap-2.5">
         <div className="flex items-center gap-2 pb-3 border-b border-endfield-gray-light">
-          <span className="material-symbols-outlined text-endfield-yellow">share</span>
+          <Icon name="share" className="text-endfield-yellow" />
           <h2 className="text-base font-bold text-endfield-text-light uppercase tracking-wider">
             {t('shareLinkTitle')}
           </h2>
@@ -58,7 +59,7 @@ export default function ShareModal({ show, shareUrl, onClose, onCopy, onShare })
             onClick={onCopy}
             className="h-10 bg-endfield-yellow hover:bg-endfield-yellow-glow text-endfield-black font-bold tracking-wider transition-all flex items-center justify-center gap-2 text-sm"
           >
-            <span className="material-symbols-outlined text-base">content_copy</span>
+            <Icon name="content_copy" />
             {t('copyLink')}
           </button>
 
@@ -71,7 +72,7 @@ export default function ShareModal({ show, shareUrl, onClose, onCopy, onShare })
                 : 'bg-endfield-gray/40 text-endfield-text/40 cursor-not-allowed'
             }`}
           >
-            <span className="material-symbols-outlined text-base">ios_share</span>
+            <Icon name="ios_share" />
             {t('shareSystem')}
           </button>
         </div>

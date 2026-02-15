@@ -1,111 +1,242 @@
-import { 
-  FUELS, 
-  CONSTANTS, 
+import {
+  FUELS,
+  CONSTANTS,
   INPUT_SOURCES,
   DEFAULT_INPUT_SOURCE_ID,
-  getFullBeltPower, 
   getOscillatingPower,
-  getGeneratorsPerBelt,
-  generateValidDenominators,
-  analyzeSplitterComplexity 
+  analyzeSplitterComplexity,
 } from './constants';
 
-/**
- * 工厂设计器 - 计算最优发电方案
- */
-export class FactoryDesigner {
-  constructor(params) {
-    this.targetPower = params.targetPower;           // 目标发电量 (w)
-    this.minBatteryPercent = params.minBatteryPercent; // 最小蓄电量 (%)
-    this.maxWaste = params.maxWaste;                 // 功率浪费上限 (w)
-    this.primaryFuel = FUELS[params.primaryFuelId];  // 主燃料
-    this.secondaryFuel = params.secondaryFuelId !== 'none' ? FUELS[params.secondaryFuelId] : null; // 副燃料
-    const inputSourceId = params.inputSourceId || DEFAULT_INPUT_SOURCE_ID;
-    this.inputSource = INPUT_SOURCES[inputSourceId] || INPUT_SOURCES[DEFAULT_INPUT_SOURCE_ID];
-    this.inputSpeed = this.inputSource.speed;
-    this.inputInterval = this.inputSource.interval;
-    this.batteryCapacity = CONSTANTS.BATTERY_CAPACITY;
-    
-    this.validDenominators = generateValidDenominators();
+const PART_FACE = {
+  UP: 'UP',
+  DOWN: 'DOWN',
+  LEFT: 'LEFT',
+  RIGHT: 'RIGHT',
+};
+
+const PART_FUNCTION = {
+  INPUT: 'INPUT',
+  OUTPUT: 'OUTPUT',
+  RECYCLE: 'RECYCLE',
+};
+
+function createPart(partId, face, partFunction = null) {
+  if (partFunction) {
+    return { partId, face, function: partFunction };
+  }
+  return { partId, face };
+}
+
+function buildBranchBlueprint(threeWay, twoWay) {
+  const totalColumns = 1 + threeWay + twoWay + 1;
+  const grid = Array.from({ length: 5 }, () => Array(totalColumns).fill(null));
+
+  // Row 3: Input -> splitters -> thermal bank
+  grid[2][0] = createPart('input_source', PART_FACE.RIGHT, PART_FUNCTION.INPUT);
+  let col = 1;
+
+  for (let i = 0; i < threeWay; i += 1) {
+    grid[2][col] = createPart('splitter', PART_FACE.RIGHT);
+    grid[0][col] = createPart('converger', PART_FACE.LEFT);
+    grid[4][col] = createPart('converger', PART_FACE.LEFT);
+    grid[1][col] = createPart('belt', PART_FACE.UP);
+    grid[3][col] = createPart('belt', PART_FACE.DOWN);
+    col += 1;
   }
 
-  // 最大公约数
+  for (let i = 0; i < twoWay; i += 1) {
+    grid[2][col] = createPart('splitter', PART_FACE.RIGHT);
+    grid[0][col] = createPart('converger', PART_FACE.LEFT);
+    grid[1][col] = createPart('belt', PART_FACE.UP);
+    col += 1;
+  }
+
+  grid[2][col] = createPart('thermal_bank', PART_FACE.RIGHT, PART_FUNCTION.OUTPUT);
+
+  grid[0][0] = createPart('recycle_source', PART_FACE.RIGHT, PART_FUNCTION.RECYCLE);
+  if (grid[4].some((cell) => cell !== null)) {
+    grid[4][0] = createPart('recycle_source', PART_FACE.RIGHT, PART_FUNCTION.RECYCLE);
+  }
+
+  for (let idx = totalColumns - 1; idx >= 0; idx -= 1) {
+    if (grid[0][idx]?.partId === 'converger') {
+      grid[0][idx] = createPart('left_turn_belt', PART_FACE.UP);
+      break;
+    }
+  }
+  for (let idx = totalColumns - 1; idx >= 0; idx -= 1) {
+    if (grid[4][idx]?.partId === 'converger') {
+      grid[4][idx] = createPart('right_turn_belt', PART_FACE.DOWN);
+      break;
+    }
+  }
+
+  return grid;
+}
+
+function buildSolutionOutput({
+  baseConfig,
+  primaryFuel,
+  targetPower,
+  inputInterval,
+  inputSourceId,
+  batteryCapacity,
+  baseFuelPerSec,
+  solution,
+  oscillatingFuelPerSec,
+}) {
+  if (!solution) {
+    return {
+      baseConfig,
+      baseFuel: primaryFuel,
+      oscillating: null,
+      oscillatingFuel: null,
+      fuel: primaryFuel,
+      isPrimary: true,
+      inputInterval,
+      inputSourceId,
+      avgPower: baseConfig.totalPower,
+      waste: baseConfig.totalPower - targetPower,
+      variance: 0,
+      period: 0,
+      minBattery: batteryCapacity,
+      minBatteryPercent: 100,
+      branchCount: 0,
+      totalSplitters: 0,
+      batteryLog: [batteryCapacity],
+      powerLog: [baseConfig.totalPower],
+      burnStateLog: [],
+      preciseBatteryLog: [batteryCapacity],
+      precisePowerLog: [baseConfig.totalPower],
+      preciseBurnStateLog: [],
+      fuelConsumption: {
+        base: {
+          fuel: primaryFuel,
+          perSecond: baseFuelPerSec,
+          perMinute: baseFuelPerSec * 60,
+          perHour: baseFuelPerSec * 3600,
+          perDay: baseFuelPerSec * 86400,
+        },
+        oscillating: {
+          fuel: null,
+          perSecond: 0,
+          perMinute: 0,
+          perHour: 0,
+          perDay: 0,
+        },
+      },
+    };
+  }
+
+  return {
+    baseConfig,
+    baseFuel: primaryFuel,
+    oscillating: solution.branches,
+    oscillatingFuel: solution.fuel,
+    fuel: solution.fuel,
+    isPrimary: solution.isPrimary,
+    inputInterval,
+    inputSourceId,
+    avgPower: solution.avgPower,
+    waste: solution.waste,
+    variance: solution.variance,
+    period: solution.period,
+    minBattery: solution.minBattery,
+    minBatteryPercent: solution.minBatteryPercent,
+    branchCount: solution.branchCount,
+    totalSplitters: solution.totalSplitters,
+    batteryLog: solution.batteryLog,
+    powerLog: solution.powerLog,
+    burnStateLog: solution.burnStateLog,
+    preciseBatteryLog: solution.preciseBatteryLog,
+    precisePowerLog: solution.precisePowerLog,
+    preciseBurnStateLog: solution.preciseBurnStateLog,
+    fuelConsumption: {
+      base: {
+        fuel: primaryFuel,
+        perSecond: baseFuelPerSec,
+        perMinute: baseFuelPerSec * 60,
+        perHour: baseFuelPerSec * 3600,
+        perDay: baseFuelPerSec * 86400,
+      },
+      oscillating: {
+        fuel: solution.fuel,
+        perSecond: oscillatingFuelPerSec,
+        perMinute: oscillatingFuelPerSec * 60,
+        perHour: oscillatingFuelPerSec * 3600,
+        perDay: oscillatingFuelPerSec * 86400,
+      },
+    },
+  };
+}
+
+class PowerCycleSimulator {
+  constructor({ targetPower, minBatteryPercent, batteryCapacity, inputInterval }) {
+    this.targetPower = targetPower;
+    this.minBatteryPercent = minBatteryPercent;
+    this.batteryCapacity = batteryCapacity;
+    this.inputInterval = inputInterval;
+  }
+
   _gcd(a, b) {
-    return !b ? a : this._gcd(b, a % b);
+    return b === 0 ? a : this._gcd(b, a % b);
   }
 
-  // 最小公倍数
   _lcm(a, b) {
-    if (a === 0 || b === 0) return 0;
+    if (a === 0 || b === 0) {
+      return 0;
+    }
     return Math.abs(a * b) / this._gcd(a, b);
   }
 
-  // 计算周期（秒）
-  _getCyclePeriod(denominators, fuel) {
-    if (denominators.length === 0) return this.inputInterval;
-    // 所有分支的输入间隔的最小公倍数
-    const intervals = denominators.map(d => this.inputInterval * d);
-    return intervals.reduce((acc, val) => this._lcm(acc, val), this.inputInterval);
-  }
-
-  // 计算基础发电配置
-  calculateBasePower() {
-    const basePower = CONSTANTS.BASE_POWER;
-    const fuelPower = getFullBeltPower(this.primaryFuel);
-    const gensPerBelt = getGeneratorsPerBelt(this.primaryFuel, this.inputSpeed);
-    
-    // 需要补充的功率
-    const needed = this.targetPower - basePower;
-    if (needed <= 0) {
-      return { generators: 0, totalPower: basePower, belts: 0 };
+  _getCyclePeriod(denominators) {
+    if (denominators.length === 0) {
+      return this.inputInterval;
     }
-    
-    // 需要多少个满带发电机
-    const generators = Math.floor(needed / fuelPower);
-    const totalPower = basePower + generators * fuelPower;
-    // 需要多少条传送带
-    const belts = Math.ceil(generators / gensPerBelt);
-    
-    return { generators, totalPower, belts };
+
+    const intervals = denominators.map((d) => this.inputInterval * d);
+    let period = this.inputInterval;
+    for (const interval of intervals) {
+      period = this._lcm(period, interval);
+    }
+    return period;
   }
 
-  // 模拟一个周期的发电
   simulateCycle(baseConfig, oscillatingBranches, fuel) {
-    const period = this._getCyclePeriod(oscillatingBranches.map(b => b.denominator), fuel);
-    
-    if (period > 100000) return { success: false, reason: 'period_too_long' };
-    
+    const period = this._getCyclePeriod(oscillatingBranches.map((b) => b.denominator));
+    if (period > 100000) {
+      return { success: false, reason: 'period_too_long' };
+    }
+
     const numCycles = 3;
     const totalDuration = period * numCycles;
-    
-    // 记录每个时刻的发电功率
-    const powerTimeline = new Array(Math.ceil(totalDuration)).fill(0);
-    // 记录每个分支（每个振荡电池）的燃烧状态：1=燃烧中，0=未燃烧
-    const branchBurnTimeline = oscillatingBranches.map(() => new Array(Math.ceil(totalDuration)).fill(0));
-    
-    // 模拟每个震荡分支
+    const timelineSize = Math.ceil(totalDuration);
+
+    const powerTimeline = new Array(timelineSize).fill(0);
+    const branchBurnTimeline = oscillatingBranches.map(() => new Array(timelineSize).fill(0));
+
     for (const [branchIndex, branch] of oscillatingBranches.entries()) {
       const inputInterval = this.inputInterval * branch.denominator;
       let lastBurnEnd = 0;
-      
+
       for (let t = 0; t < totalDuration; t += inputInterval) {
         const burnStart = Math.max(t, lastBurnEnd);
         const burnEnd = burnStart + fuel.burnTime;
         lastBurnEnd = burnEnd;
-        
-        for (let i = Math.floor(burnStart); i < Math.min(Math.ceil(burnEnd), totalDuration); i++) {
+
+        const start = Math.floor(burnStart);
+        const end = Math.min(Math.ceil(burnEnd), totalDuration);
+        for (let i = start; i < end; i += 1) {
           powerTimeline[i] += fuel.power;
           branchBurnTimeline[branchIndex][i] = 1;
         }
       }
     }
-    
-    // 计算统计数据
+
     const checkStart = Math.floor(totalDuration - period);
-    const cyclePower = powerTimeline.slice(checkStart, Math.floor(totalDuration));
-    
-    // 模拟电池状态
-    const minBattRequired = this.batteryCapacity * this.minBatteryPercent / 100;
+    const cyclePower = powerTimeline.slice(checkStart, totalDuration);
+
+    const minBatteryRequired = (this.batteryCapacity * this.minBatteryPercent) / 100;
     let battery = this.batteryCapacity;
     let minBattery = battery;
     const batteryLog = [];
@@ -114,50 +245,62 @@ export class FactoryDesigner {
     const preciseBatteryLog = [];
     const precisePowerLog = [];
     const preciseBurnStateLog = oscillatingBranches.map(() => []);
-    
-    // 预热
-    for (let t = 0; t < checkStart; t++) {
+
+    for (let t = 0; t < checkStart; t += 1) {
       const supply = baseConfig.totalPower + powerTimeline[t];
-      battery += (supply - this.targetPower);
-      if (battery > this.batteryCapacity) battery = this.batteryCapacity;
-      if (battery < 0) return { success: false, reason: 'battery_depleted_preheat' };
+      battery += supply - this.targetPower;
+      if (battery > this.batteryCapacity) {
+        battery = this.batteryCapacity;
+      }
+      if (battery < 0) {
+        return { success: false, reason: 'battery_depleted_preheat' };
+      }
     }
-    
-    // 正式周期
-    for (let t = checkStart; t < totalDuration; t++) {
+
+    const sampleStep = period >= 2000 ? Math.ceil(period / 500) : 1;
+    for (let t = checkStart; t < totalDuration; t += 1) {
       const supply = baseConfig.totalPower + powerTimeline[t];
-      const net = supply - this.targetPower;
-      battery += net;
-      
-      if (battery > this.batteryCapacity) battery = this.batteryCapacity;
-      if (battery < minBattery) minBattery = battery;
-      
-      // 采样记录
-      if (period < 2000 || ((t - checkStart) % Math.ceil(period / 500) === 0)) {
+      battery += supply - this.targetPower;
+
+      if (battery > this.batteryCapacity) {
+        battery = this.batteryCapacity;
+      }
+      if (battery < minBattery) {
+        minBattery = battery;
+      }
+
+      if (period < 2000 || (t - checkStart) % sampleStep === 0) {
         batteryLog.push(battery);
         powerLog.push(supply);
-        for (let i = 0; i < burnStateLog.length; i++) {
-          burnStateLog[i].push(branchBurnTimeline[i][t] || 0);
+        for (let i = 0; i < burnStateLog.length; i += 1) {
+          burnStateLog[i].push(branchBurnTimeline[i][t]);
         }
       }
 
-      // Always keep 1-second logs for precise chart mode.
       preciseBatteryLog.push(battery);
       precisePowerLog.push(supply);
-      for (let i = 0; i < preciseBurnStateLog.length; i++) {
-        preciseBurnStateLog[i].push(branchBurnTimeline[i][t] || 0);
+      for (let i = 0; i < preciseBurnStateLog.length; i += 1) {
+        preciseBurnStateLog[i].push(branchBurnTimeline[i][t]);
       }
-      
-      if (battery < minBattRequired) {
-        return { success: false, reason: 'battery_below_min', minBattery };
+
+      if (battery < minBatteryRequired) {
+        return {
+          success: false,
+          reason: 'battery_below_min',
+          minBattery,
+        };
       }
     }
-    
-    // 计算平均功率和方差
-    const avgPower = cyclePower.reduce((a, b) => a + b, 0) / cyclePower.length + baseConfig.totalPower;
-    const variance = cyclePower.reduce((sum, p) => sum + Math.pow(p - (avgPower - baseConfig.totalPower), 2), 0) / cyclePower.length;
+
+    const avgPower =
+      cyclePower.reduce((sum, p) => sum + p, 0) / cyclePower.length + baseConfig.totalPower;
+    const variance =
+      cyclePower.reduce(
+        (sum, p) => sum + Math.pow(p - (avgPower - baseConfig.totalPower), 2),
+        0,
+      ) / cyclePower.length;
     const waste = avgPower - this.targetPower;
-    
+
     return {
       success: true,
       period,
@@ -174,45 +317,105 @@ export class FactoryDesigner {
       preciseBurnStateLog,
     };
   }
+}
 
-  // 生成组合
-  _getCombinations(arr, len) {
-    if (len === 1) return arr.map(x => [x]);
-    const combs = [];
-    arr.forEach((v, i) => {
-      const sub = this._getCombinations(arr.slice(i), len - 1);
-      sub.forEach(s => combs.push([v, ...s]));
+/**
+ * 工厂设计器 - 计算最优发电方案
+ */
+export class FactoryDesigner {
+  constructor(params) {
+    this.targetPower = params.targetPower;
+    this.minBatteryPercent = params.minBatteryPercent;
+    this.maxWaste = params.maxWaste;
+    this.primaryFuel = FUELS[params.primaryFuelId];
+    this.secondaryFuel = params.secondaryFuelId !== 'none' ? FUELS[params.secondaryFuelId] : null;
+
+    const inputSourceId = params.inputSourceId || DEFAULT_INPUT_SOURCE_ID;
+    this.inputSource = INPUT_SOURCES[inputSourceId] || INPUT_SOURCES[DEFAULT_INPUT_SOURCE_ID];
+    this.inputInterval = this.inputSource.interval;
+    this.batteryCapacity = CONSTANTS.BATTERY_CAPACITY;
+    this.maxBranches =
+      Number.isInteger(params.maxBranches) && params.maxBranches > 0 ? params.maxBranches : 3;
+
+    this.validDenominators = this._generateValidDenominators();
+    this.simulator = new PowerCycleSimulator({
+      targetPower: this.targetPower,
+      minBatteryPercent: this.minBatteryPercent,
+      batteryCapacity: this.batteryCapacity,
+      inputInterval: this.inputInterval,
     });
-    return combs;
   }
 
-  // 计算单个燃料的震荡方案
+  _generateValidDenominators() {
+    const denominators = [];
+    for (let x = 0; x < 10; x += 1) {
+      for (let y = 0; y < 7; y += 1) {
+        const value = Math.pow(2, x) * Math.pow(3, y);
+        if (value > 1 && value <= 512) {
+          denominators.push(value);
+        }
+      }
+    }
+    return denominators.sort((a, b) => a - b);
+  }
+
+  calculateBasePower() {
+    const inputSpeed = this.inputInterval > 0 ? 1 / this.inputInterval : 0;
+    const gensPerBelt = inputSpeed * this.primaryFuel.burnTime;
+    const needed = this.targetPower - CONSTANTS.BASE_POWER;
+
+    if (needed <= 0) {
+      return { generators: 0, totalPower: CONSTANTS.BASE_POWER, belts: 0 };
+    }
+
+    const generators = Math.floor(needed / this.primaryFuel.power);
+    const totalPower = CONSTANTS.BASE_POWER + generators * this.primaryFuel.power;
+    const belts = gensPerBelt > 0 ? Math.ceil(generators / gensPerBelt) : 0;
+
+    return { generators, totalPower, belts };
+  }
+
+  _getCombinations(arr, length) {
+    if (length === 1) {
+      return arr.map((x) => [x]);
+    }
+
+    const combinations = [];
+    arr.forEach((v, i) => {
+      const subs = this._getCombinations(arr.slice(i), length - 1);
+      subs.forEach((sub) => combinations.push([v, ...sub]));
+    });
+    return combinations;
+  }
+
   calculateOscillatingPlans(fuel, baseConfig, isPrimary) {
     const gap = this.targetPower - baseConfig.totalPower;
-    if (gap <= 0) return [];
-    
+    if (gap <= 0) {
+      return [];
+    }
+
     const solutions = [];
-    const maxBranches = 3;
-    
-    for (let r = 1; r <= maxBranches; r++) {
-      const combos = this._getCombinations(this.validDenominators, r);
-      
-      for (const combo of combos) {
-        // 计算理论平均功率
-        const theoryPower = combo.reduce((acc, d) => acc + getOscillatingPower(fuel, d, this.inputInterval), 0);
+    for (let r = 1; r <= this.maxBranches; r += 1) {
+      const combinations = this._getCombinations(this.validDenominators, r);
+
+      for (const combo of combinations) {
+        const theoryPower = combo.reduce(
+          (sum, d) => sum + getOscillatingPower(fuel, d, this.inputInterval),
+          0,
+        );
         const theoryTotal = baseConfig.totalPower + theoryPower;
         const theoryWaste = theoryTotal - this.targetPower;
-        
-        // 快速过滤：只接受正溢出的方案（负溢出会断电）
-        if (theoryWaste < 0 || theoryWaste > this.maxWaste + 10) continue;
-        
-        const branches = combo.map(d => ({ denominator: d, fuel }));
-        const result = this.simulateCycle(baseConfig, branches, fuel);
-        
-        if (result.success && result.waste <= this.maxWaste && result.waste >= 0) {
-          const complexity = combo.map(d => analyzeSplitterComplexity(d));
+        if (theoryWaste < 0 || theoryWaste > this.maxWaste + 10) {
+          continue;
+        }
+
+        const branches = combo.map((d) => ({ denominator: d, fuel }));
+        const result = this.simulator.simulateCycle(baseConfig, branches, fuel);
+
+        if (result.success && result.waste != null && result.waste >= 0 && result.waste <= this.maxWaste) {
+          const complexity = combo.map((d) => analyzeSplitterComplexity(d));
           const totalSplitters = complexity.reduce((sum, c) => sum + c.total, 0);
-          
+
           solutions.push({
             fuel,
             isPrimary,
@@ -220,151 +423,107 @@ export class FactoryDesigner {
               denominator: d,
               power: getOscillatingPower(fuel, d, this.inputInterval),
               complexity: complexity[i],
+              blueprint: buildBranchBlueprint(complexity[i].threeWay, complexity[i].twoWay),
             })),
             branchCount: combo.length,
             totalSplitters,
-            ...result,
+            period: result.period ?? 0,
+            avgPower: result.avgPower ?? 0,
+            waste: result.waste ?? 0,
+            variance: result.variance ?? 0,
+            minBattery: result.minBattery ?? 0,
+            minBatteryPercent: result.minBatteryPercent ?? 0,
+            batteryLog: result.batteryLog ?? [],
+            powerLog: result.powerLog ?? [],
+            burnStateLog: result.burnStateLog ?? [],
+            preciseBatteryLog: result.preciseBatteryLog ?? [],
+            precisePowerLog: result.precisePowerLog ?? [],
+            preciseBurnStateLog: result.preciseBurnStateLog ?? [],
           });
         }
       }
     }
-    
+
     return solutions;
   }
 
-  // 主求解函数
   solve() {
-    // 1. 计算基础发电配置
     const baseConfig = this.calculateBasePower();
-    
-    // 2. 如果基础发电已足够
+
     if (baseConfig.totalPower >= this.targetPower) {
       const waste = baseConfig.totalPower - this.targetPower;
       if (waste <= this.maxWaste) {
-        // 计算基础发电的燃料消耗
-        const baseFuelPerSec = baseConfig.generators > 0 ? 
-          (baseConfig.generators / getGeneratorsPerBelt(this.primaryFuel, this.inputSpeed)) * this.inputSpeed : 0;
-        
-        return [{
-          baseConfig,
-          baseFuel: this.primaryFuel,  // 基础发电燃料
-          oscillating: null,
-          oscillatingFuel: null,       // 震荡发电燃料
-          fuel: this.primaryFuel,      // 保持兼容
-          isPrimary: true,
-          inputSourceId: this.inputSource.id,
-          avgPower: baseConfig.totalPower,
-          waste,
-          variance: 0,
-          period: 0,
-          minBatteryPercent: 100,
-          branchCount: 0,
-          totalSplitters: 0,
-          batteryLog: [this.batteryCapacity],
-          powerLog: [baseConfig.totalPower],
-          burnStateLog: [],
-          preciseBatteryLog: [this.batteryCapacity],
-          precisePowerLog: [baseConfig.totalPower],
-          preciseBurnStateLog: [],
-          fuelConsumption: {
-            base: {
-              fuel: this.primaryFuel,
-              perSecond: baseFuelPerSec,
-              perMinute: baseFuelPerSec * 60,
-              perHour: baseFuelPerSec * 3600,
-              perDay: baseFuelPerSec * 86400,
-            },
-            oscillating: {
-              fuel: null,
-              perSecond: 0,
-              perMinute: 0,
-              perHour: 0,
-              perDay: 0,
-            },
-          },
-        }];
+        const baseFuelPerSec =
+          baseConfig.generators > 0 ? baseConfig.generators / this.primaryFuel.burnTime : 0;
+        return [
+          buildSolutionOutput({
+            baseConfig,
+            primaryFuel: this.primaryFuel,
+            targetPower: this.targetPower,
+            inputInterval: this.inputInterval,
+            inputSourceId: this.inputSource.id,
+            batteryCapacity: this.batteryCapacity,
+            baseFuelPerSec,
+            solution: null,
+            oscillatingFuelPerSec: 0,
+          }),
+        ];
       }
     }
-    
-    // 3. 计算震荡发电方案
-    let allSolutions = [];
-    
-    // 使用主燃料的方案
-    const primarySolutions = this.calculateOscillatingPlans(this.primaryFuel, baseConfig, true);
-    allSolutions.push(...primarySolutions);
-    
-    // 使用副燃料的方案（如果有）
+
+    const allSolutions = [];
+    allSolutions.push(...this.calculateOscillatingPlans(this.primaryFuel, baseConfig, true));
     if (this.secondaryFuel) {
-      const secondarySolutions = this.calculateOscillatingPlans(this.secondaryFuel, baseConfig, false);
-      allSolutions.push(...secondarySolutions);
+      allSolutions.push(...this.calculateOscillatingPlans(this.secondaryFuel, baseConfig, false));
     }
-    
-    // 4. 排序：路数少 > 方差小 > 浪费少 > 仅使用主燃料
+
     allSolutions.sort((a, b) => {
-      // 路数少优先
-      if (a.branchCount !== b.branchCount) return a.branchCount - b.branchCount;
-      // 方差小优先
-      if (Math.abs(a.variance - b.variance) > 0.1) return a.variance - b.variance;
-      // 浪费少优先
-      if (Math.abs(a.waste - b.waste) > 0.1) return a.waste - b.waste;
-      // 主燃料优先
-      if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+      const keyA = [
+        a.branchCount,
+        Math.round(a.variance * 10) / 10,
+        Math.round(a.waste * 10) / 10,
+        a.isPrimary ? 0 : 1,
+      ];
+      const keyB = [
+        b.branchCount,
+        Math.round(b.variance * 10) / 10,
+        Math.round(b.waste * 10) / 10,
+        b.isPrimary ? 0 : 1,
+      ];
+      for (let i = 0; i < keyA.length; i += 1) {
+        if (keyA[i] !== keyB[i]) {
+          return keyA[i] - keyB[i];
+        }
+      }
       return 0;
     });
-    
-    // 5. 返回前5个方案
-    const topSolutions = allSolutions.slice(0, 5).map(sol => {
-      // 计算燃料消耗
-      // 基础发电消耗（主燃料）：每条带消耗 = BELT_SPEED 个/秒
-      const baseFuelPerSec = baseConfig.generators > 0 ? 
-        (baseConfig.generators / getGeneratorsPerBelt(this.primaryFuel, this.inputSpeed)) * this.inputSpeed : 0;
-      
-      // 震荡发电消耗（可能是主燃料或副燃料）
-      const oscillatingFuelPerSec = sol.branches ? 
-        sol.branches.reduce((sum, b) => sum + 1 / (this.inputInterval * b.denominator), 0) : 0;
-      
-      return {
-        baseConfig,
-        baseFuel: this.primaryFuel,     // 基础发电始终使用主燃料
-        oscillating: sol.branches,
-        oscillatingFuel: sol.fuel,      // 震荡发电燃料
-        fuel: sol.fuel,                 // 保持兼容
-        isPrimary: sol.isPrimary,
-        inputSourceId: this.inputSource.id,
-        avgPower: sol.avgPower,
-        waste: sol.waste,
-        variance: sol.variance,
-        period: sol.period,
-        minBattery: sol.minBattery,
-        minBatteryPercent: sol.minBatteryPercent,
-        branchCount: sol.branchCount,
-        totalSplitters: sol.totalSplitters,
-        batteryLog: sol.batteryLog,
-        powerLog: sol.powerLog,
-        burnStateLog: sol.burnStateLog,
-        preciseBatteryLog: sol.preciseBatteryLog,
-        precisePowerLog: sol.precisePowerLog,
-        preciseBurnStateLog: sol.preciseBurnStateLog,
-        // 燃料消耗数据 - 分别记录
-        fuelConsumption: {
-          base: {
-            fuel: this.primaryFuel,
-            perSecond: baseFuelPerSec,
-            perMinute: baseFuelPerSec * 60,
-            perHour: baseFuelPerSec * 3600,
-            perDay: baseFuelPerSec * 86400,
-          },
-          oscillating: {
-            fuel: sol.fuel,
-            perSecond: oscillatingFuelPerSec,
-            perMinute: oscillatingFuelPerSec * 60,
-            perHour: oscillatingFuelPerSec * 3600,
-            perDay: oscillatingFuelPerSec * 86400,
-          },
-        },
-      };
-    });
-    
-    return topSolutions;
+
+    const outputs = [];
+    for (const solution of allSolutions.slice(0, 5)) {
+      const baseFuelPerSec =
+        baseConfig.generators > 0 ? baseConfig.generators / this.primaryFuel.burnTime : 0;
+      const oscillatingFuelPerSec = solution.branches
+        ? solution.branches.reduce(
+          (sum, branch) => sum + 1 / (this.inputInterval * branch.denominator),
+          0,
+        )
+        : 0;
+
+      outputs.push(
+        buildSolutionOutput({
+          baseConfig,
+          primaryFuel: this.primaryFuel,
+          targetPower: this.targetPower,
+          inputInterval: this.inputInterval,
+          inputSourceId: this.inputSource.id,
+          batteryCapacity: this.batteryCapacity,
+          baseFuelPerSec,
+          solution,
+          oscillatingFuelPerSec,
+        }),
+      );
+    }
+
+    return outputs;
   }
 }

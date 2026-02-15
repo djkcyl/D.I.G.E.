@@ -1,9 +1,10 @@
+import Icon from './Icon';
+
 export default function CloseButton({
   onClick,
   label,
   className = '',
   sizeClass = 'w-6 h-6',
-  iconClass = 'text-sm',
 }) {
   return (
     <button
@@ -13,7 +14,7 @@ export default function CloseButton({
       aria-label={label}
       title={label}
     >
-      <span className={`material-symbols-outlined leading-none ${iconClass}`} aria-hidden="true">close</span>
+      <Icon name="close" className="leading-none" />
     </button>
   );
 }

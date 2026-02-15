@@ -1,0 +1,14 @@
+---
+description: 提交信息规范。当执行 git commit 时参考。
+alwaysApply: false
+---
+
+# Commit Message 规范
+
+采用 Conventional Commits，英文小写：
+
+- `feat(scope): 描述` — 新功能，版本发布时 scope 用 `v1.x.x`
+- `fix: 描述` — 修复
+- `refactor(scope): 描述` — 重构
+
+示例：`feat(v1.7.1): add QQ group entry for Chinese users (Chinese only)`

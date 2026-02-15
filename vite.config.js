@@ -65,11 +65,28 @@ export default defineConfig({
           project: sentryProject,
           authToken: sentryAuthToken,
           release: { name: pkg.version },
+          sourcemaps: {
+            filesToDeleteAfterUpload: ['./dist/**/*.map'],
+          },
         })
       : null,
   ].filter(Boolean),
   build: {
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('i18n') && (id.includes('locales') || id.endsWith('.json'))) return 'i18n';
+          if (id.includes('node_modules')) {
+            if ((id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) && !id.includes('react-chartjs') && !id.includes('@sentry')) return 'core';
+            if (id.includes('chart.js') || id.includes('react-chartjs')) return 'vendor';
+            if (id.includes('@iconify/react')) return 'vendor';
+            if (id.includes('@sentry/react')) return 'vendor';
+            if (id.includes('qrcode.react')) return 'vendor';
+          }
+        },
+      },
+    },
   },
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),

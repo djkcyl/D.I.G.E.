@@ -3,6 +3,7 @@ import { useI18n } from '../i18n';
 import { formatTime, CONSTANTS, FUELS } from '../utils/constants';
 import SolutionChart from './SolutionChart';
 import SolutionDiagram from './SolutionDiagram';
+import Icon from './Icon';
 
 export default function SolutionList({ solutions, selectedIndex, onSelectSolution, params }) {
   const { t, locale } = useI18n();
@@ -46,7 +47,7 @@ export default function SolutionList({ solutions, selectedIndex, onSelectSolutio
     return (
       <div className="flex-1 flex items-center justify-center text-endfield-text">
         <div className="text-center max-w-sm px-4">
-          <span className="material-symbols-outlined text-4xl mb-2">calculate</span>
+          <Icon name="calculate" className="mb-2" />
           <p className="mb-2">{t('clickCalculate')}</p>
           <p className="text-xs text-endfield-text/60">{t('adjustParamsHint')}</p>
         </div>
@@ -154,14 +155,12 @@ export default function SolutionList({ solutions, selectedIndex, onSelectSolutio
             onClick={() => toggleSection('chart')}
             className="w-full min-h-8 sm:min-h-9 flex items-center gap-2 text-left"
           >
-            <span className="material-symbols-outlined text-base text-endfield-yellow leading-none">monitoring</span>
+            <Icon name="monitoring" className="text-endfield-yellow leading-none" />
             <span className="text-sm font-bold text-endfield-text uppercase tracking-widest leading-none">{t('cycleChart')}</span>
             <span className="ml-auto text-xs text-endfield-text/70 leading-none">
               {collapsedSections.chart ? t('expandSection') : t('collapseSection')}
             </span>
-            <span className="material-symbols-outlined text-endfield-text leading-none">
-              {collapsedSections.chart ? 'expand_more' : 'expand_less'}
-            </span>
+            <Icon name={collapsedSections.chart ? 'expand_more' : 'expand_less'} className="text-endfield-text leading-none" />
           </button>
           <div
             className={`grid overflow-hidden transition-[grid-template-rows,margin,opacity] duration-300 ease-out ${collapsedSections.chart ? 'grid-rows-[0fr] mt-0 opacity-0' : 'grid-rows-[1fr] mt-3 opacity-100'}`}
@@ -243,14 +242,12 @@ export default function SolutionList({ solutions, selectedIndex, onSelectSolutio
               onClick={() => toggleSection('fuel')}
               className="w-full min-h-8 sm:min-h-9 flex items-center gap-2 text-left"
             >
-              <span className="material-symbols-outlined text-base text-endfield-yellow leading-none">local_fire_department</span>
+              <Icon name="local_fire_department" className="text-endfield-yellow leading-none" />
               <span className="text-sm font-bold text-endfield-text uppercase tracking-widest leading-none">{t('fuelConsumption')}</span>
               <span className="ml-auto text-xs text-endfield-text/70 leading-none">
                 {collapsedSections.fuel ? t('expandSection') : t('collapseSection')}
               </span>
-              <span className="material-symbols-outlined text-endfield-text leading-none">
-                {collapsedSections.fuel ? 'expand_more' : 'expand_less'}
-              </span>
+              <Icon name={collapsedSections.fuel ? 'expand_more' : 'expand_less'} className="text-endfield-text leading-none" />
             </button>
             <div
               className={`grid overflow-hidden transition-[grid-template-rows,margin,opacity] duration-300 ease-out ${collapsedSections.fuel ? 'grid-rows-[0fr] mt-0 opacity-0' : 'grid-rows-[1fr] mt-3 opacity-100'}`}
@@ -327,14 +324,12 @@ export default function SolutionList({ solutions, selectedIndex, onSelectSolutio
             onClick={() => toggleSection('diagram')}
             className="w-full min-h-8 sm:min-h-9 flex items-center gap-2 text-left"
           >
-            <span className="material-symbols-outlined text-base text-endfield-yellow leading-none">account_tree</span>
+            <Icon name="account_tree" className="text-endfield-yellow leading-none" />
             <span className="text-sm font-bold text-endfield-text uppercase tracking-widest leading-none">{t('solutionDiagram')}</span>
             <span className="ml-auto text-xs text-endfield-text/70 leading-none">
               {collapsedSections.diagram ? t('expandSection') : t('collapseSection')}
             </span>
-            <span className="material-symbols-outlined text-endfield-text leading-none">
-              {collapsedSections.diagram ? 'expand_more' : 'expand_less'}
-            </span>
+            <Icon name={collapsedSections.diagram ? 'expand_more' : 'expand_less'} className="text-endfield-text leading-none" />
           </button>
           <div
             className={`grid overflow-hidden transition-[grid-template-rows,margin,opacity] duration-300 ease-out ${collapsedSections.diagram ? 'grid-rows-[0fr] mt-0 opacity-0' : 'grid-rows-[1fr] mt-3 opacity-100'}`}
