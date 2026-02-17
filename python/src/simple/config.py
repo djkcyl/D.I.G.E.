@@ -22,6 +22,8 @@ class Config(BaseModel):
 
     input_interval: int = 2
     """输入间隔, 仓库为2秒/个, 封装机为10秒/个"""
+    exclude_belt: bool = False
+    """是否排除传送带, 可能对离线后计算简化问题有帮助"""
 
     # 内部计算参数
     base_power: int = 200

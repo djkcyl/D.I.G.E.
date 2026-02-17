@@ -63,7 +63,9 @@ def analyze_splitter_complexity(denominator: int) -> BranchComplexity:
     return BranchComplexity(total=c2 + c3, two_way=c2, three_way=c3)
 
 
-def build_branch_blueprint(three_way: int, two_way: int) -> list[list[Part | None]]:
+def build_branch_blueprint(
+    three_way: int, two_way: int, exclude_belt: bool = False
+) -> list[list[Part | None]]:
     """为单个分支生成 5 行蓝图布局."""
 
     total_columns = 1 + three_way + two_way + 1
@@ -78,13 +80,20 @@ def build_branch_blueprint(three_way: int, two_way: int) -> list[list[Part | Non
         grid[2][col] = Splitter(face=PartFace.right)
         grid[0][col] = Converger(face=PartFace.left)
         grid[4][col] = Converger(face=PartFace.left)
-        grid[1][col] = Belt(face=PartFace.up)
-        grid[3][col] = Belt(face=PartFace.down)
+        if exclude_belt:
+            grid[1][col] = Converger(face=PartFace.up)
+            grid[3][col] = Converger(face=PartFace.down)
+        else:
+            grid[1][col] = Belt(face=PartFace.up)
+            grid[3][col] = Belt(face=PartFace.down)
         col += 1
     for _ in range(two_way):
         grid[2][col] = Splitter(face=PartFace.right)
         grid[0][col] = Converger(face=PartFace.left)
-        grid[1][col] = Belt(face=PartFace.up)
+        if exclude_belt:
+            grid[1][col] = Converger(face=PartFace.up)
+        else:
+            grid[1][col] = Belt(face=PartFace.up)
         col += 1
     grid[2][col] = ThermalBank(face=PartFace.right)
 
@@ -94,14 +103,15 @@ def build_branch_blueprint(three_way: int, two_way: int) -> list[list[Part | Non
         grid[4][0] = RecycleSource(face=PartFace.right)
 
     # 将第一行和第五行的最后一个汇流器替换为转向传送带
-    for idx in range(total_columns - 1, -1, -1):
-        if isinstance(grid[0][idx], Converger):
-            grid[0][idx] = LeftTurnBelt(face=PartFace.up)
-            break
-    for idx in range(total_columns - 1, -1, -1):
-        if isinstance(grid[4][idx], Converger):
-            grid[4][idx] = RightTurnBelt(face=PartFace.down)
-            break
+    if not exclude_belt:
+        for idx in range(total_columns - 1, -1, -1):
+            if isinstance(grid[0][idx], Converger):
+                grid[0][idx] = LeftTurnBelt(face=PartFace.up)
+                break
+        for idx in range(total_columns - 1, -1, -1):
+            if isinstance(grid[4][idx], Converger):
+                grid[4][idx] = RightTurnBelt(face=PartFace.down)
+                break
 
     return grid
 
@@ -312,6 +322,7 @@ class FactoryDesigner:
                                     blueprint=build_branch_blueprint(
                                         complexity[i].three_way,
                                         complexity[i].two_way,
+                                        self.config.exclude_belt,
                                     ),
                                 )
                                 for i, d in enumerate(combo)
@@ -400,7 +411,10 @@ class FactoryDesigner:
                 else 0
             )
             oscillating_fuel_per_sec = (
-                sum(1 / (self.config.input_interval * b.denominator) for b in sol.branches)
+                sum(
+                    1 / (self.config.input_interval * b.denominator)
+                    for b in sol.branches
+                )
                 if sol.branches
                 else 0
             )

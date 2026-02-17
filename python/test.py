@@ -75,6 +75,7 @@ def run_basic_test() -> list[SolutionOutput]:
 		max_waste=50,
 		max_branches=3,
 		input_interval=2,
+		exclude_belt=True,
 	)
 
 	designer = FactoryDesigner(config)
