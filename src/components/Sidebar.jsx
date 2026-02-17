@@ -11,6 +11,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
   const [showPrimaryFuelMenu, setShowPrimaryFuelMenu] = useState(false);
   const [showSecondaryFuelMenu, setShowSecondaryFuelMenu] = useState(false);
   const [showInputWarning, setShowInputWarning] = useState(false);
+  const [showExcludeBeltWarning, setShowExcludeBeltWarning] = useState(false);
   const [calcButtonVisible, setCalcButtonVisible] = useState(true);
   const [scrollHintMounted, setScrollHintMounted] = useState(false);
   const [scrollHintVisible, setScrollHintVisible] = useState(false);
@@ -278,6 +279,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
             ))}
           </div>
         </div>
+
       </fieldset>
 
       <div className="w-full shrink-0 border-t border-endfield-gray-light/90"></div>
@@ -458,6 +460,50 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
 
       <div className="w-full shrink-0 border-t border-endfield-gray-light/90"></div>
 
+      {/* 其他设置 */}
+      <fieldset className="space-y-2 border-none p-0 m-0">
+        <legend className="text-sm font-bold text-endfield-text uppercase tracking-widest flex items-center gap-2 p-0">
+          <Icon name="settings" className="text-endfield-yellow" />
+          {t('otherSettings')}
+        </legend>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm text-endfield-text">{t('excludeBelt')}</span>
+              <button
+                type="button"
+                onClick={() => setShowExcludeBeltWarning(true)}
+                className="w-5 h-5 inline-flex items-center justify-center leading-none text-endfield-text/50 hover:text-endfield-yellow transition-colors"
+                title={t('excludeBeltWarning')}
+                aria-label={t('excludeBeltWarning')}
+                aria-haspopup="dialog"
+              >
+                <Icon name="info" className="leading-none" />
+              </button>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={params.exclude_belt !== false}
+              onClick={() => handleChange('exclude_belt', !(params.exclude_belt !== false))}
+              className={`relative inline-flex h-6 w-11 items-center border transition-colors ${
+                params.exclude_belt !== false
+                  ? 'border-endfield-yellow bg-endfield-yellow/20'
+                  : 'border-endfield-gray-light bg-endfield-gray'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform bg-endfield-text-light transition-transform ${
+                  params.exclude_belt !== false ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </fieldset>
+
+      <div className="w-full shrink-0 border-t border-endfield-gray-light/90"></div>
+
         {/* 系统信息 */}
         <div className="space-y-2 text-sm text-endfield-text/70">
           <div className="flex justify-between">
@@ -503,7 +549,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
           {/* 公告按钮 */}
           <button
             onClick={() => {
-              onOpenAnnouncement();
+              onOpenAnnouncement('announcement');
               onClose();
             }}
             className="relative w-full h-10 bg-endfield-gray border border-endfield-gray-light hover:border-endfield-yellow transition-colors flex items-center justify-center gap-2 text-endfield-text-light hover:text-endfield-yellow"
@@ -608,6 +654,36 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
           </p>
           <button
             onClick={() => setShowInputWarning(false)}
+            className="w-full h-10 bg-red-600/90 hover:bg-red-500 text-white font-bold tracking-wider transition-all flex items-center justify-center gap-2 text-sm"
+          >
+            {t('close')}
+          </button>
+        </div>
+      </div>
+    )}
+
+    {showExcludeBeltWarning && (
+      <div
+        className="fixed inset-0 bg-endfield-black/95 backdrop-blur z-50 flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        onClick={() => setShowExcludeBeltWarning(false)}
+      >
+        <div
+          className="bg-endfield-gray border border-red-900/50 p-6 max-w-lg w-full relative flex flex-col gap-4 corner-mark"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-2 pb-3 border-b border-red-900/50">
+            <Icon name="warning" className="text-red-300" />
+            <h2 className="text-base font-bold text-endfield-text-light uppercase tracking-wider">
+              {t('importantNote')}
+            </h2>
+          </div>
+          <p className="text-sm text-red-200 leading-relaxed">
+            {t('excludeBeltWarning')}
+          </p>
+          <button
+            onClick={() => setShowExcludeBeltWarning(false)}
             className="w-full h-10 bg-red-600/90 hover:bg-red-500 text-white font-bold tracking-wider transition-all flex items-center justify-center gap-2 text-sm"
           >
             {t('close')}

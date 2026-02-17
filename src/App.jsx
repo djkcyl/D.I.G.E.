@@ -23,6 +23,7 @@ const DEFAULT_PARAMS = {
   minBatteryPercent: 5,
   maxWaste: 30,
   maxBranches: 3,
+  exclude_belt: true,
   primaryFuelId: 'wulingLow',
   secondaryFuelId: 'none',
   inputSourceId: 'warehouse',

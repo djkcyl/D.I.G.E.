@@ -87,7 +87,9 @@
           "Ajout du paramètre « nombre maximal de branches » pour contrôler la complexité du plan.",
           "Le mode Blueprint affiche désormais les convoyeurs, séparateurs, convergeurs en icônes pour plus de clarté.",
           "La source d'entrée, le nœud thermique et la sortie de recyclage n'affichent plus les flèches de direction.",
-          "Amélioration de la disposition de la légende Blueprint et de l'expérience utilisateur."
+          "Amélioration de la disposition de la légende Blueprint et de l'expérience utilisateur.",
+          "Le mode Blueprint permet de zoomer pour mieux voir : faites défiler la molette ou pincez avec deux doigts pour zoomer, puis glissez pour afficher d'autres zones.",
+          "Option « Exclure les convoyeurs » (par défaut) pour atténuer les problèmes de flux hors ligne."
         ]
       },
       {

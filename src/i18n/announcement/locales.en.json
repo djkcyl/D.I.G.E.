@@ -87,7 +87,9 @@
           "Added Max Branches setting to control plan complexity.",
           "Blueprint mode now uses icons for conveyors, splitters, mergers, etc., for a clearer view.",
           "Input source, thermal output, and recycle output no longer show direction arrows.",
-          "Improved blueprint legend layout and interaction."
+          "Improved blueprint legend layout and interaction.",
+          "Blueprint mode supports zooming in for a closer look; scroll the mouse wheel or pinch with two fingers to zoom, then drag to view different areas.",
+          "Added \"Exclude conveyors\" option (default on) to mitigate offline flow issues."
         ]
       },
       {

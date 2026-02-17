@@ -11,6 +11,7 @@ const MIN_BATTERY_BITS = 7;
 const TARGET_POWER_BITS = 15;
 const INPUT_SOURCE_BITS = 2;
 const MAX_BRANCHES_BITS = 3;
+const EXCLUDE_BELT_BITS = 2;
 
 const toBase52 = (value) => {
   let num = BigInt(value);
@@ -108,6 +109,31 @@ const createOptionField = ({ index, key, bits, options, fallbackIndex = -1, opti
   };
 };
 
+const createBooleanField = ({ index, key, bits = 2, optional = false, missingRawValue = 0 }) => {
+  const maxEncodedValue = maxValueFromBits(bits);
+  return {
+    index,
+    key,
+    bits,
+    mask: bitMaskFromBits(bits),
+    maxEncodedValue,
+    optional,
+    missingRawValue,
+    encode: (value) => {
+      if (value === true) return 1;
+      if (value === false) return 2;
+      if (optional && (value === undefined || value === null)) return missingRawValue;
+      return null;
+    },
+    decode: (value) => {
+      if (optional && value === missingRawValue) return null;
+      if (value === 1) return true;
+      if (value === 2) return false;
+      return null;
+    },
+  };
+};
+
 const SHARE_FIELDS = [
   createOptionField({ index: 0, key: 'primaryFuelId', bits: PRIMARY_FUEL_BITS, options: FUEL_OPTIONS }),
   createOptionField({ index: 1, key: 'secondaryFuelId', bits: SECONDARY_FUEL_BITS, options: SECONDARY_FUEL_OPTIONS }),
@@ -127,6 +153,13 @@ const SHARE_FIELDS = [
     bits: MAX_BRANCHES_BITS,
     min: PARAM_LIMITS.MIN_BRANCHES,
     max: PARAM_LIMITS.MAX_BRANCHES,
+    optional: true,
+    missingRawValue: 0,
+  }),
+  createBooleanField({
+    index: 7,
+    key: 'exclude_belt',
+    bits: EXCLUDE_BELT_BITS,
     optional: true,
     missingRawValue: 0,
   }),

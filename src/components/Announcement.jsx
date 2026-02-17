@@ -46,7 +46,7 @@ const CHANGELOG_ID = buildContentId('changelog', pickLocalizedSection('changelog
 
 const GITHUB_URL = 'https://github.com/djkcyl/D.I.G.E.';
 const ISSUES_URL = 'https://github.com/djkcyl/D.I.G.E./issues';
-const VIDEO_TUTORIAL_URL = 'https://www.bilibili.com/video/BV1VrfSByEBo';
+const VIDEO_TUTORIAL_URL = 'https://www.bilibili.com/video/BV1mjZwBaEXi';
 const QQ_GROUP_URL = 'https://qm.qq.com/q/zL6wp3emTQ';
 
 const LinkStyle = 'text-endfield-yellow hover:text-endfield-yellow-glow underline underline-offset-2 transition-colors';

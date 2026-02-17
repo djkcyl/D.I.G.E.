@@ -53,13 +53,9 @@ button {
   background: #fffa00;
 }
 
-/* Blueprint grid - darker, more subtle */
+/* Blueprint grid - solid background, no cross grid */
 .blueprint-grid {
   background-color: #0a0a0a;
-  background-image: 
-    linear-gradient(rgba(255, 250, 0, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 250, 0, 0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
 }
 
 /* Endfield accent line */

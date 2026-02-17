@@ -29,7 +29,7 @@ function createPart(partId, face, partFunction = null) {
   return { partId, face };
 }
 
-function buildBranchBlueprint(threeWay, twoWay) {
+function buildBranchBlueprint(threeWay, twoWay, excludeBelt = false) {
   const totalColumns = 1 + threeWay + twoWay + 1;
   const grid = Array.from({ length: 5 }, () => Array(totalColumns).fill(null));
 
@@ -41,15 +41,24 @@ function buildBranchBlueprint(threeWay, twoWay) {
     grid[2][col] = createPart('splitter', PART_FACE.RIGHT);
     grid[0][col] = createPart('converger', PART_FACE.LEFT);
     grid[4][col] = createPart('converger', PART_FACE.LEFT);
-    grid[1][col] = createPart('belt', PART_FACE.UP);
-    grid[3][col] = createPart('belt', PART_FACE.DOWN);
+    if (excludeBelt) {
+      grid[1][col] = createPart('converger', PART_FACE.UP);
+      grid[3][col] = createPart('converger', PART_FACE.DOWN);
+    } else {
+      grid[1][col] = createPart('belt', PART_FACE.UP);
+      grid[3][col] = createPart('belt', PART_FACE.DOWN);
+    }
     col += 1;
   }
 
   for (let i = 0; i < twoWay; i += 1) {
     grid[2][col] = createPart('splitter', PART_FACE.RIGHT);
     grid[0][col] = createPart('converger', PART_FACE.LEFT);
-    grid[1][col] = createPart('belt', PART_FACE.UP);
+    if (excludeBelt) {
+      grid[1][col] = createPart('converger', PART_FACE.UP);
+    } else {
+      grid[1][col] = createPart('belt', PART_FACE.UP);
+    }
     col += 1;
   }
 
@@ -60,16 +69,18 @@ function buildBranchBlueprint(threeWay, twoWay) {
     grid[4][0] = createPart('recycle_source', null, PART_FUNCTION.RECYCLE);
   }
 
-  for (let idx = totalColumns - 1; idx >= 0; idx -= 1) {
-    if (grid[0][idx]?.partId === 'converger') {
-      grid[0][idx] = createPart('left_turn_belt', PART_FACE.UP);
-      break;
+  if (!excludeBelt) {
+    for (let idx = totalColumns - 1; idx >= 0; idx -= 1) {
+      if (grid[0][idx]?.partId === 'converger') {
+        grid[0][idx] = createPart('left_turn_belt', PART_FACE.UP);
+        break;
+      }
     }
-  }
-  for (let idx = totalColumns - 1; idx >= 0; idx -= 1) {
-    if (grid[4][idx]?.partId === 'converger') {
-      grid[4][idx] = createPart('right_turn_belt', PART_FACE.DOWN);
-      break;
+    for (let idx = totalColumns - 1; idx >= 0; idx -= 1) {
+      if (grid[4][idx]?.partId === 'converger') {
+        grid[4][idx] = createPart('right_turn_belt', PART_FACE.DOWN);
+        break;
+      }
     }
   }
 
@@ -82,6 +93,7 @@ function buildSolutionOutput({
   targetPower,
   inputInterval,
   inputSourceId,
+  excludeBelt,
   batteryCapacity,
   baseFuelPerSec,
   solution,
@@ -97,6 +109,7 @@ function buildSolutionOutput({
       isPrimary: true,
       inputInterval,
       inputSourceId,
+      exclude_belt: excludeBelt,
       avgPower: baseConfig.totalPower,
       waste: baseConfig.totalPower - targetPower,
       variance: 0,
@@ -139,6 +152,7 @@ function buildSolutionOutput({
     isPrimary: solution.isPrimary,
     inputInterval,
     inputSourceId,
+    exclude_belt: excludeBelt,
     avgPower: solution.avgPower,
     waste: solution.waste,
     variance: solution.variance,
@@ -338,6 +352,7 @@ export class FactoryDesigner {
     this.batteryCapacity = CONSTANTS.BATTERY_CAPACITY;
     this.maxBranches =
       Number.isInteger(params.maxBranches) && params.maxBranches > 0 ? params.maxBranches : 3;
+    this.excludeBelt = Boolean(params.exclude_belt ?? params.excludeBelt ?? true);
 
     this.validDenominators = this._generateValidDenominators();
     this.simulator = new PowerCycleSimulator({
@@ -425,7 +440,11 @@ export class FactoryDesigner {
               denominator: d,
               power: getOscillatingPower(fuel, d, this.inputInterval),
               complexity: complexity[i],
-              blueprint: buildBranchBlueprint(complexity[i].threeWay, complexity[i].twoWay),
+              blueprint: buildBranchBlueprint(
+                complexity[i].threeWay,
+                complexity[i].twoWay,
+                this.excludeBelt,
+              ),
             })),
             branchCount: combo.length,
             totalSplitters,
@@ -464,6 +483,7 @@ export class FactoryDesigner {
             targetPower: this.targetPower,
             inputInterval: this.inputInterval,
             inputSourceId: this.inputSource.id,
+            excludeBelt: this.excludeBelt,
             batteryCapacity: this.batteryCapacity,
             baseFuelPerSec,
             solution: null,
@@ -518,6 +538,7 @@ export class FactoryDesigner {
           targetPower: this.targetPower,
           inputInterval: this.inputInterval,
           inputSourceId: this.inputSource.id,
+          excludeBelt: this.excludeBelt,
           batteryCapacity: this.batteryCapacity,
           baseFuelPerSec,
           solution,

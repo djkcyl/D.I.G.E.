@@ -87,7 +87,9 @@
           "Einstellung „maximale Zweiganzahl“ hinzugefügt, um die Komplexität zu steuern.",
           "Blueprint-Modus zeigt Förderbänder, Verteiler, Zusammenführer nun als Icons für bessere Übersicht.",
           "Eingangsquelle, thermischer Knoten und Recycling-Ausgang zeigen keine Richtungspfeile mehr.",
-          "Verbesserte Anordnung der Blueprint-Legende und Bedienung."
+          "Verbesserte Anordnung der Blueprint-Legende und Bedienung.",
+          "Blueprint-Modus unterstützt Vergrößerung: Mausrad scrollen oder mit zwei Fingern zoomen, dann ziehen um andere Bereiche anzuzeigen.",
+          "Option « Förderbänder ausschließen » (Standard) zur Minderung von Offline-Durchflussproblemen."
         ]
       },
       {

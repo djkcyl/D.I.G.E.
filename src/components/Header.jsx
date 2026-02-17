@@ -139,7 +139,7 @@ export default function Header({ onCalculate, onShare, onShowStatus, sidebarColl
 
         {/* Announcement Button - 桌面端显示 */}
         <button
-          onClick={onOpenAnnouncement}
+          onClick={() => onOpenAnnouncement('announcement')}
           className="relative hidden md:flex h-10 w-10 bg-endfield-gray border border-endfield-gray-light hover:border-endfield-yellow transition-colors items-center justify-center text-endfield-text-light hover:text-endfield-yellow"
           title={t('announcement')}
           aria-label={t('announcement')}
