@@ -46,6 +46,15 @@ export const SECONDARY_FUEL_OPTIONS = [
   ...FUEL_OPTIONS,
 ];
 
+// 参数范围限制（用于 UI 滑块、分享编码等）
+export const PARAM_LIMITS = {
+  MAX_TARGET_POWER: 32767,
+  MAX_MAX_WASTE: 4095,
+  MAX_BATTERY_PERCENT: 100,
+  MIN_BRANCHES: 1,
+  MAX_BRANCHES: 3,
+};
+
 // 系统常量
 export const CONSTANTS = {
   BASE_POWER: 200,           // 基地自带发电功率 (w)

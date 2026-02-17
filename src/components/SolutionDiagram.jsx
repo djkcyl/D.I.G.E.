@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n';
 import Icon from './Icon';
 
@@ -143,83 +143,322 @@ function SimpleBranch({ branch, t }) {
   );
 }
 
-function getPartToken(part) {
-  if (!part || !part.partId) return '';
-  const arrow = FACE_ARROW[part.face] || '>';
+const BLUEPRINT_IMG = {
+  belt: '/svg/icon_belt_grid.png',
+  left_turn_belt: '/svg/icon_belt_corner_1.png',
+  right_turn_belt: '/svg/icon_belt_corner_1.png',
+  conveyor_bridge: '/svg/bg_logistic_log_connector.png',
+  splitter: '/svg/bg_logistic_log_splitter.png',
+  converger: '/svg/bg_logistic_log_converger.png',
+};
+
+/**
+ * 根据 face 和 PNG 原始方向计算旋转角度（度）
+ * 原始方向：icon_belt_grid 左进右出，icon_belt_corner_1 上进右出，
+ * bg_logistic_log_connector 上→下，bg_logistic_log_splitter 上侧进/右下左侧出，
+ * bg_logistic_log_converger 下侧出/左上右侧进
+ */
+function getImgRotation(part) {
+  if (!part?.partId) return 0;
+  const face = part.face || 'RIGHT';
+
   switch (part.partId) {
-    case 'input_source':
-      return `I${arrow}`;
-    case 'thermal_bank':
-      return `T${arrow}`;
-    case 'splitter':
-      return `S${arrow}`;
-    case 'converger':
-      return `M${arrow}`;
-    case 'recycle_source':
-      return `R${arrow}`;
-    case 'left_turn_belt':
-      return `L${arrow}`;
-    case 'right_turn_belt':
-      return `R${arrow}`;
     case 'belt':
-      return arrow;
-    default:
-      return '?';
-  }
-}
-
-function getPartClasses(part) {
-  if (!part || !part.partId) {
-    return 'border-endfield-gray-light/20 text-transparent bg-endfield-black/10';
-  }
-  switch (part.partId) {
-    case 'input_source':
-      return 'border-endfield-text-light/70 text-endfield-text-light bg-endfield-gray/80';
-    case 'thermal_bank':
-      return 'border-endfield-yellow/60 text-endfield-yellow bg-endfield-yellow/10';
+      // icon_belt_grid: 左进右出，face 为传送带流向
+      switch (face) {
+        case 'LEFT': return 0;
+        case 'RIGHT': return 180;
+        case 'UP': return -90;
+        case 'DOWN': return 90;
+        default: return 0;
+      }
+    case 'left_turn_belt':
+      // icon_belt_corner_1 上进右出，left_turn 需 下→左
+      return 180;
+    case 'right_turn_belt':
+      // icon_belt_corner_1 上进右出，right_turn 需 上→左（镜像即可）
+      return 0;
+    case 'conveyor_bridge':
+      // bg_logistic_log_connector: 上→下
+      switch (face) {
+        case 'DOWN': return 0;
+        case 'UP': return 180;
+        case 'LEFT': return 90;
+        case 'RIGHT': return -90;
+        default: return 0;
+      }
     case 'splitter':
-      return 'border-endfield-yellow/50 text-endfield-yellow bg-endfield-gray/80';
+      // bg_logistic_log_splitter: 上侧进，右下左侧出
+      switch (face) {
+        case 'RIGHT': return -90;
+        case 'LEFT': return 90;
+        case 'UP': return 180;
+        case 'DOWN': return 0;
+        default: return -90;
+      }
     case 'converger':
-      return 'border-endfield-text-light/50 text-endfield-text-light bg-endfield-gray/80';
-    case 'recycle_source':
-      return 'border-endfield-text/60 text-endfield-text bg-endfield-gray/80';
+      // bg_logistic_log_converger: 下侧出，左上右侧进
+      switch (face) {
+        case 'DOWN': return 0;
+        case 'UP': return 180;
+        case 'LEFT': return 90;
+        case 'RIGHT': return -90;
+        default: return 0;
+      }
     default:
-      return 'border-endfield-gray-light text-endfield-text bg-endfield-black/70';
+      return 0;
   }
 }
 
-function BlueprintBranch({ branch }) {
+/** right_turn_belt 上→左 需镜像（PNG 上进右出，镜像后上进左出） */
+function getImgMirror(part) {
+  return part?.partId === 'right_turn_belt';
+}
+
+function BlueprintCell({ part, rowIndex, colIndex }) {
+  const imgSrc = part?.partId ? BLUEPRINT_IMG[part.partId] : null;
+  const rotation = getImgRotation(part);
+  const mirror = getImgMirror(part);
+
+  if (imgSrc) {
+    return (
+      <div
+        key={`${rowIndex}-${colIndex}`}
+        className="w-9 h-9 sm:w-10 sm:h-10 border border-endfield-gray-light flex items-center justify-center overflow-hidden bg-endfield-black/30"
+      >
+        <img
+          src={imgSrc}
+          alt=""
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+          className="w-full h-full object-contain pointer-events-none"
+          style={{ transform: `rotate(${rotation}deg)${mirror ? ' scaleX(-1)' : ''}` }}
+        />
+      </div>
+    );
+  }
+
+  const arrow = FACE_ARROW[part?.face] || '>';
+  let token = '?';
+  if (part?.partId) {
+    switch (part.partId) {
+      case 'input_source':
+        token = 'I';
+        break;
+      case 'thermal_bank':
+        token = 'T';
+        break;
+      case 'recycle_source':
+        token = 'R';
+        break;
+      default:
+        token = arrow;
+    }
+  }
+
+  const getPartClasses = (p) => {
+    if (!p || !p.partId) return 'border-endfield-gray-light/20 text-transparent bg-endfield-black/10';
+    switch (p.partId) {
+      case 'input_source':
+        return 'border-endfield-text-light/70 text-endfield-text-light bg-endfield-gray/80';
+      case 'thermal_bank':
+        return 'border-endfield-yellow/60 text-endfield-yellow bg-endfield-yellow/10';
+      case 'recycle_source':
+        return 'border-endfield-text/60 text-endfield-text bg-endfield-gray/80';
+      default:
+        return 'border-endfield-gray-light text-endfield-text bg-endfield-black/70';
+    }
+  };
+
+  return (
+    <div
+      key={`${rowIndex}-${colIndex}`}
+      className={`w-9 h-9 sm:w-10 sm:h-10 border flex items-center justify-center text-[10px] sm:text-xs font-semibold ${getPartClasses(part)}`}
+    >
+      {token}
+    </div>
+  );
+}
+
+const BLUEPRINT_ZOOM_MIN = 1;
+const BLUEPRINT_ZOOM_MAX = 3;
+
+function BlueprintBranch({ branch, zoom = 1, onWheelZoom, onTouchStart: onPinchStart, onTouchMove: onPinchMove, onTouchEnd: onPinchEnd }) {
   const { denominator, power, blueprint } = branch;
   const hasBlueprint =
     Array.isArray(blueprint) && blueprint.length > 0 && Array.isArray(blueprint[0]);
+  const scrollRef = useRef(null);
+  const [isPanning, setIsPanning] = useState(false);
+  const [canScroll, setCanScroll] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
+  const isPanningRef = useRef(false);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const check = () => {
+      setCanScroll(el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [branch, zoom]);
+
+  const handlePanStart = useCallback((clientX, clientY) => {
+    const el = scrollRef.current;
+    if (!el || (el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight)) return;
+    isPanningRef.current = true;
+    setIsPanning(true);
+    panStartRef.current = {
+      x: clientX,
+      y: clientY,
+      scrollLeft: el.scrollLeft,
+      scrollTop: el.scrollTop,
+    };
+  }, []);
+
+  const handlePanMove = useCallback((clientX, clientY) => {
+    if (!isPanningRef.current || !scrollRef.current) return;
+    const el = scrollRef.current;
+    const { x, y, scrollLeft, scrollTop } = panStartRef.current;
+    const z = zoomRef.current;
+    const dx = (clientX - x) / z;
+    const dy = (clientY - y) / z;
+    const maxScrollLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+    const maxScrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
+    el.scrollLeft = Math.max(0, Math.min(maxScrollLeft, scrollLeft - dx));
+    el.scrollTop = Math.max(0, Math.min(maxScrollTop, scrollTop - dy));
+  }, []);
+
+  const handlePanEnd = useCallback(() => {
+    isPanningRef.current = false;
+    setIsPanning(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isPanning) return;
+    const onMove = (e) => handlePanMove(e.clientX, e.clientY);
+    const onUp = () => handlePanEnd();
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }, [isPanning, handlePanMove, handlePanEnd]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handler = (e) => {
+      if (e.touches.length === 2) {
+        onPinchMove?.(e);
+      } else if (e.touches.length === 1 && isPanningRef.current) {
+        e.preventDefault();
+      }
+    };
+    el.addEventListener('touchmove', handler, { passive: false });
+    return () => el.removeEventListener('touchmove', handler);
+  }, [onPinchMove]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !onWheelZoom) return;
+    const handler = (e) => {
+      onWheelZoom(e);
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, [onWheelZoom]);
+
+  const onMouseDown = useCallback(
+    (e) => {
+      if (e.button !== 0) return;
+      handlePanStart(e.clientX, e.clientY);
+      e.preventDefault();
+    },
+    [handlePanStart],
+  );
+
+  const onMouseMove = useCallback(
+    (e) => {
+      handlePanMove(e.clientX, e.clientY);
+    },
+    [handlePanMove],
+  );
+
+  const onTouchStart = useCallback(
+    (e) => {
+      if (e.touches.length === 1) handlePanStart(e.touches[0].clientX, e.touches[0].clientY);
+      if (e.touches.length >= 2) handlePanEnd();
+    },
+    [handlePanStart, handlePanEnd],
+  );
+
+  const onTouchMove = useCallback(
+    (e) => {
+      if (e.touches.length >= 2) {
+        handlePanEnd();
+        return;
+      }
+      if (e.touches.length === 1) handlePanMove(e.touches[0].clientX, e.touches[0].clientY);
+    },
+    [handlePanMove, handlePanEnd],
+  );
 
   return (
-    <div className="flex items-center gap-2 sm:gap-3 py-2 sm:py-3 px-1 sm:px-2">
-      <BranchLabel denominator={denominator} power={power} />
-      <div className="flex-1 overflow-x-auto pb-1">
-        {hasBlueprint ? (
-          <div className="blueprint-grid inline-block border border-endfield-gray-light p-2">
+    <div className="flex flex-col gap-1.5 py-2 sm:py-3 px-1 sm:px-2">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-x-auto overflow-y-auto pb-1 select-none min-h-0 min-w-0"
+        style={{ cursor: canScroll ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
+        onMouseDown={onMouseDown}
+        onMouseUp={handlePanEnd}
+        onMouseLeave={handlePanEnd}
+        onTouchStart={(e) => {
+          onPinchStart?.(e);
+          if (e.touches.length === 1) {
+            const touch = e.touches[0];
+            handlePanStart(touch.clientX, touch.clientY);
+          }
+          if (e.touches.length >= 2) handlePanEnd();
+        }}
+        onTouchMove={(e) => {
+          if (e.touches.length >= 2) handlePanEnd();
+          else if (e.touches.length === 1) handlePanMove(e.touches[0].clientX, e.touches[0].clientY);
+        }}
+        onTouchEnd={(e) => {
+          onPinchEnd?.();
+          handlePanEnd();
+        }}
+      >
+        <div className="w-max mx-auto">
+          <div className="flex items-center justify-center gap-2 mb-1.5">
+            <span className="text-xs text-endfield-yellow font-bold">1/{denominator}</span>
+            <span className="text-[10px] text-endfield-text">{power.toFixed(0)}w</span>
+          </div>
+          {hasBlueprint ? (
+          <div className="blueprint-grid inline-block border border-endfield-gray-light p-2 select-none w-max">
             <div
-              className="grid gap-1"
-              style={{ gridTemplateColumns: `repeat(${blueprint[0].length}, minmax(0, 1fr))` }}
+              className="grid gap-0 select-none w-max"
+              style={{ gridTemplateColumns: `repeat(${blueprint[0].length}, minmax(2.5rem, 1fr))` }}
             >
               {blueprint.flatMap((row, rowIndex) =>
                 row.map((part, colIndex) => (
-                  <div
-                    key={`${rowIndex}-${colIndex}`}
-                    className={`w-7 h-7 sm:w-8 sm:h-8 border flex items-center justify-center text-[10px] sm:text-xs font-semibold ${getPartClasses(part)}`}
-                  >
-                    {getPartToken(part)}
-                  </div>
+                  <BlueprintCell key={`${rowIndex}-${colIndex}`} part={part} rowIndex={rowIndex} colIndex={colIndex} />
                 )),
               )}
             </div>
           </div>
-        ) : (
+          ) : (
           <div className="h-8 px-2 border border-endfield-gray-light text-endfield-text-light bg-endfield-black/50 inline-flex items-center text-[10px] font-semibold">
-            I&gt; S&gt; M&lt; T&gt; R&gt;
+            I S M T R
           </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
@@ -229,28 +468,22 @@ function BlueprintLegend({ t }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-endfield-text-light">
       <div className="flex items-center gap-2 border border-endfield-gray-light bg-endfield-gray/60 px-2 py-1.5">
-        <div className="h-6 min-w-[34px] px-2 border border-endfield-gray-light text-endfield-text-light bg-endfield-black/50 flex items-center justify-center text-[10px] font-semibold">
-          I
-        </div>
-        <span>{t('legendBlueprintI')}</span>
-      </div>
-      <div className="flex items-center gap-2 border border-endfield-gray-light bg-endfield-gray/60 px-2 py-1.5">
-        <div className="h-6 min-w-[34px] px-2 border border-endfield-gray-light text-endfield-text-light bg-endfield-black/50 flex items-center justify-center text-[10px] font-semibold">
-          S
+        <div className="h-6 w-6 border border-endfield-gray-light bg-endfield-black/50 flex items-center justify-center overflow-hidden shrink-0">
+          <img src="/svg/bg_logistic_log_splitter.png" alt="" draggable={false} className="w-full h-full object-contain pointer-events-none" style={{ transform: 'rotate(-90deg)' }} />
         </div>
         <span>{t('legendBlueprintS')}</span>
       </div>
       <div className="flex items-center gap-2 border border-endfield-gray-light bg-endfield-gray/60 px-2 py-1.5">
-        <div className="h-6 min-w-[34px] px-2 border border-endfield-gray-light text-endfield-text-light bg-endfield-black/50 flex items-center justify-center text-[10px] font-semibold">
-          M
+        <div className="h-6 w-6 border border-endfield-gray-light bg-endfield-black/50 flex items-center justify-center overflow-hidden shrink-0">
+          <img src="/svg/bg_logistic_log_converger.png" alt="" draggable={false} className="w-full h-full object-contain pointer-events-none" style={{ transform: 'rotate(-90deg)' }} />
         </div>
         <span>{t('legendBlueprintM')}</span>
       </div>
       <div className="flex items-center gap-2 border border-endfield-gray-light bg-endfield-gray/60 px-2 py-1.5">
         <div className="h-6 min-w-[34px] px-2 border border-endfield-gray-light text-endfield-text-light bg-endfield-black/50 flex items-center justify-center text-[10px] font-semibold">
-          T
+          I
         </div>
-        <span>{t('legendBlueprintT')}</span>
+        <span>{t('legendBlueprintI')}</span>
       </div>
       <div className="flex items-center gap-2 border border-endfield-gray-light bg-endfield-gray/60 px-2 py-1.5">
         <div className="h-6 min-w-[34px] px-2 border border-endfield-gray-light text-endfield-text-light bg-endfield-black/50 flex items-center justify-center text-[10px] font-semibold">
@@ -259,10 +492,10 @@ function BlueprintLegend({ t }) {
         <span>{t('legendBlueprintR')}</span>
       </div>
       <div className="flex items-center gap-2 border border-endfield-gray-light bg-endfield-gray/60 px-2 py-1.5">
-        <div className="h-6 px-2 border border-endfield-gray-light text-endfield-text-light bg-endfield-black/50 flex items-center text-[10px] font-semibold">
-          ^ v &lt; &gt;
+        <div className="h-6 min-w-[34px] px-2 border border-endfield-gray-light text-endfield-text-light bg-endfield-black/50 flex items-center justify-center text-[10px] font-semibold">
+          T
         </div>
-        <span>{t('legendBlueprintFace')}</span>
+        <span>{t('legendBlueprintT')}</span>
       </div>
     </div>
   );
@@ -306,6 +539,58 @@ function SimpleLegend({ t }) {
 export default function SolutionDiagram({ solution }) {
   const { t, locale } = useI18n();
   const [mode, setMode] = useState('blueprint');
+  const [blueprintZoom, setBlueprintZoom] = useState(1);
+  const pinchRef = useRef({ initialDistance: 0, initialZoom: 1 });
+  const blueprintContainerRef = useRef(null);
+
+  const clampZoom = useCallback((z) => Math.max(BLUEPRINT_ZOOM_MIN, Math.min(BLUEPRINT_ZOOM_MAX, z)), []);
+
+  const handleBlueprintWheel = useCallback(
+    (e) => {
+      if (mode !== 'blueprint') return;
+      e.preventDefault();
+      const delta = -e.deltaY * 0.002;
+      setBlueprintZoom((z) => clampZoom(z + delta));
+    },
+    [mode, clampZoom],
+  );
+
+  const handleBlueprintTouchStart = useCallback(
+    (e) => {
+      if (mode !== 'blueprint' || e.touches.length !== 2) return;
+      const dist = Math.hypot(
+        e.touches[1].clientX - e.touches[0].clientX,
+        e.touches[1].clientY - e.touches[0].clientY,
+      );
+      pinchRef.current = { initialDistance: dist, initialZoom: blueprintZoom };
+    },
+    [mode, blueprintZoom],
+  );
+
+  const handleBlueprintTouchMove = useCallback(
+    (e) => {
+      if (e.touches.length !== 2 || !pinchRef.current.initialDistance) return;
+      e.preventDefault();
+      const dist = Math.hypot(
+        e.touches[1].clientX - e.touches[0].clientX,
+        e.touches[1].clientY - e.touches[0].clientY,
+      );
+      const { initialDistance, initialZoom } = pinchRef.current;
+      const scale = dist / initialDistance;
+      setBlueprintZoom(clampZoom(initialZoom * scale));
+    },
+    [clampZoom],
+  );
+
+  const handleBlueprintTouchEnd = useCallback(() => {
+    pinchRef.current = { initialDistance: 0, initialZoom: 1 };
+  }, []);
+
+  useEffect(() => {
+    if (mode !== 'blueprint') setBlueprintZoom(1);
+  }, [mode]);
+
+
 
   if (!solution) {
     return (
@@ -398,14 +683,30 @@ export default function SolutionDiagram({ solution }) {
             </div>
           </div>
 
-          <div className="divide-y divide-endfield-gray-light/50">
-            {oscillating.map((branch, idx) =>
-              mode === 'simple' ? (
-                <SimpleBranch key={idx} branch={branch} t={t} />
-              ) : (
-                <BlueprintBranch key={idx} branch={branch} />
-              ),
-            )}
+          <div
+            ref={blueprintContainerRef}
+            className={`flex gap-3 p-2 sm:p-3 ${mode === 'simple' ? 'flex-col' : 'flex-wrap justify-center'}`}
+          >
+            {oscillating.map((branch, idx) => (
+              <div
+                key={idx}
+                className={mode === 'simple' ? 'w-full' : 'min-w-[min(100%,360px)]'}
+                style={mode === 'blueprint' ? { zoom: blueprintZoom } : undefined}
+              >
+                {mode === 'simple' ? (
+                  <SimpleBranch branch={branch} t={t} />
+                ) : (
+                  <BlueprintBranch
+                    branch={branch}
+                    zoom={blueprintZoom}
+                    onWheelZoom={handleBlueprintWheel}
+                    onTouchStart={handleBlueprintTouchStart}
+                    onTouchMove={handleBlueprintTouchMove}
+                    onTouchEnd={handleBlueprintTouchEnd}
+                  />
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}

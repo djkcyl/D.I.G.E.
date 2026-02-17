@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useI18n } from '../i18n';
 import { hasUnreadAnnouncementOrChangelog } from './Announcement';
-import { FUEL_OPTIONS, SECONDARY_FUEL_OPTIONS, INPUT_SOURCES, INPUT_SOURCE_OPTIONS, DEFAULT_INPUT_SOURCE_ID } from '../utils/constants';
-import { SHARE_LIMITS } from '../utils/shareParams';
+import { FUEL_OPTIONS, SECONDARY_FUEL_OPTIONS, INPUT_SOURCES, INPUT_SOURCE_OPTIONS, DEFAULT_INPUT_SOURCE_ID, PARAM_LIMITS } from '../utils/constants';
 import CloseButton from './CloseButton';
 import Icon from './Icon';
 
@@ -47,17 +46,17 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
 
   const handleChange = (key, value) => {
     if (key === 'targetPower') {
-      const clamped = clampNumber(value, 0, SHARE_LIMITS.MAX_TARGET_POWER);
+      const clamped = clampNumber(value, 0, PARAM_LIMITS.MAX_TARGET_POWER);
       setParams(prev => ({ ...prev, [key]: clamped }));
       return;
     }
     if (key === 'maxWaste') {
-      const clamped = clampNumber(value, 0, SHARE_LIMITS.MAX_MAX_WASTE);
+      const clamped = clampNumber(value, 0, PARAM_LIMITS.MAX_MAX_WASTE);
       setParams(prev => ({ ...prev, [key]: clamped }));
       return;
     }
     if (key === 'maxBranches') {
-      const clamped = clampNumber(value, SHARE_LIMITS.MIN_BRANCHES, SHARE_LIMITS.MAX_BRANCHES);
+      const clamped = clampNumber(value, PARAM_LIMITS.MIN_BRANCHES, PARAM_LIMITS.MAX_BRANCHES);
       setParams(prev => ({ ...prev, [key]: clamped }));
       return;
     }
@@ -172,7 +171,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
               id="target-power-input"
               type="number"
               min="0"
-              max={SHARE_LIMITS.MAX_TARGET_POWER}
+              max={PARAM_LIMITS.MAX_TARGET_POWER}
               value={params.targetPower}
               onChange={(e) => handleChange('targetPower', parseInt(e.target.value, 10) || 0)}
               onKeyDown={(e) => e.key === 'Enter' && onCalculate()}
@@ -246,7 +245,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
             id="max-waste-input"
             type="number"
             min="0"
-            max={SHARE_LIMITS.MAX_MAX_WASTE}
+            max={PARAM_LIMITS.MAX_MAX_WASTE}
             value={params.maxWaste}
             onChange={(e) => handleChange('maxWaste', parseInt(e.target.value, 10) || 0)}
             onKeyDown={(e) => e.key === 'Enter' && onCalculate()}
@@ -262,23 +261,21 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
           <input
             id="max-branches-input"
             type="range"
-            min={SHARE_LIMITS.MIN_BRANCHES}
-            max={SHARE_LIMITS.MAX_BRANCHES}
+            min={PARAM_LIMITS.MIN_BRANCHES}
+            max={PARAM_LIMITS.MAX_BRANCHES}
             step="1"
             value={params.maxBranches ?? 3}
             onChange={(e) => handleChange('maxBranches', parseInt(e.target.value, 10))}
             className="w-full cursor-pointer"
             aria-label={t('maxBranches')}
-            aria-valuemin={SHARE_LIMITS.MIN_BRANCHES}
-            aria-valuemax={SHARE_LIMITS.MAX_BRANCHES}
+            aria-valuemin={PARAM_LIMITS.MIN_BRANCHES}
+            aria-valuemax={PARAM_LIMITS.MAX_BRANCHES}
             aria-valuenow={params.maxBranches ?? 3}
           />
           <div className="flex justify-between text-xs text-endfield-text/50 px-0.5">
-            <span>1</span>
-            <span>2</span>
-            <span>3</span>
-            <span>4</span>
-            <span>5</span>
+            {Array.from({ length: PARAM_LIMITS.MAX_BRANCHES }, (_, i) => (
+              <span key={i}>{i + 1}</span>
+            ))}
           </div>
         </div>
       </fieldset>
@@ -506,7 +503,7 @@ export default function Sidebar({ params, setParams, collapsed, onClose, onCalcu
           {/* 公告按钮 */}
           <button
             onClick={() => {
-              onOpenAnnouncement();
+              onOpenAnnouncement('announcement');
               onClose();
             }}
             className="relative w-full h-10 bg-endfield-gray border border-endfield-gray-light hover:border-endfield-yellow transition-colors flex items-center justify-center gap-2 text-endfield-text-light hover:text-endfield-yellow"

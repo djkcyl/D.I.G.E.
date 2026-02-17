@@ -22,7 +22,9 @@ const PART_FUNCTION = {
 
 function createPart(partId, face, partFunction = null) {
   if (partFunction) {
-    return { partId, face, function: partFunction };
+    const part = { partId, function: partFunction };
+    if (face != null) part.face = face;
+    return part;
   }
   return { partId, face };
 }
@@ -32,7 +34,7 @@ function buildBranchBlueprint(threeWay, twoWay) {
   const grid = Array.from({ length: 5 }, () => Array(totalColumns).fill(null));
 
   // Row 3: Input -> splitters -> thermal bank
-  grid[2][0] = createPart('input_source', PART_FACE.RIGHT, PART_FUNCTION.INPUT);
+  grid[2][0] = createPart('input_source', null, PART_FUNCTION.INPUT);
   let col = 1;
 
   for (let i = 0; i < threeWay; i += 1) {
@@ -51,11 +53,11 @@ function buildBranchBlueprint(threeWay, twoWay) {
     col += 1;
   }
 
-  grid[2][col] = createPart('thermal_bank', PART_FACE.RIGHT, PART_FUNCTION.OUTPUT);
+  grid[2][col] = createPart('thermal_bank', null, PART_FUNCTION.OUTPUT);
 
-  grid[0][0] = createPart('recycle_source', PART_FACE.RIGHT, PART_FUNCTION.RECYCLE);
+  grid[0][0] = createPart('recycle_source', null, PART_FUNCTION.RECYCLE);
   if (grid[4].some((cell) => cell !== null)) {
-    grid[4][0] = createPart('recycle_source', PART_FACE.RIGHT, PART_FUNCTION.RECYCLE);
+    grid[4][0] = createPart('recycle_source', null, PART_FUNCTION.RECYCLE);
   }
 
   for (let idx = totalColumns - 1; idx >= 0; idx -= 1) {

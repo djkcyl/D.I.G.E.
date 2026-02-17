@@ -1,14 +1,8 @@
-import { FUEL_OPTIONS, SECONDARY_FUEL_OPTIONS, INPUT_SOURCE_OPTIONS, DEFAULT_INPUT_SOURCE_ID } from './constants';
+import { FUEL_OPTIONS, SECONDARY_FUEL_OPTIONS, INPUT_SOURCE_OPTIONS, DEFAULT_INPUT_SOURCE_ID, PARAM_LIMITS } from './constants';
 
 const SHARE_PARAM_KEY = 'p';
 const BASE52_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 const BASE52_LOOKUP = new Map(BASE52_ALPHABET.split('').map((char, idx) => [char, idx]));
-
-const MAX_TARGET_POWER = 32767;
-const MAX_MAX_WASTE = 4095;
-const MAX_BATTERY_PERCENT = 100;
-const MIN_BRANCHES = 1;
-const MAX_BRANCHES = 5;
 
 const PRIMARY_FUEL_BITS = 5;
 const SECONDARY_FUEL_BITS = 5;
@@ -117,9 +111,9 @@ const createOptionField = ({ index, key, bits, options, fallbackIndex = -1, opti
 const SHARE_FIELDS = [
   createOptionField({ index: 0, key: 'primaryFuelId', bits: PRIMARY_FUEL_BITS, options: FUEL_OPTIONS }),
   createOptionField({ index: 1, key: 'secondaryFuelId', bits: SECONDARY_FUEL_BITS, options: SECONDARY_FUEL_OPTIONS }),
-  createNumberField({ index: 2, key: 'maxWaste', bits: MAX_WASTE_BITS, max: MAX_MAX_WASTE }),
-  createNumberField({ index: 3, key: 'minBatteryPercent', bits: MIN_BATTERY_BITS, max: MAX_BATTERY_PERCENT }),
-  createNumberField({ index: 4, key: 'targetPower', bits: TARGET_POWER_BITS, max: MAX_TARGET_POWER }),
+  createNumberField({ index: 2, key: 'maxWaste', bits: MAX_WASTE_BITS, max: PARAM_LIMITS.MAX_MAX_WASTE }),
+  createNumberField({ index: 3, key: 'minBatteryPercent', bits: MIN_BATTERY_BITS, max: PARAM_LIMITS.MAX_BATTERY_PERCENT }),
+  createNumberField({ index: 4, key: 'targetPower', bits: TARGET_POWER_BITS, max: PARAM_LIMITS.MAX_TARGET_POWER }),
   createOptionField({
     index: 5,
     key: 'inputSourceId',
@@ -131,8 +125,8 @@ const SHARE_FIELDS = [
     index: 6,
     key: 'maxBranches',
     bits: MAX_BRANCHES_BITS,
-    min: MIN_BRANCHES,
-    max: MAX_BRANCHES,
+    min: PARAM_LIMITS.MIN_BRANCHES,
+    max: PARAM_LIMITS.MAX_BRANCHES,
     optional: true,
     missingRawValue: 0,
   }),
@@ -196,12 +190,5 @@ export function buildShareUrl(params) {
   url.searchParams.set(SHARE_PARAM_KEY, token);
   return url.toString();
 }
-
-export const SHARE_LIMITS = {
-  MAX_TARGET_POWER,
-  MAX_MAX_WASTE,
-  MIN_BRANCHES,
-  MAX_BRANCHES,
-};
 
 export { SHARE_PARAM_KEY };

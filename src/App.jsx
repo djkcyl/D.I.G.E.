@@ -366,15 +366,21 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy }) {
 
 function App() {
   const [showAnnouncement, setShowAnnouncement] = useState(() => shouldShowAnnouncement());
+  const [announcementInitialTab, setAnnouncementInitialTab] = useState('announcement');
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+
+  const openAnnouncement = (initialTab = 'announcement') => {
+    setAnnouncementInitialTab(initialTab);
+    setShowAnnouncement(true);
+  };
 
   return (
     <I18nProvider>
       <AppContent
-        onOpenAnnouncement={() => setShowAnnouncement(true)}
+        onOpenAnnouncement={openAnnouncement}
         onOpenPrivacyPolicy={() => setShowPrivacyPolicy(true)}
       />
-      <Announcement show={showAnnouncement} onClose={() => setShowAnnouncement(false)} />
+      <Announcement show={showAnnouncement} initialTab={announcementInitialTab} onClose={() => setShowAnnouncement(false)} />
       <PrivacyPolicyModal show={showPrivacyPolicy} onClose={() => setShowPrivacyPolicy(false)} />
     </I18nProvider>
   );

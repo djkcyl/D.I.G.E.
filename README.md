@@ -116,6 +116,11 @@ scripts/
 
 当上述构建变量齐全时，Vite 构建阶段会自动启用 Sentry 插件上传发布信息，并在上传后删除 dist 下的 .map 文件以减小部署体积。
 
+## 贡献者
+
+- [djkcyl](https://github.com/djkcyl) - 项目作者
+- [Well404](https://github.com/Well2333) - 核心算法、蓝图 SVG 图标等贡献
+
 ## 贡献说明
 
 - 组件使用 `.jsx` + Hooks。

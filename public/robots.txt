@@ -21,7 +21,6 @@ Allow: /*.js$
 Allow: /*.css$
 Allow: /*.png$
 Allow: /*.jpg$
-Allow: /*.svg$
 
 # Google specific
 User-agent: Googlebot
