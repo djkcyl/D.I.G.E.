@@ -237,6 +237,34 @@ export const INPUT_SOURCES: Record<string, InputSource> = {
     speed: CONSTANTS.BELT_SPEED,
     interval: CONSTANTS.BELT_INTERVAL,
   },
+  warehouseSplit2Way: {
+    id: 'warehouseSplit2Way',
+    name: {
+      en: 'Warehouse 2-Way Split',
+      zh: '仓库二分流',
+      ja: '倉庫2分岐',
+      ko: '창고 2분기',
+      ru: 'Складское разделение на 2 пути',
+      fr: 'Entrepôt à 2 voies',
+      de: 'Lagerzweigaufteilung auf 2 Wege',
+    },
+    speed: CONSTANTS.BELT_SPEED / 2,
+    interval: CONSTANTS.BELT_INTERVAL * 2,
+  },
+  warehouseSplit3Way: {
+    id: 'warehouseSplit3Way',
+    name: {
+      en: 'Warehouse 3-Way Split',
+      zh: '仓库三分流',
+      ja: '倉庫3分岐',
+      ko: '창고 3분기',
+      ru: 'Складское разделение на 3 пути',
+      fr: 'Entrepôt à 3 voies',
+      de: 'Lagerzweigaufteilung auf 3 Wege',
+    },
+    speed: CONSTANTS.BELT_SPEED / 3,
+    interval: CONSTANTS.BELT_INTERVAL * 3,
+  },
   packer: {
     id: 'packer',
     name: {
