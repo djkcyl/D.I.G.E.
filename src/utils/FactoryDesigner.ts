@@ -29,8 +29,23 @@ export type FactoryDesignerParams = CalcParams;
 /** Number of full oscillation periods to run before sampling steady-state behavior */
 const WARMUP_CYCLES = 2;
 
-/** Maximum simulation duration in seconds — prevents runaway computation */
-const MAX_SIMULATION_PERIOD = 100_000;
+/**
+ * Hard cap on LCM cycle period (seconds). Prevents OOM from huge timeline arrays
+ * when sparse high-power fuels yield enormous multi-branch LCMs (EDGE-01).
+ */
+const MAX_SIMULATION_DURATION = 1200;
+
+/** @deprecated alias — keep name for any external references */
+const MAX_SIMULATION_PERIOD = MAX_SIMULATION_DURATION;
+
+/**
+ * Theory-stage prune: single-branch feed interval above this (seconds) cannot
+ * sustain battery under realistic minBatteryPercent; skip before simulateCycle.
+ */
+const MAX_BRANCH_INTERVAL = 600;
+
+/** Absolute ceiling on timeline sample count (seconds of sim wall-clock). */
+const MAX_TIMELINE_SAMPLES = 4000;
 
 const PART_FACE = {
   UP: "UP",
@@ -496,7 +511,20 @@ class PowerCycleSimulator {
     if (a === 0 || b === 0) {
       return 0;
     }
-    return Math.abs(a / this._gcd(a, b)) * b;
+    if (!Number.isFinite(a) || !Number.isFinite(b) || a < 0 || b < 0) {
+      return Number.POSITIVE_INFINITY;
+    }
+    const g = this._gcd(a, b);
+    // Avoid intermediate overflow: (a/g)*b may exceed Number.MAX_SAFE_INTEGER
+    const ag = a / g;
+    if (b !== 0 && ag > Number.MAX_SAFE_INTEGER / b) {
+      return Number.POSITIVE_INFINITY;
+    }
+    const result = Math.abs(ag) * b;
+    if (!Number.isFinite(result)) {
+      return Number.POSITIVE_INFINITY;
+    }
+    return result;
   }
 
   _getCyclePeriodFromIntervals(intervals: number[]): number {
@@ -504,10 +532,24 @@ class PowerCycleSimulator {
       return this.inputInterval;
     }
     // LCM in milliseconds to avoid float drift (e.g. 10/3 s)
-    const toMs = (sec: number) => Math.max(1, Math.round(sec * 1000));
+    const maxPeriodMs = MAX_SIMULATION_DURATION * 1000;
+    const toMs = (sec: number) => {
+      if (!Number.isFinite(sec) || sec <= 0) return Number.POSITIVE_INFINITY;
+      return Math.max(1, Math.round(sec * 1000));
+    };
     let periodMs = toMs(intervals[0]);
+    if (!Number.isFinite(periodMs) || periodMs > maxPeriodMs) {
+      return Number.POSITIVE_INFINITY;
+    }
     for (let i = 1; i < intervals.length; i += 1) {
-      periodMs = this._lcm(periodMs, toMs(intervals[i]));
+      const next = toMs(intervals[i]);
+      if (!Number.isFinite(next) || next > maxPeriodMs) {
+        return Number.POSITIVE_INFINITY;
+      }
+      periodMs = this._lcm(periodMs, next);
+      if (!Number.isFinite(periodMs) || periodMs > maxPeriodMs) {
+        return Number.POSITIVE_INFINITY;
+      }
     }
     return periodMs / 1000;
   }
@@ -551,8 +593,18 @@ class PowerCycleSimulator {
     const branchIntervals = oscillatingBranches.map((b) =>
       this._resolveBranchInterval(b)
     );
+    // Early prune: any branch with absurd feed interval → battery physics fail
+    for (const iv of branchIntervals) {
+      if (!Number.isFinite(iv) || iv <= 0 || iv > MAX_BRANCH_INTERVAL) {
+        return { success: false, reason: "period_too_long" };
+      }
+    }
     const period = this._getCyclePeriodFromIntervals(branchIntervals);
-    if (period > MAX_SIMULATION_PERIOD) {
+    if (
+      !Number.isFinite(period) ||
+      period <= 0 ||
+      period > MAX_SIMULATION_DURATION
+    ) {
       return { success: false, reason: "period_too_long" };
     }
 
@@ -569,6 +621,14 @@ class PowerCycleSimulator {
     );
     const totalDuration = warmupDuration + period;
     const timelineSize = Math.ceil(totalDuration);
+    // Hard memory fence: refuse allocation of runaway timelines
+    if (
+      !Number.isFinite(timelineSize) ||
+      timelineSize <= 0 ||
+      timelineSize > MAX_TIMELINE_SAMPLES
+    ) {
+      return { success: false, reason: "period_too_long" };
+    }
 
     const powerTimeline = new Array(timelineSize).fill(0);
     const branchBurnTimeline = oscillatingBranches.map(() =>
@@ -647,10 +707,13 @@ class PowerCycleSimulator {
         }
       }
 
-      preciseBatteryLog.push(battery);
-      precisePowerLog.push(supply);
-      for (let i = 0; i < preciseBurnStateLog.length; i += 1) {
-        preciseBurnStateLog[i].push(branchBurnTimeline[i][t]);
+      // Cap precise logs: full 1Hz only for short cycles; long cycles reuse sampleStep
+      if (period < 2000 || (t - checkStart) % sampleStep === 0) {
+        preciseBatteryLog.push(battery);
+        precisePowerLog.push(supply);
+        for (let i = 0; i < preciseBurnStateLog.length; i += 1) {
+          preciseBurnStateLog[i].push(branchBurnTimeline[i][t]);
+        }
       }
 
       if (battery < minBatteryRequired) {
@@ -1040,7 +1103,14 @@ export class FactoryDesigner {
     // 剪枝：单支功率不超过 gap+容差；按硬件成本优先保留，避免组合爆炸
     const maxSinglePower = gap + this.maxWaste + 10;
     const pruned = allBranchOptions
-      .filter((o) => o.power > 0 && o.power <= maxSinglePower)
+      .filter(
+        (o) =>
+          o.power > 0 &&
+          o.power <= maxSinglePower &&
+          Number.isFinite(o.branchInterval) &&
+          o.branchInterval > 0 &&
+          o.branchInterval <= MAX_BRANCH_INTERVAL
+      )
       .sort((a, b) => {
         if (a.hardwareCost !== b.hardwareCost)
           return a.hardwareCost - b.hardwareCost;
@@ -1168,7 +1238,14 @@ export class FactoryDesigner {
     );
     const maxSinglePower = gap + this.maxWaste + 10;
     const pruned = allBranchOptions
-      .filter((o) => o.power > 0 && o.power <= maxSinglePower)
+      .filter(
+        (o) =>
+          o.power > 0 &&
+          o.power <= maxSinglePower &&
+          Number.isFinite(o.branchInterval) &&
+          o.branchInterval > 0 &&
+          o.branchInterval <= MAX_BRANCH_INTERVAL
+      )
       .sort((a, b) => {
         if (a.hardwareCost !== b.hardwareCost)
           return a.hardwareCost - b.hardwareCost;
