@@ -1,24 +1,30 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import Footer from './components/Footer';
-import Header from './components/layout/Header';
-import Sidebar from './components/layout/Sidebar';
-import Announcement, { shouldShowAnnouncement } from './components/modals/Announcement';
-import ErrorState from './components/modals/ErrorState';
-import PrivacyPolicyModal from './components/modals/PrivacyPolicyModal';
-import QAModal from './components/modals/QAModal';
-import ShareModal from './components/modals/ShareModal';
-import DirtyOverlay from './components/overlays/DirtyOverlay';
-import LoadingOverlay from './components/overlays/LoadingOverlay';
-import ShareStatusToast from './components/overlays/ShareStatusToast';
-import UpdateToast from './components/overlays/UpdateToast';
-import SolutionList from './components/solution/SolutionList';
-import { I18nProvider, useI18n } from './i18n';
-import type { CalcParams, SolutionResult } from './types/calc';
-import type { WorkerResponse } from './utils/factoryDesigner.worker';
-import { buildShareUrl, getShareParamsFromUrl, type ShareParams } from './utils/shareParams';
+import { useCallback, useEffect, useRef, useState } from "react";
+import Footer from "./components/Footer";
+import Header from "./components/layout/Header";
+import Sidebar from "./components/layout/Sidebar";
+import Announcement, {
+  shouldShowAnnouncement,
+} from "./components/modals/Announcement";
+import ErrorState from "./components/modals/ErrorState";
+import PrivacyPolicyModal from "./components/modals/PrivacyPolicyModal";
+import QAModal from "./components/modals/QAModal";
+import ShareModal from "./components/modals/ShareModal";
+import DirtyOverlay from "./components/overlays/DirtyOverlay";
+import LoadingOverlay from "./components/overlays/LoadingOverlay";
+import ShareStatusToast from "./components/overlays/ShareStatusToast";
+import UpdateToast from "./components/overlays/UpdateToast";
+import SolutionList from "./components/solution/SolutionList";
+import { I18nProvider, useI18n } from "./i18n";
+import type { CalcParams, SolutionResult } from "./types/calc";
+import type { WorkerResponse } from "./utils/factoryDesigner.worker";
+import {
+  buildShareUrl,
+  getShareParamsFromUrl,
+  type ShareParams,
+} from "./utils/shareParams";
 
 const getRandomTargetPower = () => Math.floor(Math.random() * 4500) + 500;
-const PRIVACY_FOOTER_DISMISSED_KEY = 'dige-privacy-footer-dismissed';
+const PRIVACY_FOOTER_DISMISSED_KEY = "dige-privacy-footer-dismissed";
 const SHARE_STATUS_VISIBLE_MS = 1800;
 const SHARE_STATUS_FADE_MS = 220;
 const DEFAULT_PARAMS: CalcParams = {
@@ -30,15 +36,19 @@ const DEFAULT_PARAMS: CalcParams = {
   phaseOffsetBranch2: 0,
   phaseOffsetBranch3: 0,
   excludeBelt: true,
-  primaryFuelId: 'wulingLow',
-  secondaryFuelId: 'none',
-  inputSourceId: 'warehouse',
+  /** 排除物品准入口限速器：false=默认关=启用限速求解；true=开=忽略限速/满速 */
+  excludeItemGateLimiter: false,
+  primaryFuelId: "wulingLow",
+  secondaryFuelId: "none",
+  inputSourceId: "warehouse",
 };
 
 const getInitialParams = (): CalcParams => {
-  if (typeof window === 'undefined') return DEFAULT_PARAMS;
+  if (typeof window === "undefined") return DEFAULT_PARAMS;
   const sharedParams = getShareParamsFromUrl();
-  return sharedParams ? ({ ...DEFAULT_PARAMS, ...sharedParams } as CalcParams) : DEFAULT_PARAMS;
+  return sharedParams
+    ? ({ ...DEFAULT_PARAMS, ...sharedParams } as CalcParams)
+    : DEFAULT_PARAMS;
 };
 
 interface AppContentProps {
@@ -47,10 +57,14 @@ interface AppContentProps {
   onOpenQA: () => void;
 }
 
-function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy, onOpenQA }: AppContentProps) {
+function AppContent({
+  onOpenAnnouncement,
+  onOpenPrivacyPolicy,
+  onOpenQA,
+}: AppContentProps) {
   const { t } = useI18n();
   const [params, setParams] = useState<CalcParams>(getInitialParams);
-  const [shareStatusMessage, setShareStatusMessage] = useState('');
+  const [shareStatusMessage, setShareStatusMessage] = useState("");
   const [shareStatusVisible, setShareStatusVisible] = useState(false);
   const shareStatusTimer = useRef<{
     hide: ReturnType<typeof setTimeout> | null;
@@ -58,15 +72,15 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy, onOpenQA }: AppCo
     frame: number | null;
   }>({ hide: null, clear: null, frame: null });
   const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [shareUrl, setShareUrl] = useState('');
+  const [shareUrl, setShareUrl] = useState("");
 
   const [solutions, setSolutions] = useState<SolutionResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [showError, setShowError] = useState(false);
   const [showPrivacyFooter, setShowPrivacyFooter] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    return localStorage.getItem(PRIVACY_FOOTER_DISMISSED_KEY) !== '1';
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem(PRIVACY_FOOTER_DISMISSED_KEY) !== "1";
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [paramsDirty, setParamsDirty] = useState(false);
@@ -76,11 +90,14 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy, onOpenQA }: AppCo
   const hasAutoCalculatedRef = useRef(false);
   const workerRef = useRef<Worker | null>(null);
 
-  const setParamsWithDirty = useCallback((updater: React.SetStateAction<CalcParams>) => {
-    setParams(updater);
-    setParamsDirty(true);
-    setDirtyDismissed(false);
-  }, []);
+  const setParamsWithDirty = useCallback(
+    (updater: React.SetStateAction<CalcParams>) => {
+      setParams(updater);
+      setParamsDirty(true);
+      setDirtyDismissed(false);
+    },
+    []
+  );
 
   const runCalculation = useCallback(
     async (overrideParams: CalcParams | null = null) => {
@@ -91,26 +108,31 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy, onOpenQA }: AppCo
 
       workerRef.current?.terminate();
 
-      const worker = new Worker(new URL('./utils/factoryDesigner.worker.ts', import.meta.url), {
-        type: 'module',
-      });
+      const worker = new Worker(
+        new URL("./utils/factoryDesigner.worker.ts", import.meta.url),
+        {
+          type: "module",
+        }
+      );
       workerRef.current = worker;
 
       try {
-        const results = await new Promise<SolutionResult[]>((resolve, reject) => {
-          worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-            const data = event.data;
-            if (data.type === 'result') {
-              resolve(data.solutions);
-            } else {
-              reject(new Error(data.message));
-            }
-          };
-          worker.onerror = (error) => {
-            reject(new Error(error.message || 'Worker error'));
-          };
-          worker.postMessage({ type: 'solve', params: calcParams });
-        });
+        const results = await new Promise<SolutionResult[]>(
+          (resolve, reject) => {
+            worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+              const data = event.data;
+              if (data.type === "result") {
+                resolve(data.solutions);
+              } else {
+                reject(new Error(data.message));
+              }
+            };
+            worker.onerror = (error) => {
+              reject(new Error(error.message || "Worker error"));
+            };
+            worker.postMessage({ type: "solve", params: calcParams });
+          }
+        );
 
         setIsLoading(false);
 
@@ -127,7 +149,7 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy, onOpenQA }: AppCo
         setDirtyDismissed(false);
         lastCalcParamsRef.current = { ...calcParams };
       } catch (error) {
-        console.error('Calculation failed:', error);
+        console.error("Calculation failed:", error);
         setIsLoading(false);
         setShowError(true);
         setSolutions([]);
@@ -149,9 +171,14 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy, onOpenQA }: AppCo
 
   useEffect(() => {
     return () => {
-      if (shareStatusTimer.current.hide) clearTimeout(shareStatusTimer.current.hide);
-      if (shareStatusTimer.current.clear) clearTimeout(shareStatusTimer.current.clear);
-      if (shareStatusTimer.current.frame && typeof cancelAnimationFrame === 'function') {
+      if (shareStatusTimer.current.hide)
+        clearTimeout(shareStatusTimer.current.hide);
+      if (shareStatusTimer.current.clear)
+        clearTimeout(shareStatusTimer.current.clear);
+      if (
+        shareStatusTimer.current.frame &&
+        typeof cancelAnimationFrame === "function"
+      ) {
         cancelAnimationFrame(shareStatusTimer.current.frame);
       }
     };
@@ -159,15 +186,23 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy, onOpenQA }: AppCo
 
   const showShareStatus = useCallback((message: string) => {
     if (!message) return;
-    if (shareStatusTimer.current.hide) clearTimeout(shareStatusTimer.current.hide);
-    if (shareStatusTimer.current.clear) clearTimeout(shareStatusTimer.current.clear);
-    if (shareStatusTimer.current.frame && typeof cancelAnimationFrame === 'function') {
+    if (shareStatusTimer.current.hide)
+      clearTimeout(shareStatusTimer.current.hide);
+    if (shareStatusTimer.current.clear)
+      clearTimeout(shareStatusTimer.current.clear);
+    if (
+      shareStatusTimer.current.frame &&
+      typeof cancelAnimationFrame === "function"
+    ) {
       cancelAnimationFrame(shareStatusTimer.current.frame);
     }
 
     setShareStatusMessage(message);
     setShareStatusVisible(false);
-    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+    if (
+      typeof window !== "undefined" &&
+      typeof window.requestAnimationFrame === "function"
+    ) {
       shareStatusTimer.current.frame = window.requestAnimationFrame(() =>
         setShareStatusVisible(true)
       );
@@ -180,18 +215,18 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy, onOpenQA }: AppCo
       SHARE_STATUS_VISIBLE_MS
     );
     shareStatusTimer.current.clear = setTimeout(
-      () => setShareStatusMessage(''),
+      () => setShareStatusMessage(""),
       SHARE_STATUS_VISIBLE_MS + SHARE_STATUS_FADE_MS
     );
   }, []);
 
   const getCopyErrorReason = useCallback(
     (error: Error) => {
-      const name = error?.name || '';
-      if (name === 'NotAllowedError') return t('copyFailedReasonPermission');
-      if (name === 'SecurityError') return t('copyFailedReasonInsecure');
-      if (name === 'NotFoundError') return t('copyFailedReasonUnavailable');
-      return t('copyFailedReasonUnknown');
+      const name = error?.name || "";
+      if (name === "NotAllowedError") return t("copyFailedReasonPermission");
+      if (name === "SecurityError") return t("copyFailedReasonInsecure");
+      if (name === "NotFoundError") return t("copyFailedReasonUnavailable");
+      return t("copyFailedReasonUnknown");
     },
     [t]
   );
@@ -199,11 +234,11 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy, onOpenQA }: AppCo
   const handleOpenShareModal = useCallback(() => {
     const nextUrl = buildShareUrl(params as ShareParams);
     if (!nextUrl) {
-      showShareStatus(t('shareFailed'));
+      showShareStatus(t("shareFailed"));
       return;
     }
 
-    window.history.replaceState({}, '', nextUrl);
+    window.history.replaceState({}, "", nextUrl);
     setShareUrl(nextUrl);
     setShareModalOpen(true);
   }, [params, showShareStatus, t]);
@@ -214,22 +249,22 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy, onOpenQA }: AppCo
 
   const handleCopyShareUrl = useCallback(async () => {
     if (!shareUrl) {
-      showShareStatus(t('shareFailed'));
+      showShareStatus(t("shareFailed"));
       return;
     }
 
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
-        showShareStatus(t('shareCopied'));
+        showShareStatus(t("shareCopied"));
       } else {
-        window.prompt(t('shareCopyPrompt'), shareUrl);
-        showShareStatus(t('shareCopied'));
+        window.prompt(t("shareCopyPrompt"), shareUrl);
+        showShareStatus(t("shareCopied"));
       }
     } catch (error) {
-      console.error('Share error:', error);
+      console.error("Share error:", error);
       const reason = getCopyErrorReason(error as Error);
-      showShareStatus(`${t('copyFailed')}: ${reason}`);
+      showShareStatus(`${t("copyFailed")}: ${reason}`);
     }
   }, [shareUrl, showShareStatus, t, getCopyErrorReason]);
 
@@ -238,9 +273,9 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy, onOpenQA }: AppCo
     try {
       await navigator.share({ title: document.title, url: shareUrl });
     } catch (error) {
-      if ((error as Error)?.name === 'AbortError') return;
-      console.error('Share error:', error);
-      showShareStatus(t('shareFailed'));
+      if ((error as Error)?.name === "AbortError") return;
+      console.error("Share error:", error);
+      showShareStatus(t("shareFailed"));
     }
   }, [shareUrl, showShareStatus, t]);
 
@@ -262,7 +297,7 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy, onOpenQA }: AppCo
 
   const handleDismissPrivacyFooter = () => {
     setShowPrivacyFooter(false);
-    localStorage.setItem(PRIVACY_FOOTER_DISMISSED_KEY, '1');
+    localStorage.setItem(PRIVACY_FOOTER_DISMISSED_KEY, "1");
   };
 
   return (
@@ -278,7 +313,10 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy, onOpenQA }: AppCo
         onOpenQA={onOpenQA}
       />
 
-      <ShareStatusToast message={shareStatusMessage} visible={shareStatusVisible} />
+      <ShareStatusToast
+        message={shareStatusMessage}
+        visible={shareStatusVisible}
+      />
 
       <div className="flex-1 flex overflow-hidden">
         <Sidebar
@@ -294,9 +332,11 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy, onOpenQA }: AppCo
         />
 
         <section
-          aria-label={t('mainContentArea')}
+          aria-label={t("mainContentArea")}
           className="flex-1 overflow-hidden border-0 p-0 m-0 min-w-0 bg-[radial-gradient(circle_at_85%_20%,rgba(255,250,0,0.08),transparent_40%),repeating-linear-gradient(135deg,rgba(255,250,0,0.04)_0_1px,transparent_1px_14px),linear-gradient(180deg,rgba(255,250,0,0.02),transparent_35%,rgba(255,250,0,0.015))] relative"
-          onMouseEnter={() => paramsDirty && !dirtyDismissed && setShowDirtyOverlay(true)}
+          onMouseEnter={() =>
+            paramsDirty && !dirtyDismissed && setShowDirtyOverlay(true)
+          }
           onMouseLeave={() => setShowDirtyOverlay(false)}
         >
           <main className="mx-auto w-full max-w-[1800px] h-full flex flex-col min-w-0 bg-endfield-black/92 backdrop-blur-[1px] relative overflow-hidden">
@@ -346,18 +386,25 @@ function AppContent({ onOpenAnnouncement, onOpenPrivacyPolicy, onOpenQA }: AppCo
         onShare={handleNativeShare}
         closeOnBackdrop={true}
       />
-      <ErrorState show={showError} onDismiss={() => setShowError(false)} closeOnBackdrop={false} />
+      <ErrorState
+        show={showError}
+        onDismiss={() => setShowError(false)}
+        closeOnBackdrop={false}
+      />
     </div>
   );
 }
 
 function App() {
-  const [showAnnouncement, setShowAnnouncement] = useState(() => shouldShowAnnouncement());
-  const [announcementInitialTab, setAnnouncementInitialTab] = useState('announcement');
+  const [showAnnouncement, setShowAnnouncement] = useState(() =>
+    shouldShowAnnouncement()
+  );
+  const [announcementInitialTab, setAnnouncementInitialTab] =
+    useState("announcement");
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showQA, setShowQA] = useState(false);
 
-  const openAnnouncement = (initialTab = 'announcement') => {
+  const openAnnouncement = (initialTab = "announcement") => {
     setAnnouncementInitialTab(initialTab);
     setShowAnnouncement(true);
   };
@@ -380,7 +427,11 @@ function App() {
         onClose={() => setShowPrivacyPolicy(false)}
         closeOnBackdrop={true}
       />
-      <QAModal show={showQA} onClose={() => setShowQA(false)} closeOnBackdrop={true} />
+      <QAModal
+        show={showQA}
+        onClose={() => setShowQA(false)}
+        closeOnBackdrop={true}
+      />
       <UpdateToast />
     </I18nProvider>
   );

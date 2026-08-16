@@ -1,26 +1,26 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useI18n } from '../../../i18n';
-import type { CalcParams, SolutionResult } from '../../../types/calc';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "../../../i18n";
+import type { CalcParams, SolutionResult } from "../../../types/calc";
 import {
   FUEL_OPTIONS,
   INPUT_SOURCE_OPTIONS,
   SECONDARY_FUEL_OPTIONS,
-} from '../../../utils/constants';
+} from "../../../utils/constants";
 import {
   buildEndfieldBlueprintPng,
   buildEndfieldCompleteImage,
   downloadEndfieldBlueprint,
   downloadEndfieldBlueprintZip,
-} from '../../../utils/endfieldBlueprint';
-import { buildShareUrl, type ShareParams } from '../../../utils/shareParams';
-import Icon from '../../ui/Icon';
-import ImagePreviewModal from '../../ui/ImagePreview/ImagePreviewModal';
-import BlueprintBranch from './BlueprintBranch';
-import BlueprintExportModal from './BlueprintExportModal';
-import BlueprintLegend from './BlueprintLegend';
-import DiagramConfig from './DiagramConfig';
-import SimpleBranch from './SimpleBranch';
-import SimpleLegend from './SimpleLegend';
+} from "../../../utils/endfieldBlueprint";
+import { buildShareUrl, type ShareParams } from "../../../utils/shareParams";
+import Icon from "../../ui/Icon";
+import ImagePreviewModal from "../../ui/ImagePreview/ImagePreviewModal";
+import BlueprintBranch from "./BlueprintBranch";
+import BlueprintExportModal from "./BlueprintExportModal";
+import BlueprintLegend from "./BlueprintLegend";
+import DiagramConfig from "./DiagramConfig";
+import SimpleBranch from "./SimpleBranch";
+import SimpleLegend from "./SimpleLegend";
 
 const BLUEPRINT_ZOOM_MIN = 1;
 const BLUEPRINT_ZOOM_MAX = 3;
@@ -30,27 +30,32 @@ export interface SolutionDiagramProps {
   params: CalcParams;
 }
 
-export default function SolutionDiagram({ solution, params }: SolutionDiagramProps) {
+export default function SolutionDiagram({
+  solution,
+  params,
+}: SolutionDiagramProps) {
   const { t, locale } = useI18n();
-  const [mode, setMode] = useState<'blueprint' | 'simple'>('blueprint');
+  const [mode, setMode] = useState<"blueprint" | "simple">("blueprint");
   const [blueprintZoom, setBlueprintZoom] = useState(1);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
-  const [resumeExportModalOnPreviewClose, setResumeExportModalOnPreviewClose] = useState(false);
+  const [resumeExportModalOnPreviewClose, setResumeExportModalOnPreviewClose] =
+    useState(false);
   const [imagePreviewBlob, setImagePreviewBlob] = useState<Blob | null>(null);
-  const [imagePreviewFileName, setImagePreviewFileName] = useState('');
-  const [imagePreviewTitle, setImagePreviewTitle] = useState('');
+  const [imagePreviewFileName, setImagePreviewFileName] = useState("");
+  const [imagePreviewTitle, setImagePreviewTitle] = useState("");
   const [preparingCompleteImage, setPreparingCompleteImage] = useState(false);
   const pinchRef = useRef({ initialDistance: 0, initialZoom: 1 });
 
   const clampZoom = useCallback(
-    (z: number) => Math.max(BLUEPRINT_ZOOM_MIN, Math.min(BLUEPRINT_ZOOM_MAX, z)),
+    (z: number) =>
+      Math.max(BLUEPRINT_ZOOM_MIN, Math.min(BLUEPRINT_ZOOM_MAX, z)),
     []
   );
 
   const handleBlueprintWheel = useCallback(
     (e: React.WheelEvent) => {
-      if (mode !== 'blueprint') return;
+      if (mode !== "blueprint") return;
       e.preventDefault();
       const delta = -e.deltaY * 0.002;
       setBlueprintZoom((z) => clampZoom(z + delta));
@@ -60,7 +65,7 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
 
   const handleBlueprintTouchStart = useCallback(
     (e: React.TouchEvent) => {
-      if (mode !== 'blueprint' || e.touches.length !== 2) return;
+      if (mode !== "blueprint" || e.touches.length !== 2) return;
       const dist = Math.hypot(
         e.touches[1].clientX - e.touches[0].clientX,
         e.touches[1].clientY - e.touches[0].clientY
@@ -101,8 +106,8 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
   const handleCloseImagePreview = useCallback(() => {
     setImagePreviewOpen(false);
     setImagePreviewBlob(null);
-    setImagePreviewFileName('');
-    setImagePreviewTitle('');
+    setImagePreviewFileName("");
+    setImagePreviewTitle("");
     if (resumeExportModalOnPreviewClose) {
       setExportModalOpen(true);
       setResumeExportModalOnPreviewClose(false);
@@ -110,15 +115,23 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
   }, [resumeExportModalOnPreviewClose]);
 
   useEffect(() => {
-    if (mode !== 'blueprint') setBlueprintZoom(1);
+    if (mode !== "blueprint") setBlueprintZoom(1);
   }, [mode]);
 
   const openImagePreview = useCallback(
-    ({ blob, fileName, title }: { blob: Blob; fileName?: string; title?: string }) => {
+    ({
+      blob,
+      fileName,
+      title,
+    }: {
+      blob: Blob;
+      fileName?: string;
+      title?: string;
+    }) => {
       if (!blob) return;
       setImagePreviewBlob(blob);
-      setImagePreviewFileName(fileName || '');
-      setImagePreviewTitle(title || t('completeImagePreviewTitle'));
+      setImagePreviewFileName(fileName || "");
+      setImagePreviewTitle(title || t("completeImagePreviewTitle"));
       setImagePreviewOpen(true);
     },
     [t]
@@ -130,11 +143,10 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
     | undefined;
   const inputSourceId = solution?.inputSourceId;
   const excludeBelt = solution?.excludeBelt;
-  const showPackerWarning = inputSourceId === 'packer';
+  const showPackerWarning = inputSourceId === "packer";
   const showExcludeBeltWarning = excludeBelt === false;
   const hasOscillating = Array.isArray(oscillating) && oscillating.length > 0;
-  const canExportBlueprint = mode === 'blueprint' && hasOscillating;
-
+  const canExportBlueprint = mode === "blueprint" && hasOscillating;
   const handleExportSingleBranch = useCallback(
     (branchIndex: number) => {
       const branch = oscillating?.[branchIndex];
@@ -142,14 +154,20 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
       try {
         const denominator = Number(branch.denominator);
         const safeDenominator =
-          Number.isFinite(denominator) && denominator > 0 ? denominator : 'unknown';
+          Number.isFinite(denominator) && denominator > 0
+            ? denominator
+            : "unknown";
         const power = Number(branch.power);
-        const powerToken = `${Number.isFinite(power) ? Math.round(power) : 'unknown'}w`;
+        const powerToken = `${
+          Number.isFinite(power) ? Math.round(power) : "unknown"
+        }w`;
         downloadEndfieldBlueprint(branch, {
-          filename: `dige_branch_${branchIndex + 1}_1_${safeDenominator}_${powerToken}_blueprint.json`,
+          filename: `dige_branch_${
+            branchIndex + 1
+          }_1_${safeDenominator}_${powerToken}_blueprint.json`,
         });
       } catch (error) {
-        console.error('Blueprint export failed:', error);
+        console.error("Blueprint export failed:", error);
       }
     },
     [oscillating]
@@ -162,22 +180,28 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
       try {
         const denominator = Number(branch.denominator);
         const safeDenominator =
-          Number.isFinite(denominator) && denominator > 0 ? denominator : 'unknown';
+          Number.isFinite(denominator) && denominator > 0
+            ? denominator
+            : "unknown";
         const power = Number(branch.power);
-        const powerToken = `${Number.isFinite(power) ? Math.round(power) : 'unknown'}w`;
+        const powerToken = `${
+          Number.isFinite(power) ? Math.round(power) : "unknown"
+        }w`;
         const { fileName, blob } = await buildEndfieldBlueprintPng(branch, {
-          filename: `dige_branch_${branchIndex + 1}_1_${safeDenominator}_${powerToken}.png`,
-          branchLabel: `${t('branch')} ${branchIndex + 1}`,
+          filename: `dige_branch_${
+            branchIndex + 1
+          }_1_${safeDenominator}_${powerToken}.png`,
+          branchLabel: `${t("branch")} ${branchIndex + 1}`,
         });
         openImagePreview({
           blob,
           fileName,
-          title: `${t('branch')} ${branchIndex + 1} PNG`,
+          title: `${t("branch")} ${branchIndex + 1} PNG`,
         });
         setResumeExportModalOnPreviewClose(true);
         setExportModalOpen(false);
       } catch (error) {
-        console.error('Blueprint PNG export failed:', error);
+        console.error("Blueprint PNG export failed:", error);
       }
     },
     [openImagePreview, oscillating, t]
@@ -200,7 +224,7 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
       });
       setExportModalOpen(false);
     } catch (error) {
-      console.error('Blueprint zip export failed:', error);
+      console.error("Blueprint zip export failed:", error);
     }
   }, [oscillating]);
 
@@ -208,16 +232,24 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
     if (!Array.isArray(oscillating) || oscillating.length === 0) return;
     try {
       setPreparingCompleteImage(true);
-      const getLocalizedName = (option: { name?: Record<string, string>; id?: string }) =>
-        option?.name?.[locale] || option?.name?.en || option?.id || '-';
+      const getLocalizedName = (option: {
+        name?: Record<string, string>;
+        id?: string;
+      }) => option?.name?.[locale] || option?.name?.en || option?.id || "-";
       const primaryFuelNameMap = Object.fromEntries(
         FUEL_OPTIONS.map((option) => [option.id, getLocalizedName(option)])
       );
       const secondaryFuelNameMap = Object.fromEntries(
-        SECONDARY_FUEL_OPTIONS.map((option) => [option.id, getLocalizedName(option)])
+        SECONDARY_FUEL_OPTIONS.map((option) => [
+          option.id,
+          getLocalizedName(option),
+        ])
       );
       const inputSourceNameMap = Object.fromEntries(
-        INPUT_SOURCE_OPTIONS.map((option) => [option.id, getLocalizedName(option)])
+        INPUT_SOURCE_OPTIONS.map((option) => [
+          option.id,
+          getLocalizedName(option),
+        ])
       );
       const totalPower = oscillating.reduce((sum, branch) => {
         const branchPower = Number(branch?.power);
@@ -233,45 +265,45 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
         solution: solution ?? undefined,
         targetPower: Number(params?.targetPower),
         chartLabels: {
-          currentPower: t('currentPower'),
-          targetPowerLine: t('targetPowerLine'),
-          batteryLevel: t('batteryLevel'),
-          minBatteryPercent: t('minBatteryPercent'),
-          branch: t('branch'),
-          burnStateShort: t('burnStateShort'),
-          powerAxis: t('powerAxis'),
-          batteryAxis: t('batteryAxis'),
-          stateOn: t('stateOn'),
-          stateOff: t('stateOff'),
+          currentPower: t("currentPower"),
+          targetPowerLine: t("targetPowerLine"),
+          batteryLevel: t("batteryLevel"),
+          minBatteryPercent: t("minBatteryPercent"),
+          branch: t("branch"),
+          burnStateShort: t("burnStateShort"),
+          powerAxis: t("powerAxis"),
+          batteryAxis: t("batteryAxis"),
+          stateOn: t("stateOn"),
+          stateOff: t("stateOff"),
         },
         completeLabels: {
-          title: t('completeExportImageTitle'),
-          exportTime: t('exportTime'),
-          parameters: t('constraints'),
-          summary: t('summary'),
-          branches: t('solutionDiagram'),
-          chart: t('cycleChart'),
-          targetPower: t('targetPower'),
-          minBatteryPercent: t('minBatteryPercent'),
-          maxWaste: t('maxWaste'),
-          maxBranches: t('maxBranches'),
-          branchPhaseOffset: t('branchPhaseOffset'),
-          excludeBelt: t('excludeBelt'),
-          primaryFuel: t('primaryFuel'),
-          secondaryFuel: t('secondaryFuel'),
-          inputSource: t('inputSource'),
-          actualPower: t('actualPower'),
-          cyclePeriod: t('cyclePeriod'),
-          variance: t('variance'),
-          minBattery: t('minBatteryShort'),
-          branchCount: t('branchesShort'),
-          totalSplitters: t('legendBlueprintS'),
-          branch: t('branch'),
-          stateOn: t('stateOn'),
-          stateOff: t('stateOff'),
-          excludeBeltOn: t('enabled'),
-          excludeBeltOff: t('disabled'),
-          footnote: t('completeExportFootnote'),
+          title: t("completeExportImageTitle"),
+          exportTime: t("exportTime"),
+          parameters: t("constraints"),
+          summary: t("summary"),
+          branches: t("solutionDiagram"),
+          chart: t("cycleChart"),
+          targetPower: t("targetPower"),
+          minBatteryPercent: t("minBatteryPercent"),
+          maxWaste: t("maxWaste"),
+          maxBranches: t("maxBranches"),
+          branchPhaseOffset: t("branchPhaseOffset"),
+          excludeBelt: t("excludeBelt"),
+          primaryFuel: t("primaryFuel"),
+          secondaryFuel: t("secondaryFuel"),
+          inputSource: t("inputSource"),
+          actualPower: t("actualPower"),
+          cyclePeriod: t("cyclePeriod"),
+          variance: t("variance"),
+          minBattery: t("minBatteryShort"),
+          branchCount: t("branchesShort"),
+          totalSplitters: t("legendBlueprintS"),
+          branch: t("branch"),
+          stateOn: t("stateOn"),
+          stateOff: t("stateOff"),
+          excludeBeltOn: t("enabled"),
+          excludeBeltOff: t("disabled"),
+          footnote: t("completeExportFootnote"),
           primaryFuelNameMap,
           secondaryFuelNameMap,
           inputSourceNameMap,
@@ -280,12 +312,12 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
       openImagePreview({
         blob,
         fileName,
-        title: t('completeImagePreviewTitle'),
+        title: t("completeImagePreviewTitle"),
       });
       setResumeExportModalOnPreviewClose(true);
       setExportModalOpen(false);
     } catch (error) {
-      console.error('Blueprint complete image export failed:', error);
+      console.error("Blueprint complete image export failed:", error);
     } finally {
       setPreparingCompleteImage(false);
     }
@@ -294,7 +326,7 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
   if (!solution) {
     return (
       <div className="h-32 flex items-center justify-center text-endfield-text text-sm">
-        {t('noSolutionData')}
+        {t("noSolutionData")}
       </div>
     );
   }
@@ -304,14 +336,14 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
       {showPackerWarning && (
         <div className="p-2.5 bg-red-900/20 border border-red-900/50 text-sm text-red-300 flex items-center gap-2">
           <Icon name="warning" />
-          <span>{t('inputWarningPacker')}</span>
+          <span>{t("inputWarningPacker")}</span>
         </div>
       )}
 
       {showExcludeBeltWarning && (
         <div className="p-2.5 bg-red-900/20 border border-red-900/50 text-sm text-red-300 flex items-center gap-2">
           <Icon name="warning" />
-          <span>{t('excludeBeltWarning')}</span>
+          <span>{t("excludeBeltWarning")}</span>
         </div>
       )}
 
@@ -320,31 +352,66 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
       <div className="border border-endfield-gray-light bg-endfield-gray/30">
         <div className="flex flex-wrap items-center gap-2 p-3 border-b border-endfield-gray-light bg-endfield-gray/50">
           <Icon name="electric_bolt" className="text-endfield-yellow" />
-          <span className="text-sm text-endfield-text uppercase">{t('oscillatingShort')}:</span>
+          <span className="text-sm text-endfield-text uppercase">
+            {t("oscillatingShort")}:
+          </span>
           <span className="text-sm font-bold text-endfield-text-light">
             {hasOscillating ? oscillating.length : 0}
           </span>
           {hasOscillating ? (
             <>
               <span className="text-sm text-endfield-text">
-                x{' '}
+                x{" "}
                 {oscillatingFuel
                   ? oscillatingFuel.name?.[locale] || oscillatingFuel.name?.en
-                  : (solution.fuel as { name?: Record<string, string> })?.name?.[locale] ||
-                    (solution.fuel as { name?: Record<string, string> })?.name?.en}
+                  : (solution.fuel as { name?: Record<string, string> })
+                      ?.name?.[locale] ||
+                    (solution.fuel as { name?: Record<string, string> })?.name
+                      ?.en}
               </span>
               <span className="text-sm text-endfield-text">=</span>
-              <span className="text-sm font-bold text-endfield-yellow">
+              <span className="text-sm font-bold text-endfield-text-light">
                 {oscillating.reduce((sum, b) => sum + b.power, 0).toFixed(0)}w
               </span>
-              <span className="text-xs text-endfield-text/70">
-                ({oscillating.map((b) => `${b.power.toFixed(0)}w`).join(' + ')})
+              <span className="text-xs text-endfield-text/70 flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                <span>(</span>
+                {oscillating.map((b, i) => {
+                  const limited =
+                    Boolean(b.requiresLimiter) && b.limiterSpeed != null;
+                  return (
+                    <span
+                      key={`${b.denominator}-${b.power}-${i}`}
+                      className="inline-flex items-center gap-0.5"
+                    >
+                      {i > 0 ? (
+                        <span className="text-endfield-text/50">+</span>
+                      ) : null}
+                      <span
+                        className={
+                          limited
+                            ? "text-endfield-yellow font-semibold"
+                            : undefined
+                        }
+                      >
+                        {b.power.toFixed(0)}w
+                      </span>
+                      {limited ? (
+                        <span className="text-[10px] leading-none text-endfield-yellow border border-endfield-yellow/50 bg-endfield-yellow/10 px-1 py-0.5 rounded-sm whitespace-nowrap">
+                          {t("gateShort")} {b.limiterSpeed}/{t("itemPerMin")}
+                        </span>
+                      ) : null}
+                    </span>
+                  );
+                })}
+                <span>)</span>
               </span>
             </>
           ) : (
             <>
               <span className="text-sm text-endfield-text">=</span>
-              <span className="text-sm font-bold text-endfield-yellow">0w</span>
+              <span className="text-sm font-bold text-endfield-text-light">
+                0w
+              </span>
             </>
           )}
           <div className="ml-auto flex items-center gap-2">
@@ -352,30 +419,30 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
               <button
                 type="button"
                 disabled={!hasOscillating}
-                onClick={() => setMode('blueprint')}
+                onClick={() => setMode("blueprint")}
                 className={`px-2 py-1 text-xs transition-colors ${
                   !hasOscillating
-                    ? 'text-endfield-text/40 cursor-not-allowed'
-                    : mode === 'blueprint'
-                      ? 'text-endfield-yellow bg-endfield-yellow/10'
-                      : 'text-endfield-text-light hover:text-endfield-yellow'
+                    ? "text-endfield-text/40 cursor-not-allowed"
+                    : mode === "blueprint"
+                    ? "text-endfield-yellow bg-endfield-yellow/10"
+                    : "text-endfield-text-light hover:text-endfield-yellow"
                 }`}
               >
-                {t('blueprintMode')}
+                {t("blueprintMode")}
               </button>
               <button
                 type="button"
                 disabled={!hasOscillating}
-                onClick={() => setMode('simple')}
+                onClick={() => setMode("simple")}
                 className={`px-2 py-1 text-xs border-l border-endfield-gray-light transition-colors ${
                   !hasOscillating
-                    ? 'text-endfield-text/40 cursor-not-allowed'
-                    : mode === 'simple'
-                      ? 'text-endfield-yellow bg-endfield-yellow/10'
-                      : 'text-endfield-text-light hover:text-endfield-yellow'
+                    ? "text-endfield-text/40 cursor-not-allowed"
+                    : mode === "simple"
+                    ? "text-endfield-yellow bg-endfield-yellow/10"
+                    : "text-endfield-text-light hover:text-endfield-yellow"
                 }`}
               >
-                {t('simpleMode')}
+                {t("simpleMode")}
               </button>
             </div>
           </div>
@@ -389,28 +456,36 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
                   type="button"
                   onClick={handleOpenExportModal}
                   className="inline-flex items-center gap-1.5 px-2 py-1 text-xs border border-endfield-gray-light text-endfield-text-light bg-endfield-gray/90 hover:text-endfield-yellow hover:border-endfield-yellow transition-colors"
-                  title={t('exportBlueprintJson')}
-                  aria-label={t('exportBlueprintJson')}
+                  title={t("exportBlueprintJson")}
+                  aria-label={t("exportBlueprintJson")}
                 >
                   <Icon name="download" className="w-4 h-4" />
-                  <span className="hidden sm:inline">{t('exportBlueprintJson')}</span>
+                  <span className="hidden sm:inline">
+                    {t("exportBlueprintJson")}
+                  </span>
                 </button>
               </div>
             )}
 
             <div
               className={`flex gap-3 p-2 sm:p-3 ${
-                mode === 'simple' ? 'flex-col' : 'flex-wrap justify-center'
+                mode === "simple" ? "flex-col" : "flex-wrap justify-center"
               }`}
             >
               {oscillating.map((branch, idx) => (
                 <div
-                  key={`${branch.denominator}-${branch.power}-${branch.phaseOffsetCells ?? 0}-${idx}`}
-                  className={mode === 'simple' ? 'w-full' : 'min-w-[min(100%,360px)]'}
-                  style={mode === 'blueprint' ? { zoom: blueprintZoom } : undefined}
+                  key={`${branch.denominator}-${branch.power}-${
+                    branch.phaseOffsetCells ?? 0
+                  }-${idx}`}
+                  className={
+                    mode === "simple" ? "w-full" : "min-w-[min(100%,360px)]"
+                  }
+                  style={
+                    mode === "blueprint" ? { zoom: blueprintZoom } : undefined
+                  }
                 >
-                  {mode === 'simple' ? (
-                    <SimpleBranch branch={branch as { denominator: number; power: number }} t={t} />
+                  {mode === "simple" ? (
+                    <SimpleBranch branch={branch} t={t} />
                   ) : (
                     <BlueprintBranch
                       branch={branch}
@@ -427,7 +502,7 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
           </div>
         ) : (
           <div className="p-2 sm:p-3 text-xs text-endfield-text/70">
-            {t('noOscillatingBranchHint')}
+            {t("noOscillatingBranchHint")}
           </div>
         )}
       </div>
@@ -437,31 +512,37 @@ export default function SolutionDiagram({ solution, params }: SolutionDiagramPro
           <div>
             <div className="flex items-center justify-between gap-2 mb-2">
               <div className="text-xs font-bold text-endfield-text uppercase tracking-widest">
-                {t('diagramLegend')}
+                {t("diagramLegend")}
               </div>
               <div className="text-[10px] sm:text-xs text-endfield-text/60">
-                {mode === 'blueprint' ? t('blueprintMode') : t('simpleMode')}
+                {mode === "blueprint" ? t("blueprintMode") : t("simpleMode")}
               </div>
             </div>
-            {mode === 'blueprint' ? <BlueprintLegend t={t} /> : <SimpleLegend t={t} />}
+            {mode === "blueprint" ? (
+              <BlueprintLegend t={t} />
+            ) : (
+              <SimpleLegend t={t} />
+            )}
           </div>
 
           <div className="pt-3 border-t border-endfield-gray-light/70">
             <div className="flex items-center justify-between gap-2 mb-2">
               <div className="text-xs font-bold text-endfield-text uppercase tracking-widest">
-                {t('diagramTutorial')}
+                {t("diagramTutorial")}
               </div>
               <div className="text-[10px] sm:text-xs text-endfield-text/60">
-                {mode === 'blueprint' ? t('blueprintMode') : t('simpleMode')}
+                {mode === "blueprint" ? t("blueprintMode") : t("simpleMode")}
               </div>
             </div>
             <ol className="list-decimal list-inside space-y-1 text-xs text-endfield-text/80">
-              <li>{t('diagramTutorialStep1')}</li>
-              <li>{t('diagramTutorialStep2')}</li>
+              <li>{t("diagramTutorialStep1")}</li>
+              <li>{t("diagramTutorialStep2")}</li>
               <li>
-                {mode === 'blueprint' ? t('diagramTutorialBlueprint') : t('diagramTutorialSimple')}
+                {mode === "blueprint"
+                  ? t("diagramTutorialBlueprint")
+                  : t("diagramTutorialSimple")}
               </li>
-              <li>{t('diagramTutorialStep4')}</li>
+              <li>{t("diagramTutorialStep4")}</li>
             </ol>
           </div>
         </div>

@@ -30,6 +30,12 @@ export default function InputSourceField({
   const getInputSourceName = (source: InputSource | undefined) =>
     source?.name?.[locale] || source?.name?.en || '';
 
+  const handleSourceChange = (sourceId: string) => {
+    onChange('inputSourceId', sourceId);
+  };
+
+  const speed = inputSource.speed;
+
   return (
     <SidebarSection icon="input" title={t('inputSource')} className="space-y-2">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -37,7 +43,7 @@ export default function InputSourceField({
           <button
             key={source.id}
             type="button"
-            onClick={() => onChange('inputSourceId', source.id)}
+            onClick={() => handleSourceChange(source.id)}
             className={`h-10 px-2 border text-xs sm:text-sm transition-colors ${
               selectedInputSourceId === source.id
                 ? 'text-endfield-yellow border-endfield-yellow bg-endfield-yellow/10'
@@ -45,12 +51,14 @@ export default function InputSourceField({
             }`}
           >
             {getInputSourceName(source)}
+            <span className="ml-1 opacity-60">({source.speed}/s)</span>
           </button>
         ))}
       </div>
+
       <div className="flex items-center justify-between text-sm text-endfield-text/50">
         <span className="leading-normal">
-          {t('inputSpeed')}: {inputSource?.speed} {t('itemPerSec')}
+          {t('inputSpeed')}: {speed.toFixed(speed < 0.1 ? 3 : 2)} {t('itemPerSec')}
           {selectedInputSourceId === 'packer' ? ` (${t('inputHintPacker')})` : ''}
         </span>
         {selectedInputSourceId === 'packer' && (

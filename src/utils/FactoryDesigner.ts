@@ -1,5 +1,15 @@
-import type { CalcParams, OscillatingBranch, SolutionResult } from '../types/calc';
-import type { Fuel } from './constants';
+import type {
+  CalcParams,
+  OscillatingBranch,
+  SolutionResult,
+} from "../types/calc";
+import type { Fuel } from "./constants";
+import {
+  buildBranchLimiterOptions,
+  getBeltThroughput,
+  getEffectiveInput,
+  type BranchLimiterPlan,
+} from "./inputRate";
 import {
   analyzeSplitterComplexity,
   CONSTANTS,
@@ -9,7 +19,7 @@ import {
   INPUT_SOURCES,
   PARAM_LIMITS,
   resolveFuel,
-} from './constants';
+} from "./constants";
 
 export type FactoryDesignerParams = CalcParams;
 
@@ -20,16 +30,16 @@ const WARMUP_CYCLES = 2;
 const MAX_SIMULATION_PERIOD = 100_000;
 
 const PART_FACE = {
-  UP: 'UP',
-  DOWN: 'DOWN',
-  LEFT: 'LEFT',
-  RIGHT: 'RIGHT',
+  UP: "UP",
+  DOWN: "DOWN",
+  LEFT: "LEFT",
+  RIGHT: "RIGHT",
 } as const;
 
 const PART_FUNCTION = {
-  INPUT: 'INPUT',
-  OUTPUT: 'OUTPUT',
-  RECYCLE: 'RECYCLE',
+  INPUT: "INPUT",
+  OUTPUT: "OUTPUT",
+  RECYCLE: "RECYCLE",
 } as const;
 
 function createPart(
@@ -51,57 +61,56 @@ function buildBranchBlueprint(
   excludeBelt: boolean = false
 ): (Record<string, unknown> | null)[][] {
   const totalColumns = 1 + threeWay + twoWay + 1;
-  const grid = Array.from({ length: 5 }, () => Array(totalColumns).fill(null)) as (Record<
-    string,
-    unknown
-  > | null)[][];
+  const grid = Array.from({ length: 5 }, () =>
+    Array(totalColumns).fill(null)
+  ) as (Record<string, unknown> | null)[][];
 
   // Row 3: Input -> splitters -> thermal bank
-  grid[2][0] = createPart('input_source', null, PART_FUNCTION.INPUT);
+  grid[2][0] = createPart("input_source", null, PART_FUNCTION.INPUT);
   let col = 1;
 
   for (let i = 0; i < threeWay; i += 1) {
-    grid[2][col] = createPart('splitter', PART_FACE.RIGHT);
-    grid[0][col] = createPart('converger', PART_FACE.LEFT);
-    grid[4][col] = createPart('converger', PART_FACE.LEFT);
+    grid[2][col] = createPart("splitter", PART_FACE.RIGHT);
+    grid[0][col] = createPart("converger", PART_FACE.LEFT);
+    grid[4][col] = createPart("converger", PART_FACE.LEFT);
     if (excludeBelt) {
-      grid[1][col] = createPart('converger', PART_FACE.UP);
-      grid[3][col] = createPart('converger', PART_FACE.DOWN);
+      grid[1][col] = createPart("converger", PART_FACE.UP);
+      grid[3][col] = createPart("converger", PART_FACE.DOWN);
     } else {
-      grid[1][col] = createPart('belt', PART_FACE.UP);
-      grid[3][col] = createPart('belt', PART_FACE.DOWN);
+      grid[1][col] = createPart("belt", PART_FACE.UP);
+      grid[3][col] = createPart("belt", PART_FACE.DOWN);
     }
     col += 1;
   }
 
   for (let i = 0; i < twoWay; i += 1) {
-    grid[2][col] = createPart('splitter', PART_FACE.RIGHT);
-    grid[0][col] = createPart('converger', PART_FACE.LEFT);
+    grid[2][col] = createPart("splitter", PART_FACE.RIGHT);
+    grid[0][col] = createPart("converger", PART_FACE.LEFT);
     if (excludeBelt) {
-      grid[1][col] = createPart('converger', PART_FACE.UP);
+      grid[1][col] = createPart("converger", PART_FACE.UP);
     } else {
-      grid[1][col] = createPart('belt', PART_FACE.UP);
+      grid[1][col] = createPart("belt", PART_FACE.UP);
     }
     col += 1;
   }
 
-  grid[2][col] = createPart('thermal_bank', null, PART_FUNCTION.OUTPUT);
+  grid[2][col] = createPart("thermal_bank", null, PART_FUNCTION.OUTPUT);
 
-  grid[0][0] = createPart('recycle_source', null, PART_FUNCTION.RECYCLE);
+  grid[0][0] = createPart("recycle_source", null, PART_FUNCTION.RECYCLE);
   if (grid[4].some((cell) => cell !== null)) {
-    grid[4][0] = createPart('recycle_source', null, PART_FUNCTION.RECYCLE);
+    grid[4][0] = createPart("recycle_source", null, PART_FUNCTION.RECYCLE);
   }
 
   if (!excludeBelt) {
     for (let idx = totalColumns - 1; idx >= 0; idx -= 1) {
-      if ((grid[0][idx] as Record<string, unknown>)?.partId === 'converger') {
-        grid[0][idx] = createPart('left_turn_belt', PART_FACE.UP);
+      if ((grid[0][idx] as Record<string, unknown>)?.partId === "converger") {
+        grid[0][idx] = createPart("left_turn_belt", PART_FACE.UP);
         break;
       }
     }
     for (let idx = totalColumns - 1; idx >= 0; idx -= 1) {
-      if ((grid[4][idx] as Record<string, unknown>)?.partId === 'converger') {
-        grid[4][idx] = createPart('right_turn_belt', PART_FACE.DOWN);
+      if ((grid[4][idx] as Record<string, unknown>)?.partId === "converger") {
+        grid[4][idx] = createPart("right_turn_belt", PART_FACE.DOWN);
         break;
       }
     }
@@ -116,6 +125,12 @@ interface OscillatingSolutionInput {
     phaseOffsetCells?: number;
     power?: number;
     blueprint?: (Record<string, unknown> | null)[][];
+    limiterSpeed?: number | null;
+    requiresLimiter?: boolean;
+    localDenominator?: number;
+    branchInterval?: number;
+    splitterCount?: { split2: number; split3: number; total: number };
+    description?: string;
   }>;
   fuel: Fuel;
   isPrimary: boolean;
@@ -141,6 +156,8 @@ interface BuildSolutionOutputParams {
   targetPower: number;
   inputInterval: number;
   inputSourceId: string;
+  rateLimitPerMin?: number | null;
+  isRateLimited?: boolean;
   excludeBelt: boolean;
   batteryCapacity: number;
   baseFuelPerSec: number;
@@ -154,6 +171,8 @@ function buildSolutionOutput({
   targetPower,
   inputInterval,
   inputSourceId,
+  rateLimitPerMin = null,
+  isRateLimited = false,
   excludeBelt,
   batteryCapacity,
   baseFuelPerSec,
@@ -170,6 +189,8 @@ function buildSolutionOutput({
       isPrimary: true,
       inputInterval,
       inputSourceId,
+      rateLimitPerMin,
+      isRateLimited,
       excludeBelt: excludeBelt,
       avgPower: baseConfig.totalPower,
       waste: baseConfig.totalPower - targetPower,
@@ -209,6 +230,12 @@ function buildSolutionOutput({
     phaseOffsetCells: b.phaseOffsetCells ?? 0,
     power: b.power ?? 0,
     blueprint: b.blueprint,
+    limiterSpeed: b.limiterSpeed ?? null,
+    requiresLimiter: Boolean(b.requiresLimiter),
+    localDenominator: b.localDenominator,
+    branchInterval: b.branchInterval,
+    splitterCount: b.splitterCount,
+    description: b.description,
   }));
   return {
     baseConfig,
@@ -219,6 +246,8 @@ function buildSolutionOutput({
     isPrimary: solution.isPrimary,
     inputInterval,
     inputSourceId,
+    rateLimitPerMin,
+    isRateLimited,
     excludeBelt: excludeBelt,
     avgPower: solution.avgPower,
     waste: solution.waste,
@@ -290,7 +319,7 @@ interface SimulateCycleSuccess {
 
 interface SimulateCycleFailure {
   success: false;
-  reason: 'period_too_long' | 'battery_depleted_preheat' | 'battery_below_min';
+  reason: "period_too_long" | "battery_depleted_preheat" | "battery_below_min";
   minBattery?: number;
 }
 
@@ -302,7 +331,12 @@ class PowerCycleSimulator {
   batteryCapacity: number;
   inputInterval: number;
 
-  constructor({ targetPower, minBatteryPercent, batteryCapacity, inputInterval }: SimulatorParams) {
+  constructor({
+    targetPower,
+    minBatteryPercent,
+    batteryCapacity,
+    inputInterval,
+  }: SimulatorParams) {
     this.targetPower = targetPower;
     this.minBatteryPercent = minBatteryPercent;
     this.batteryCapacity = batteryCapacity;
@@ -320,45 +354,89 @@ class PowerCycleSimulator {
     return Math.abs(a / this._gcd(a, b)) * b;
   }
 
-  _getCyclePeriod(denominators: number[]): number {
-    if (denominators.length === 0) {
+  _getCyclePeriodFromIntervals(intervals: number[]): number {
+    if (intervals.length === 0) {
       return this.inputInterval;
     }
-
-    const intervals = denominators.map((d) => this.inputInterval * d);
-    let period = this.inputInterval;
-    for (const interval of intervals) {
-      period = this._lcm(period, interval);
+    // LCM in milliseconds to avoid float drift (e.g. 10/3 s)
+    const toMs = (sec: number) => Math.max(1, Math.round(sec * 1000));
+    let periodMs = toMs(intervals[0]);
+    for (let i = 1; i < intervals.length; i += 1) {
+      periodMs = this._lcm(periodMs, toMs(intervals[i]));
     }
-    return period;
+    return periodMs / 1000;
+  }
+
+  _resolveBranchInterval(branch: {
+    denominator: number;
+    branchInterval?: number;
+    localDenominator?: number;
+    baseInterval?: number;
+  }): number {
+    if (
+      branch.branchInterval != null &&
+      Number.isFinite(branch.branchInterval) &&
+      branch.branchInterval > 0
+    ) {
+      return branch.branchInterval;
+    }
+    if (
+      branch.baseInterval != null &&
+      branch.localDenominator != null &&
+      Number.isFinite(branch.baseInterval) &&
+      branch.baseInterval > 0
+    ) {
+      return branch.baseInterval * branch.localDenominator;
+    }
+    return this.inputInterval * branch.denominator;
   }
 
   simulateCycle(
     baseConfig: { totalPower: number },
-    oscillatingBranches: Array<{ denominator: number; phaseOffsetCells?: number }>,
+    oscillatingBranches: Array<{
+      denominator: number;
+      phaseOffsetCells?: number;
+      branchInterval?: number;
+      localDenominator?: number;
+      baseInterval?: number;
+    }>,
     fuel: Fuel
   ): SimulateCycleResult {
-    const period = this._getCyclePeriod(oscillatingBranches.map((b) => b.denominator));
+    const branchIntervals = oscillatingBranches.map((b) =>
+      this._resolveBranchInterval(b)
+    );
+    const period = this._getCyclePeriodFromIntervals(branchIntervals);
     if (period > MAX_SIMULATION_PERIOD) {
-      return { success: false, reason: 'period_too_long' };
+      return { success: false, reason: "period_too_long" };
     }
 
     const warmupCycles = WARMUP_CYCLES;
     const maxPhaseOffset = oscillatingBranches.reduce((maxOffset, branch) => {
       const offsetSeconds =
-        normalizePhaseOffsetCells(branch.phaseOffsetCells) * CONSTANTS.BELT_INTERVAL;
+        normalizePhaseOffsetCells(branch.phaseOffsetCells) *
+        CONSTANTS.BELT_INTERVAL;
       return Math.max(maxOffset, offsetSeconds);
     }, 0);
-    const warmupDuration = Math.max(period * warmupCycles, maxPhaseOffset + period);
+    const warmupDuration = Math.max(
+      period * warmupCycles,
+      maxPhaseOffset + period
+    );
     const totalDuration = warmupDuration + period;
     const timelineSize = Math.ceil(totalDuration);
 
     const powerTimeline = new Array(timelineSize).fill(0);
-    const branchBurnTimeline = oscillatingBranches.map(() => new Array(timelineSize).fill(0));
+    const branchBurnTimeline = oscillatingBranches.map(() =>
+      new Array(timelineSize).fill(0)
+    );
 
     for (const [branchIndex, branch] of oscillatingBranches.entries()) {
-      const inputInterval = this.inputInterval * branch.denominator;
-      const phaseOffsetCells = normalizePhaseOffsetCells(branch.phaseOffsetCells);
+      const inputInterval = branchIntervals[branchIndex];
+      if (!Number.isFinite(inputInterval) || inputInterval <= 0) {
+        continue;
+      }
+      const phaseOffsetCells = normalizePhaseOffsetCells(
+        branch.phaseOffsetCells
+      );
       const branchStartTime = phaseOffsetCells * CONSTANTS.BELT_INTERVAL;
       let lastBurnEnd = 0;
 
@@ -380,7 +458,8 @@ class PowerCycleSimulator {
     const checkEnd = Math.floor(totalDuration);
     const cyclePower = powerTimeline.slice(checkStart, checkEnd);
 
-    const minBatteryRequired = (this.batteryCapacity * this.minBatteryPercent) / 100;
+    const minBatteryRequired =
+      (this.batteryCapacity * this.minBatteryPercent) / 100;
     let battery = this.batteryCapacity;
     let minBattery = battery;
     const batteryLog: number[] = [];
@@ -397,7 +476,7 @@ class PowerCycleSimulator {
         battery = this.batteryCapacity;
       }
       if (battery < 0) {
-        return { success: false, reason: 'battery_depleted_preheat' };
+        return { success: false, reason: "battery_depleted_preheat" };
       }
     }
 
@@ -430,18 +509,20 @@ class PowerCycleSimulator {
       if (battery < minBatteryRequired) {
         return {
           success: false,
-          reason: 'battery_below_min',
+          reason: "battery_below_min",
           minBattery,
         };
       }
     }
 
     const avgPower =
-      cyclePower.reduce((sum: number, p: number) => sum + p, 0) / cyclePower.length +
+      cyclePower.reduce((sum: number, p: number) => sum + p, 0) /
+        cyclePower.length +
       baseConfig.totalPower;
     const variance =
       cyclePower.reduce(
-        (sum: number, p: number) => sum + (p - (avgPower - baseConfig.totalPower)) ** 2,
+        (sum: number, p: number) =>
+          sum + (p - (avgPower - baseConfig.totalPower)) ** 2,
         0
       ) / cyclePower.length;
     const waste = avgPower - this.targetPower;
@@ -473,12 +554,24 @@ export class FactoryDesigner {
   maxWaste: number;
   primaryFuel: Fuel;
   secondaryFuel: Fuel | null;
-  inputSource: { id: string; interval: number };
+  inputSource: {
+    id: string;
+    interval: number;
+    speed?: number;
+    [key: string]: unknown;
+  };
   inputInterval: number;
+  rateLimitPerMin: number | null;
+  isRateLimited: boolean;
   batteryCapacity: number;
   maxBranches: number;
   branchPhaseOffsets: number[];
   excludeBelt: boolean;
+  /**
+   * 排除物品准入口限速器。
+   * false（默认）= 启用限速求解；true = 忽略限速/满速普通算法。
+   */
+  excludeItemGateLimiter: boolean;
   validDenominators: number[];
   simulator: PowerCycleSimulator;
 
@@ -486,68 +579,125 @@ export class FactoryDesigner {
     this.targetPower = params.targetPower;
     this.minBatteryPercent = params.minBatteryPercent;
     this.maxWaste = params.maxWaste;
-    const resolvedPrimary = resolveFuel(params.primaryFuelId, params.fuelOverrides);
+    const resolvedPrimary = resolveFuel(
+      params.primaryFuelId,
+      params.fuelOverrides
+    );
     if (!resolvedPrimary) {
       throw new Error(`Unknown primary fuel: ${params.primaryFuelId}`);
     }
     this.primaryFuel = resolvedPrimary;
 
     const resolvedSecondary =
-      params.secondaryFuelId !== 'none'
+      params.secondaryFuelId !== "none"
         ? resolveFuel(params.secondaryFuelId, params.fuelOverrides)
         : null;
-    if (params.secondaryFuelId !== 'none' && !resolvedSecondary) {
+    if (params.secondaryFuelId !== "none" && !resolvedSecondary) {
       throw new Error(`Unknown secondary fuel: ${params.secondaryFuelId}`);
     }
     this.secondaryFuel = resolvedSecondary ?? null;
 
     const inputSourceId = params.inputSourceId || DEFAULT_INPUT_SOURCE_ID;
-    this.inputSource = INPUT_SOURCES[inputSourceId] || INPUT_SOURCES[DEFAULT_INPUT_SOURCE_ID];
-    this.inputInterval = this.inputSource.interval;
+    const baseSource =
+      INPUT_SOURCES[inputSourceId] || INPUT_SOURCES[DEFAULT_INPUT_SOURCE_ID];
+    // 全局母带始终为输入源满速；准入口限速由震荡分支自动决策
+    const effective = getEffectiveInput(inputSourceId, null);
+    this.inputSource = {
+      ...baseSource,
+      id: inputSourceId,
+      speed: effective.speed,
+      interval: effective.interval,
+    };
+    this.inputInterval = effective.interval;
+    this.rateLimitPerMin = null;
+    this.isRateLimited = false;
     this.batteryCapacity = CONSTANTS.BATTERY_CAPACITY;
     const normalizedMaxBranches = Number.isInteger(params.maxBranches)
-      ? (params.maxBranches ?? PARAM_LIMITS.MAX_BRANCHES)
+      ? params.maxBranches ?? PARAM_LIMITS.MAX_BRANCHES
       : PARAM_LIMITS.MAX_BRANCHES;
     this.maxBranches = Math.min(
       PARAM_LIMITS.MAX_BRANCHES,
       Math.max(PARAM_LIMITS.MIN_BRANCHES, normalizedMaxBranches)
     );
-    this.branchPhaseOffsets = Array.from({ length: this.maxBranches }, (_, index) => {
-      const key = `phaseOffsetBranch${index + 1}` as keyof CalcParams;
-      const val = params[key];
-      const num = Number(val);
-      return normalizePhaseOffsetCells(Number.isFinite(num) ? num : 0);
-    });
+    this.branchPhaseOffsets = Array.from(
+      { length: this.maxBranches },
+      (_, index) => {
+        const key = `phaseOffsetBranch${index + 1}` as keyof CalcParams;
+        const val = params[key];
+        const num = Number(val);
+        return normalizePhaseOffsetCells(Number.isFinite(num) ? num : 0);
+      }
+    );
     this.excludeBelt = Boolean(params.excludeBelt ?? true);
+    // false/缺省=启用限速求解；true=排除限速（满速）
+    this.excludeItemGateLimiter = Boolean(params.excludeItemGateLimiter);
 
     this.validDenominators = generateValidDenominators();
     this.simulator = new PowerCycleSimulator({
       targetPower: this.targetPower,
       minBatteryPercent: this.minBatteryPercent,
       batteryCapacity: this.batteryCapacity,
-      inputInterval: this.inputInterval,
+      inputInterval: Number.isFinite(this.inputInterval)
+        ? this.inputInterval
+        : 0,
     });
   }
 
-  _getDirectBaseConfigs(): Array<{ generators: number; totalPower: number; belts: number }> {
-    const inputSpeed = this.inputInterval > 0 ? 1 / this.inputInterval : 0;
+  /** 限速为 0（inputInterval === Infinity）时的安全判断 */
+  private _isZeroInputRate(): boolean {
+    return (
+      this.inputInterval === Infinity ||
+      this.inputInterval <= 0 ||
+      !Number.isFinite(this.inputInterval)
+    );
+  }
+
+  _getDirectBaseConfigs(): Array<{
+    generators: number;
+    totalPower: number;
+    belts: number;
+  }> {
+    // 限速 0：仅可能返回基地 200W 方案
+    if (this._isZeroInputRate()) {
+      const waste = CONSTANTS.BASE_POWER - this.targetPower;
+      if (waste >= 0 && waste <= this.maxWaste) {
+        return [{ generators: 0, totalPower: CONSTANTS.BASE_POWER, belts: 0 }];
+      }
+      return [];
+    }
+
+    const inputSpeed = getBeltThroughput(this.inputInterval);
     const gensPerBelt = inputSpeed * this.primaryFuel.burnTime;
     const minGenerators = Math.max(
       0,
-      Math.ceil((this.targetPower - CONSTANTS.BASE_POWER) / this.primaryFuel.power)
+      Math.ceil(
+        (this.targetPower - CONSTANTS.BASE_POWER) / this.primaryFuel.power
+      )
     );
     const maxGenerators = Math.max(
       0,
-      Math.floor((this.targetPower + this.maxWaste - CONSTANTS.BASE_POWER) / this.primaryFuel.power)
+      Math.floor(
+        (this.targetPower + this.maxWaste - CONSTANTS.BASE_POWER) /
+          this.primaryFuel.power
+      )
     );
 
     if (maxGenerators < minGenerators) {
       return [];
     }
 
-    const configs: Array<{ generators: number; totalPower: number; belts: number }> = [];
-    for (let generators = minGenerators; generators <= maxGenerators; generators += 1) {
-      const totalPower = CONSTANTS.BASE_POWER + generators * this.primaryFuel.power;
+    const configs: Array<{
+      generators: number;
+      totalPower: number;
+      belts: number;
+    }> = [];
+    for (
+      let generators = minGenerators;
+      generators <= maxGenerators;
+      generators += 1
+    ) {
+      const totalPower =
+        CONSTANTS.BASE_POWER + generators * this.primaryFuel.power;
       const waste = totalPower - this.targetPower;
       if (waste < 0 || waste > this.maxWaste) {
         continue;
@@ -561,8 +711,16 @@ export class FactoryDesigner {
     return configs;
   }
 
-  calculateBasePower(): { generators: number; totalPower: number; belts: number } {
-    const inputSpeed = this.inputInterval > 0 ? 1 / this.inputInterval : 0;
+  calculateBasePower(): {
+    generators: number;
+    totalPower: number;
+    belts: number;
+  } {
+    if (this._isZeroInputRate()) {
+      return { generators: 0, totalPower: CONSTANTS.BASE_POWER, belts: 0 };
+    }
+
+    const inputSpeed = getBeltThroughput(this.inputInterval);
     const gensPerBelt = inputSpeed * this.primaryFuel.burnTime;
     const needed = this.targetPower - CONSTANTS.BASE_POWER;
 
@@ -571,7 +729,8 @@ export class FactoryDesigner {
     }
 
     const generators = Math.floor(needed / this.primaryFuel.power);
-    const totalPower = CONSTANTS.BASE_POWER + generators * this.primaryFuel.power;
+    const totalPower =
+      CONSTANTS.BASE_POWER + generators * this.primaryFuel.power;
     const belts = gensPerBelt > 0 ? Math.ceil(generators / gensPerBelt) : 0;
 
     return { generators, totalPower, belts };
@@ -588,7 +747,10 @@ export class FactoryDesigner {
 
     const combinations: number[][] = [];
     arr.forEach((v, i) => {
-      const subs = this._getCombinationsWithRepetition(arr.slice(i), length - 1);
+      const subs = this._getCombinationsWithRepetition(
+        arr.slice(i),
+        length - 1
+      );
       subs.forEach((sub) => {
         combinations.push([v, ...sub]);
       });
@@ -601,39 +763,80 @@ export class FactoryDesigner {
     baseConfig: { totalPower: number },
     isPrimary: boolean
   ): OscillatingSolutionInput[] {
+    if (this._isZeroInputRate()) {
+      return [];
+    }
     const gap = this.targetPower - baseConfig.totalPower;
     if (gap <= 0) {
       return [];
     }
 
     const solutions: OscillatingSolutionInput[] = [];
-    const effectiveDenominators = this.validDenominators.filter((d) => {
-      const branchPower = getOscillatingPower(fuel, d, this.inputInterval);
-      return branchPower < fuel.power;
-    });
-    if (effectiveDenominators.length === 0) {
+    // true=忽略限速（满速）；false=枚举准入口限速
+    const allBranchOptions: BranchLimiterPlan[] = buildBranchLimiterOptions(
+      fuel,
+      this.inputSource.id,
+      this.validDenominators,
+      this.excludeItemGateLimiter
+    );
+    // 剪枝：单支功率不超过 gap+容差；按硬件成本优先保留，避免组合爆炸
+    const maxSinglePower = gap + this.maxWaste + 10;
+    const pruned = allBranchOptions
+      .filter((o) => o.power > 0 && o.power <= maxSinglePower)
+      .sort((a, b) => {
+        if (a.hardwareCost !== b.hardwareCost)
+          return a.hardwareCost - b.hardwareCost;
+        return a.power - b.power;
+      });
+    const MAX_BRANCH_OPTIONS = 48;
+    const branchOptions =
+      pruned.length > MAX_BRANCH_OPTIONS
+        ? pruned.slice(0, MAX_BRANCH_OPTIONS)
+        : pruned;
+    if (branchOptions.length === 0) {
       return solutions;
     }
 
-    for (let r = 1; r <= this.maxBranches; r += 1) {
-      const combinations = this._getCombinationsWithRepetition(effectiveDenominators, r);
+    // 组合索引（可重复组合）
+    const optionIndexList = branchOptions.map((_, i) => i);
 
-      for (const combo of combinations) {
-        const theoryPower = combo.reduce(
-          (sum, d) => sum + getOscillatingPower(fuel, d, this.inputInterval),
-          0
-        );
+    for (let r = 1; r <= this.maxBranches; r += 1) {
+      const combinations = this._getCombinationsWithRepetition(
+        optionIndexList,
+        r
+      );
+
+      for (const comboIdx of combinations) {
+        const combo = comboIdx.map((i) => branchOptions[i]);
+        const theoryPower = combo.reduce((sum, opt) => sum + opt.power, 0);
         const theoryTotal = baseConfig.totalPower + theoryPower;
         const theoryWaste = theoryTotal - this.targetPower;
         if (theoryWaste < 0 || theoryWaste > this.maxWaste + 10) {
           continue;
         }
 
-        const branchConfigs = combo.map((d, i) => ({
-          denominator: d,
+        const branchConfigs = combo.map((opt, i) => ({
+          denominator: opt.denominator,
+          localDenominator: opt.localDenominator,
+          branchInterval: opt.branchInterval,
           phaseOffsetCells: this.branchPhaseOffsets[i] ?? 0,
+          power: opt.power,
+          limiterSpeed: opt.limiterSpeed,
+          requiresLimiter: opt.requiresLimiter,
+          splitterCount: opt.splitterCount,
+          description: opt.description,
+          complexity: {
+            total: opt.splitterCount.total,
+            twoWay: opt.splitterCount.split2,
+            threeWay: opt.splitterCount.split3,
+          },
         }));
-        const result = this.simulator.simulateCycle(baseConfig, branchConfigs, fuel);
+
+        const result = this.simulator.simulateCycle(
+          baseConfig,
+          branchConfigs,
+          fuel
+        );
 
         if (
           result.success &&
@@ -641,20 +844,28 @@ export class FactoryDesigner {
           result.waste >= 0 &&
           result.waste <= this.maxWaste
         ) {
-          const complexity = combo.map((d) => analyzeSplitterComplexity(d));
-          const totalSplitters = complexity.reduce((sum, c) => sum + c.total, 0);
+          const totalSplitters = combo.reduce(
+            (sum, opt) => sum + opt.splitterCount.total,
+            0
+          );
 
           solutions.push({
             fuel,
             isPrimary,
-            branches: branchConfigs.map((branchConfig, i) => ({
+            branches: branchConfigs.map((branchConfig) => ({
               denominator: branchConfig.denominator,
               phaseOffsetCells: branchConfig.phaseOffsetCells,
-              power: getOscillatingPower(fuel, branchConfig.denominator, this.inputInterval),
-              complexity: complexity[i],
+              power: branchConfig.power,
+              limiterSpeed: branchConfig.limiterSpeed,
+              requiresLimiter: branchConfig.requiresLimiter,
+              localDenominator: branchConfig.localDenominator,
+              branchInterval: branchConfig.branchInterval,
+              splitterCount: branchConfig.splitterCount,
+              description: branchConfig.description,
+              complexity: branchConfig.complexity,
               blueprint: buildBranchBlueprint(
-                complexity[i].threeWay,
-                complexity[i].twoWay,
+                branchConfig.complexity.threeWay,
+                branchConfig.complexity.twoWay,
                 this.excludeBelt
               ),
             })),
@@ -688,35 +899,39 @@ export class FactoryDesigner {
 
     return [
       solution.fuel.id,
-      solution.isPrimary ? 'primary' : 'secondary',
+      solution.isPrimary ? "primary" : "secondary",
       solution.branchCount,
       round(solution.avgPower, 1),
       round(solution.waste, 1),
       round(solution.variance, 2),
       round(solution.minBatteryPercent, 1),
-    ].join('|');
+    ].join("|");
   }
 
   solve(): SolutionResult[] {
     const baseConfig = this.calculateBasePower();
-    const directBaseOutputs = this._getDirectBaseConfigs().map((directBaseConfig) => {
-      const baseFuelPerSec =
-        directBaseConfig.generators > 0
-          ? directBaseConfig.generators / this.primaryFuel.burnTime
-          : 0;
-      return buildSolutionOutput({
-        baseConfig: directBaseConfig,
-        primaryFuel: this.primaryFuel,
-        targetPower: this.targetPower,
-        inputInterval: this.inputInterval,
-        inputSourceId: this.inputSource.id,
-        excludeBelt: this.excludeBelt,
-        batteryCapacity: this.batteryCapacity,
-        baseFuelPerSec,
-        solution: null,
-        oscillatingFuelPerSec: 0,
-      });
-    });
+    const directBaseOutputs = this._getDirectBaseConfigs().map(
+      (directBaseConfig) => {
+        const baseFuelPerSec =
+          directBaseConfig.generators > 0
+            ? directBaseConfig.generators / this.primaryFuel.burnTime
+            : 0;
+        return buildSolutionOutput({
+          baseConfig: directBaseConfig,
+          primaryFuel: this.primaryFuel,
+          targetPower: this.targetPower,
+          inputInterval: this.inputInterval,
+          inputSourceId: this.inputSource.id,
+          rateLimitPerMin: null,
+          isRateLimited: false,
+          excludeBelt: this.excludeBelt,
+          batteryCapacity: this.batteryCapacity,
+          baseFuelPerSec,
+          solution: null,
+          oscillatingFuelPerSec: 0,
+        });
+      }
+    );
 
     const allOscillatingSolutions: OscillatingSolutionInput[] = [];
     if (baseConfig.totalPower < this.targetPower) {
@@ -725,7 +940,11 @@ export class FactoryDesigner {
       );
       if (this.secondaryFuel) {
         allOscillatingSolutions.push(
-          ...this.calculateOscillatingPlans(this.secondaryFuel, baseConfig, false)
+          ...this.calculateOscillatingPlans(
+            this.secondaryFuel,
+            baseConfig,
+            false
+          )
         );
       }
     }
@@ -744,15 +963,46 @@ export class FactoryDesigner {
     const outputs: SolutionResult[] = [...directBaseOutputs];
     for (const solution of uniqueSolutions) {
       const baseFuelPerSec =
-        baseConfig.generators > 0 ? baseConfig.generators / this.primaryFuel.burnTime : 0;
+        baseConfig.generators > 0
+          ? baseConfig.generators / this.primaryFuel.burnTime
+          : 0;
       const oscillatingFuelPerSec = solution.branches
         ? solution.branches.reduce(
-            (sum: number, branch: { denominator: number }) =>
-              sum + 1 / (this.inputInterval * branch.denominator),
+            (
+              sum: number,
+              branch: {
+                denominator: number;
+                branchInterval?: number;
+                localDenominator?: number;
+              }
+            ) =>
+              (() => {
+                const branchInterval =
+                  branch.branchInterval != null &&
+                  Number.isFinite(branch.branchInterval) &&
+                  branch.branchInterval > 0
+                    ? branch.branchInterval
+                    : this.inputInterval *
+                      (branch.localDenominator ?? branch.denominator);
+                if (
+                  branchInterval === Infinity ||
+                  branchInterval <= 0 ||
+                  !Number.isFinite(branchInterval)
+                ) {
+                  return sum;
+                }
+                return sum + 1 / branchInterval;
+              })(),
             0
           )
         : 0;
 
+      const branchLimits = (solution.branches || [])
+        .map((b) => b.limiterSpeed)
+        .filter((v): v is number => v != null && Number.isFinite(v));
+      const anyLimited = (solution.branches || []).some(
+        (b) => b.requiresLimiter
+      );
       outputs.push(
         buildSolutionOutput({
           baseConfig,
@@ -760,6 +1010,13 @@ export class FactoryDesigner {
           targetPower: this.targetPower,
           inputInterval: this.inputInterval,
           inputSourceId: this.inputSource.id,
+          rateLimitPerMin:
+            branchLimits.length === 1
+              ? branchLimits[0]
+              : anyLimited
+              ? branchLimits[0] ?? null
+              : null,
+          isRateLimited: anyLimited,
           excludeBelt: this.excludeBelt,
           batteryCapacity: this.batteryCapacity,
           baseFuelPerSec,
@@ -772,12 +1029,14 @@ export class FactoryDesigner {
     outputs.sort((a, b) => {
       const keyA = [
         a.branchCount,
+        a.totalSplitters,
         Math.round(a.variance * 10) / 10,
         Math.round(a.waste * 10) / 10,
         a.isPrimary ? 0 : 1,
       ];
       const keyB = [
         b.branchCount,
+        b.totalSplitters,
         Math.round(b.variance * 10) / 10,
         Math.round(b.waste * 10) / 10,
         b.isPrimary ? 0 : 1,
