@@ -79,9 +79,23 @@
   "changelog": {
     "sections": [
       {
+        "version": "v1.11.0",
+        "title": "v1.11.0 Mises à jour",
+        "defaultOpen": true,
+        "items": [
+          "Le solveur peut appliquer automatiquement des limites de débit item-gate sur les branches oscillantes pour réduire les splitters multi-étages.",
+          "Ajout d’une alimentation de base en couches (cœur / manuel / auto) avec statistiques unifiées de consommation de carburant.",
+          "Prise en charge du mélange primaire/secondaire sur branches indépendantes, avec stratégies comme le mix intelligent.",
+          "Classement plus pragmatique : moins de gaspillage, moins d’équipements et de branches, réseau plus stable.",
+          "Les contraintes avancées sont repliées dans la barre latérale ; en cas d’échec, des conseils actionnables s’affichent.",
+          "Stabilité renforcée sur paramètres extrêmes pour éviter freezes/crashs dus aux périodes ultra-longues.",
+          "Réglages par défaut plus mid-game : 5800 W, Wuling moyen + Valley élevé, base auto et mix intelligent activés."
+        ]
+      },
+      {
         "version": "v1.10.0",
         "title": "v1.10.0 Mises à jour",
-        "defaultOpen": true,
+        "defaultOpen": false,
         "items": [
           "Cette version se concentre surtout sur une refonte interne et des améliorations de stabilité ; les fonctions principales et le flux d’utilisation restent inchangés.",
           "Navigation clavier améliorée : le menu des langues, le menu « Plus » et l’aperçu d’image prennent en charge un parcours clavier plus complet.",

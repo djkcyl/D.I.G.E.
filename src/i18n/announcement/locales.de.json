@@ -79,9 +79,23 @@
   "changelog": {
     "sections": [
       {
+        "version": "v1.11.0",
+        "title": "v1.11.0 Updates",
+        "defaultOpen": true,
+        "items": [
+          "Der Solver kann Item-Gate-Ratenlimits auf oszillierenden Zweigen automatisch anwenden und mehrstufige Splitter reduzieren.",
+          "Mehrschichtige Basisleistung (Kern / manuell / Auto-Auffüllung) und einheitliche Netz-Brennstoffstatistik hinzugefügt.",
+          "Mischbetrieb von Primär-/Sekundärbrennstoff auf getrennten Zweigen sowie Strategien wie Smart-Mix.",
+          "Praxisnähere Sortierung: weniger Verlust, weniger Geräte und Zweige, stabileres Netz.",
+          "Erweiterte Constraints sind einklappbar; ohne Lösung erscheinen konkrete Anpassungsvorschläge.",
+          "Stabilität bei Extremparametern verbessert – weniger Freezes/Crashes durch ultralange Perioden.",
+          "Defaults näher am Midgame: 5800 W, Wuling mittel + Valley hoch, Auto-Basis und Smart-Mix standardmäßig an."
+        ]
+      },
+      {
         "version": "v1.10.0",
         "title": "v1.10.0 Updates",
-        "defaultOpen": true,
+        "defaultOpen": false,
         "items": [
           "Dieses Update konzentriert sich vor allem auf interne Überarbeitung und Stabilitätsverbesserungen; die Kernfunktionen und der Ablauf bleiben unverändert.",
           "Die Tastaturbedienung wurde verbessert: Sprachmenü, Mehr-Menü und Bildvorschau unterstützen nun vollständigere Tastaturnavigation.",
