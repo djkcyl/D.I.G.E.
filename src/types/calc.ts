@@ -1,7 +1,48 @@
 /**
  * 计算参数与结果类型定义
  */
-import type { Fuel } from "../utils/constants";
+import type { Fuel, FuelName } from "../utils/constants";
+
+/** 手动常驻单行定义 */
+export interface ManualBaseLine {
+  /** 唯一标识（如 line_1） */
+  id: string;
+  /** 燃料 ID（对应 FUELS key） */
+  fuelId: string;
+  /** 热能池台数 */
+  count: number;
+}
+
+/** 统一物料 BOM 归集条目 */
+export interface UnifiedFuelBOMItem {
+  fuelId: string;
+  fuelName: FuelName;
+  basePoolCount: number;
+  baseRatePerMin: number;
+  /** 震荡侧等效满载发生器估算台数（展示用） */
+  oscGeneratorCount: number;
+  oscRatePerMin: number;
+  totalRatePerMin: number;
+  totalRatePerHour: number;
+  totalRatePerDay: number;
+  /** 相对「震荡侧满载台数」的每日节省量（个/天）；常驻满载部分为 0 */
+  savedRatePerDay: number;
+  /** 综合节电率 (%)：相对 (base+osc满载台数) 满载消耗 */
+  savedPercent: number;
+}
+
+/** 常驻供电明细（流程图 / UI） */
+export interface BasePowerDetails {
+  corePower: number;
+  manualLines: Array<{
+    fuel: Fuel;
+    count: number;
+    power: number;
+  }>;
+  autoBaseCount: number;
+  autoBaseFuel?: Fuel;
+  totalBasePower: number;
+}
 
 /** 侧边栏/计算器使用的完整参数 */
 export interface CalcParams {
@@ -25,6 +66,15 @@ export interface CalcParams {
   phaseOffsetBranch3?: number;
   excludeBelt?: boolean;
   fuelOverrides?: Record<string, { power?: number; burnTime?: number }>;
+  /** 用户手动配置的多燃料常驻行（本阶段不进分享 URL） */
+  manualBaseLines?: ManualBaseLine[];
+  /**
+   * 是否启用自动整除补齐常驻。
+   * - undefined 且无 manualBaseLines：旧默认 floor 逻辑（向后兼容）
+   * - true：对剩余缺口用主燃料 floor 补齐
+   * - false：不自动补齐
+   */
+  autoPlanBasePools?: boolean;
   [key: string]: unknown;
 }
 
@@ -92,5 +142,9 @@ export interface SolutionResult {
       perDay: number;
     };
   };
+  /** 全网统一物料 BOM（增量） */
+  fuelBOM?: UnifiedFuelBOMItem[];
+  /** 常驻明细拆分（增量） */
+  baseDetails?: BasePowerDetails;
   [key: string]: unknown;
 }

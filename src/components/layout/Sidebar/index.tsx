@@ -9,6 +9,7 @@ import {
 } from "../../../utils/constants";
 import CloseButton from "../../ui/CloseButton";
 import ConstraintsField from "./ConstraintsField";
+import BasePowerBuilder from "./BasePowerBuilder";
 import FuelConfigField from "./FuelConfigField";
 import InputSourceField from "./InputSourceField";
 import OtherSettingsField from "./OtherSettingsField";
@@ -162,6 +163,14 @@ export default function Sidebar({
           <div className="w-full shrink-0 border-t border-endfield-gray-light/90" />
 
           <FuelConfigField
+            params={params}
+            onChange={handleChange}
+            locale={locale}
+          />
+
+          <div className="w-full shrink-0 border-t border-endfield-gray-light/90" />
+
+          <BasePowerBuilder
             params={params}
             onChange={handleChange}
             locale={locale}

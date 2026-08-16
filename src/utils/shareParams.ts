@@ -384,6 +384,13 @@ const SHARE_FIELDS = assignFieldIndices([
     optional: true,
     missingRawValue: 0,
   }),
+  // 自动规划常驻供电（缺失→undefined→旧默认 floor；true/false 显式）
+  createBooleanField({
+    key: "autoPlanBasePools",
+    bits: 2,
+    optional: true,
+    missingRawValue: 0,
+  }),
 ]);
 
 const LAYOUT_FIELDS = [...SHARE_FIELDS].sort((a, b) => a.index - b.index);
@@ -399,6 +406,8 @@ export interface ShareParams {
   inputRateLimitPerMin?: 0 | 6 | 12 | 18 | 24 | 30 | null;
   /** 排除物品准入口限速器：缺失/false=限速求解，true=忽略限速 */
   excludeItemGateLimiter?: boolean;
+  /** 自动规划常驻供电；缺失=旧默认 floor 兼容 */
+  autoPlanBasePools?: boolean;
   maxBranches?: number;
   excludeBelt?: boolean;
   fuelOverrides?: Record<string, { power?: number; burnTime?: number }>;

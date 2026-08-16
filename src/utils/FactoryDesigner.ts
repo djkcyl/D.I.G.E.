@@ -1,7 +1,10 @@
 import type {
+  BasePowerDetails,
   CalcParams,
+  ManualBaseLine,
   OscillatingBranch,
   SolutionResult,
+  UnifiedFuelBOMItem,
 } from "../types/calc";
 import type { Fuel } from "./constants";
 import {
@@ -163,6 +166,96 @@ interface BuildSolutionOutputParams {
   baseFuelPerSec: number;
   solution: OscillatingSolutionInput | null;
   oscillatingFuelPerSec: number;
+  baseDetails?: BasePowerDetails;
+  fuelBOM?: UnifiedFuelBOMItem[];
+}
+
+function buildUnifiedBOM(
+  baseDetails: BasePowerDetails,
+  oscFuel: Fuel | null,
+  oscRatePerSec: number,
+  primaryFuel: Fuel,
+  secondaryFuel: Fuel | null | undefined,
+  fuelOverrides?: Record<string, { power?: number; burnTime?: number }>,
+  /** 震荡侧平均功率 (W)，用于估算「若满载供同样功率」所需台数 */
+  oscAvgPower: number = 0
+): UnifiedFuelBOMItem[] {
+  const fuelIdSet = new Set<string>();
+  fuelIdSet.add(primaryFuel.id);
+  if (secondaryFuel && secondaryFuel.id !== "none") {
+    fuelIdSet.add(secondaryFuel.id);
+  }
+  baseDetails.manualLines.forEach((l) => fuelIdSet.add(l.fuel.id));
+  if (oscFuel) fuelIdSet.add(oscFuel.id);
+
+  const bomList: UnifiedFuelBOMItem[] = [];
+
+  for (const fuelId of fuelIdSet) {
+    const fuel = resolveFuel(fuelId, fuelOverrides);
+    if (!fuel || !fuel.burnTime || fuel.burnTime <= 0) continue;
+
+    let baseCount = 0;
+    for (const line of baseDetails.manualLines) {
+      if (line.fuel.id === fuelId) baseCount += line.count;
+    }
+    if (baseDetails.autoBaseFuel?.id === fuelId) {
+      baseCount += baseDetails.autoBaseCount;
+    }
+
+    const fullLoadRatePerMin = 60 / fuel.burnTime;
+    const baseRatePerMin = baseCount * fullLoadRatePerMin;
+
+    let oscRatePerMin = 0;
+    let oscGenCount = 0;
+    if (oscFuel && oscFuel.id === fuelId && oscRatePerSec > 0) {
+      oscRatePerMin = oscRatePerSec * 60;
+      // 与旧 FuelConsumptionTable 一致：按震荡功率估算满载台数（ceil），
+      // 不可用 round(rate*burnTime)——低速震荡会变成 0，导致「每天节省」恒为 0。
+      const powerForGens =
+        oscAvgPower > 0 && Number.isFinite(oscAvgPower)
+          ? oscAvgPower
+          : // 无功率时用「实际进料率 × 单机满载功率」反推等效功率下界
+            oscRatePerSec * fuel.burnTime * fuel.power;
+      if (powerForGens > 0 && fuel.power > 0) {
+        oscGenCount = Math.max(1, Math.ceil(powerForGens / fuel.power));
+      }
+    }
+
+    const totalRatePerMin = baseRatePerMin + oscRatePerMin;
+    const totalRatePerHour = totalRatePerMin * 60;
+    const totalRatePerDay = totalRatePerMin * 1440;
+
+    // 对照：常驻满载 + 震荡若改为同台数满载供料
+    const maxCapacityRatePerMin =
+      (baseCount + oscGenCount) * fullLoadRatePerMin;
+    const savedRatePerMin = Math.max(
+      0,
+      maxCapacityRatePerMin - totalRatePerMin
+    );
+    const savedRatePerDay = savedRatePerMin * 1440;
+    const savedPercent =
+      maxCapacityRatePerMin > 0
+        ? (savedRatePerMin / maxCapacityRatePerMin) * 100
+        : 0;
+
+    if (baseCount === 0 && oscRatePerMin <= 0) continue;
+
+    bomList.push({
+      fuelId: fuel.id,
+      fuelName: fuel.name,
+      basePoolCount: baseCount,
+      baseRatePerMin,
+      oscGeneratorCount: oscGenCount,
+      oscRatePerMin,
+      totalRatePerMin,
+      totalRatePerHour,
+      totalRatePerDay,
+      savedRatePerDay,
+      savedPercent,
+    });
+  }
+
+  return bomList;
 }
 
 function buildSolutionOutput({
@@ -178,6 +271,8 @@ function buildSolutionOutput({
   baseFuelPerSec,
   solution,
   oscillatingFuelPerSec,
+  baseDetails,
+  fuelBOM,
 }: BuildSolutionOutputParams): SolutionResult {
   if (!solution) {
     return {
@@ -222,6 +317,8 @@ function buildSolutionOutput({
           perDay: 0,
         },
       },
+      baseDetails,
+      fuelBOM,
     };
   }
 
@@ -279,6 +376,8 @@ function buildSolutionOutput({
         perDay: oscillatingFuelPerSec * 86400,
       },
     },
+    baseDetails,
+    fuelBOM,
   };
 }
 
@@ -572,6 +671,14 @@ export class FactoryDesigner {
    * false（默认）= 启用限速求解；true = 忽略限速/满速普通算法。
    */
   excludeItemGateLimiter: boolean;
+  /** 手动常驻行（本地 state，不进 URL） */
+  manualBaseLines: ManualBaseLine[];
+  /**
+   * 自动规划常驻：
+   * undefined + 无 manual → 旧 floor；true → 补齐；false → 不补齐
+   */
+  autoPlanBasePools: boolean | undefined;
+  fuelOverrides?: Record<string, { power?: number; burnTime?: number }>;
   validDenominators: number[];
   simulator: PowerCycleSimulator;
 
@@ -631,6 +738,22 @@ export class FactoryDesigner {
     this.excludeBelt = Boolean(params.excludeBelt ?? true);
     // false/缺省=启用限速求解；true=排除限速（满速）
     this.excludeItemGateLimiter = Boolean(params.excludeItemGateLimiter);
+    this.manualBaseLines = Array.isArray(params.manualBaseLines)
+      ? params.manualBaseLines.filter(
+          (l) =>
+            l &&
+            typeof l.fuelId === "string" &&
+            Number.isFinite(l.count) &&
+            l.count > 0
+        )
+      : [];
+    // null/undefined → 缺省（旧 floor）；仅显式 true/false 生效
+    this.autoPlanBasePools =
+      params.autoPlanBasePools === undefined ||
+      params.autoPlanBasePools === null
+        ? undefined
+        : Boolean(params.autoPlanBasePools);
+    this.fuelOverrides = params.fuelOverrides;
 
     this.validDenominators = generateValidDenominators();
     this.simulator = new PowerCycleSimulator({
@@ -715,25 +838,109 @@ export class FactoryDesigner {
     generators: number;
     totalPower: number;
     belts: number;
+    baseDetails: BasePowerDetails;
+    baseFuelPerSec: number;
   } {
+    const corePower = CONSTANTS.BASE_POWER;
+
     if (this._isZeroInputRate()) {
-      return { generators: 0, totalPower: CONSTANTS.BASE_POWER, belts: 0 };
+      const baseDetails: BasePowerDetails = {
+        corePower,
+        manualLines: [],
+        autoBaseCount: 0,
+        autoBaseFuel: undefined,
+        totalBasePower: corePower,
+      };
+      return {
+        generators: 0,
+        totalPower: corePower,
+        belts: 0,
+        baseDetails,
+        baseFuelPerSec: 0,
+      };
     }
 
     const inputSpeed = getBeltThroughput(this.inputInterval);
-    const gensPerBelt = inputSpeed * this.primaryFuel.burnTime;
-    const needed = this.targetPower - CONSTANTS.BASE_POWER;
 
-    if (needed <= 0) {
-      return { generators: 0, totalPower: CONSTANTS.BASE_POWER, belts: 0 };
+    const manualLines: BasePowerDetails["manualLines"] = [];
+    let manualPower = 0;
+    let manualGenerators = 0;
+    let manualFuelPerSec = 0;
+    const generatorsByFuelId = new Map();
+
+    for (const line of this.manualBaseLines) {
+      const fuel = resolveFuel(line.fuelId, this.fuelOverrides);
+      if (!fuel || !Number.isFinite(fuel.power) || fuel.power <= 0) continue;
+      const count = Math.max(0, Math.floor(line.count));
+      if (count <= 0) continue;
+      const power = count * fuel.power;
+      manualLines.push({ fuel, count, power });
+      manualPower += power;
+      manualGenerators += count;
+      generatorsByFuelId.set(
+        fuel.id,
+        (generatorsByFuelId.get(fuel.id) || 0) + count
+      );
+      if (fuel.burnTime > 0) {
+        manualFuelPerSec += count / fuel.burnTime;
+      }
     }
 
-    const generators = Math.floor(needed / this.primaryFuel.power);
-    const totalPower =
-      CONSTANTS.BASE_POWER + generators * this.primaryFuel.power;
-    const belts = gensPerBelt > 0 ? Math.ceil(generators / gensPerBelt) : 0;
+    const hasManual = manualLines.length > 0;
+    const isLegacyDefault = !hasManual && this.autoPlanBasePools === undefined;
+    const enableAuto = this.autoPlanBasePools === true || isLegacyDefault;
 
-    return { generators, totalPower, belts };
+    let autoBaseCount = 0;
+    let autoBaseFuel: Fuel | undefined;
+    let autoPower = 0;
+    let autoFuelPerSec = 0;
+
+    const remainingForAuto = this.targetPower - corePower - manualPower;
+    if (enableAuto && remainingForAuto > 0 && this.primaryFuel.power > 0) {
+      autoBaseCount = Math.floor(remainingForAuto / this.primaryFuel.power);
+      if (autoBaseCount > 0) {
+        autoBaseFuel = this.primaryFuel;
+        autoPower = autoBaseCount * this.primaryFuel.power;
+        if (this.primaryFuel.burnTime > 0) {
+          autoFuelPerSec = autoBaseCount / this.primaryFuel.burnTime;
+        }
+        generatorsByFuelId.set(
+          this.primaryFuel.id,
+          (generatorsByFuelId.get(this.primaryFuel.id) || 0) + autoBaseCount
+        );
+      }
+    }
+
+    const totalPower = corePower + manualPower + autoPower;
+    const generators = manualGenerators + autoBaseCount;
+
+    let belts = 0;
+    if (inputSpeed > 0) {
+      for (const [fuelId, count] of generatorsByFuelId) {
+        const fuel = resolveFuel(fuelId, this.fuelOverrides);
+        if (!fuel || fuel.burnTime <= 0 || count <= 0) continue;
+        const gensPerBelt = inputSpeed * fuel.burnTime;
+        if (gensPerBelt > 0) {
+          belts += Math.ceil(count / gensPerBelt);
+        }
+      }
+    }
+
+    const baseDetails: BasePowerDetails = {
+      corePower,
+      manualLines,
+      autoBaseCount,
+      autoBaseFuel,
+      totalBasePower: totalPower,
+    };
+
+    return {
+      generators,
+      totalPower,
+      belts,
+      baseDetails,
+      baseFuelPerSec: manualFuelPerSec + autoFuelPerSec,
+    };
   }
 
   /**
@@ -909,29 +1116,90 @@ export class FactoryDesigner {
   }
 
   solve(): SolutionResult[] {
-    const baseConfig = this.calculateBasePower();
-    const directBaseOutputs = this._getDirectBaseConfigs().map(
-      (directBaseConfig) => {
-        const baseFuelPerSec =
-          directBaseConfig.generators > 0
-            ? directBaseConfig.generators / this.primaryFuel.burnTime
-            : 0;
-        return buildSolutionOutput({
-          baseConfig: directBaseConfig,
-          primaryFuel: this.primaryFuel,
-          targetPower: this.targetPower,
-          inputInterval: this.inputInterval,
-          inputSourceId: this.inputSource.id,
-          rateLimitPerMin: null,
-          isRateLimited: false,
-          excludeBelt: this.excludeBelt,
-          batteryCapacity: this.batteryCapacity,
-          baseFuelPerSec,
-          solution: null,
-          oscillatingFuelPerSec: 0,
+    const layered = this.calculateBasePower();
+    const baseConfig = {
+      generators: layered.generators,
+      totalPower: layered.totalPower,
+      belts: layered.belts,
+    };
+    const layeredBaseDetails = layered.baseDetails;
+    const layeredBaseFuelPerSec = layered.baseFuelPerSec;
+
+    // 纯常驻直达方案：仍用旧 _getDirectBaseConfigs（主燃料满载枚举）。
+    // 若用户启用了手动常驻分层，则不再混入旧式「仅主燃料」直达枚举，避免双重常驻语义冲突。
+    const useLayeredOnly =
+      this.manualBaseLines.length > 0 || this.autoPlanBasePools === false;
+
+    const directBaseOutputs = useLayeredOnly
+      ? (() => {
+          const waste = baseConfig.totalPower - this.targetPower;
+          if (waste < 0 || waste > this.maxWaste) return [] as SolutionResult[];
+          const fuelBOM = buildUnifiedBOM(
+            layeredBaseDetails,
+            null,
+            0,
+            this.primaryFuel,
+            this.secondaryFuel,
+            this.fuelOverrides
+          );
+          return [
+            buildSolutionOutput({
+              baseConfig,
+              primaryFuel: this.primaryFuel,
+              targetPower: this.targetPower,
+              inputInterval: this.inputInterval,
+              inputSourceId: this.inputSource.id,
+              rateLimitPerMin: null,
+              isRateLimited: false,
+              excludeBelt: this.excludeBelt,
+              batteryCapacity: this.batteryCapacity,
+              baseFuelPerSec: layeredBaseFuelPerSec,
+              solution: null,
+              oscillatingFuelPerSec: 0,
+              baseDetails: layeredBaseDetails,
+              fuelBOM,
+            }),
+          ];
+        })()
+      : this._getDirectBaseConfigs().map((directBaseConfig) => {
+          const baseFuelPerSec =
+            directBaseConfig.generators > 0
+              ? directBaseConfig.generators / this.primaryFuel.burnTime
+              : 0;
+          // 旧路径：用 direct 台数合成简易 baseDetails，保持 BOM 可用
+          const autoCount = directBaseConfig.generators;
+          const details: BasePowerDetails = {
+            corePower: CONSTANTS.BASE_POWER,
+            manualLines: [],
+            autoBaseCount: autoCount,
+            autoBaseFuel: autoCount > 0 ? this.primaryFuel : undefined,
+            totalBasePower: directBaseConfig.totalPower,
+          };
+          const fuelBOM = buildUnifiedBOM(
+            details,
+            null,
+            0,
+            this.primaryFuel,
+            this.secondaryFuel,
+            this.fuelOverrides
+          );
+          return buildSolutionOutput({
+            baseConfig: directBaseConfig,
+            primaryFuel: this.primaryFuel,
+            targetPower: this.targetPower,
+            inputInterval: this.inputInterval,
+            inputSourceId: this.inputSource.id,
+            rateLimitPerMin: null,
+            isRateLimited: false,
+            excludeBelt: this.excludeBelt,
+            batteryCapacity: this.batteryCapacity,
+            baseFuelPerSec,
+            solution: null,
+            oscillatingFuelPerSec: 0,
+            baseDetails: details,
+            fuelBOM,
+          });
         });
-      }
-    );
 
     const allOscillatingSolutions: OscillatingSolutionInput[] = [];
     if (baseConfig.totalPower < this.targetPower) {
@@ -962,10 +1230,6 @@ export class FactoryDesigner {
 
     const outputs: SolutionResult[] = [...directBaseOutputs];
     for (const solution of uniqueSolutions) {
-      const baseFuelPerSec =
-        baseConfig.generators > 0
-          ? baseConfig.generators / this.primaryFuel.burnTime
-          : 0;
       const oscillatingFuelPerSec = solution.branches
         ? solution.branches.reduce(
             (
@@ -1003,6 +1267,19 @@ export class FactoryDesigner {
       const anyLimited = (solution.branches || []).some(
         (b) => b.requiresLimiter
       );
+      const oscAvgPower = (solution.branches || []).reduce(
+        (sum, branch) => sum + (branch.power ?? 0),
+        0
+      );
+      const fuelBOM = buildUnifiedBOM(
+        layeredBaseDetails,
+        solution.fuel,
+        oscillatingFuelPerSec,
+        this.primaryFuel,
+        this.secondaryFuel,
+        this.fuelOverrides,
+        oscAvgPower
+      );
       outputs.push(
         buildSolutionOutput({
           baseConfig,
@@ -1019,27 +1296,30 @@ export class FactoryDesigner {
           isRateLimited: anyLimited,
           excludeBelt: this.excludeBelt,
           batteryCapacity: this.batteryCapacity,
-          baseFuelPerSec,
+          baseFuelPerSec: layeredBaseFuelPerSec,
           solution,
           oscillatingFuelPerSec,
+          baseDetails: layeredBaseDetails,
+          fuelBOM,
         })
       );
     }
 
     outputs.sort((a, b) => {
+      // 保留前 4 级核心排序；弱化 isPrimary 偏见（平局键恒 0）
       const keyA = [
         a.branchCount,
         a.totalSplitters,
         Math.round(a.variance * 10) / 10,
         Math.round(a.waste * 10) / 10,
-        a.isPrimary ? 0 : 1,
+        0,
       ];
       const keyB = [
         b.branchCount,
         b.totalSplitters,
         Math.round(b.variance * 10) / 10,
         Math.round(b.waste * 10) / 10,
-        b.isPrimary ? 0 : 1,
+        0,
       ];
       for (let i = 0; i < keyA.length; i += 1) {
         if (keyA[i] !== keyB[i]) {
