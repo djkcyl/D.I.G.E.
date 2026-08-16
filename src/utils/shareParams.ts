@@ -391,6 +391,41 @@ const SHARE_FIELDS = assignFieldIndices([
     optional: true,
     missingRawValue: 0,
   }),
+  // 多燃料震荡模式：0=missing→省略（App 默认 auto）；1=auto 2=legacy 3=mixed 4=primaryOnly 5=secondaryOnly
+  {
+    index: 0,
+    key: "multiFuelMode",
+    bits: 3,
+    mask: bitMaskFromBits(3),
+    maxEncodedValue: maxValueFromBits(3),
+    optional: true,
+    missingRawValue: 0,
+    encode: (value: unknown): number | null => {
+      if (value === undefined || value === null || value === "") return 0;
+      if (typeof value !== "string") return null;
+      const map: Record<string, number> = {
+        auto: 1,
+        legacy: 2,
+        mixed: 3,
+        primaryOnly: 4,
+        secondaryOnly: 5,
+      };
+      const raw = map[value];
+      return raw == null ? null : raw;
+    },
+    decode: (value: number): string | null => {
+      if (!isValidNonNegativeInt(value)) return null;
+      if (value === 0) return null; // missing → omit → DEFAULT auto
+      const rev: Record<number, string> = {
+        1: "auto",
+        2: "legacy",
+        3: "mixed",
+        4: "primaryOnly",
+        5: "secondaryOnly",
+      };
+      return rev[value] ?? null;
+    },
+  } as ShareField,
 ]);
 
 const LAYOUT_FIELDS = [...SHARE_FIELDS].sort((a, b) => a.index - b.index);
@@ -408,6 +443,8 @@ export interface ShareParams {
   excludeItemGateLimiter?: boolean;
   /** 自动规划常驻供电；缺失=旧默认 floor 兼容 */
   autoPlanBasePools?: boolean;
+  /** 多燃料震荡模式；缺失=App 默认 auto */
+  multiFuelMode?: "auto" | "legacy" | "mixed" | "primaryOnly" | "secondaryOnly";
   maxBranches?: number;
   excludeBelt?: boolean;
   fuelOverrides?: Record<string, { power?: number; burnTime?: number }>;

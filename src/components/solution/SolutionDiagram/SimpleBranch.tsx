@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { OscillatingBranch } from "../../../types/calc";
+import { FUEL_OPTIONS, SECONDARY_FUEL_OPTIONS } from "../../../utils/constants";
 import { formatDenominator } from "../../../utils/inputRate";
 import Icon from "../../ui/Icon";
 
@@ -73,9 +74,16 @@ function SimpleSplitter({
 export interface SimpleBranchProps {
   branch: OscillatingBranch | { denominator: number; power: number };
   t: (key: string, vars?: Record<string, string | number>) => string;
+  locale?: string;
+  showFuelLabel?: boolean;
 }
 
-export default function SimpleBranch({ branch, t }: SimpleBranchProps) {
+export default function SimpleBranch({
+  branch,
+  t,
+  locale = "en",
+  showFuelLabel = false,
+}: SimpleBranchProps) {
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLFieldSetElement>(null);
   const dragStateRef = useRef({
@@ -92,11 +100,24 @@ export default function SimpleBranch({ branch, t }: SimpleBranchProps) {
   const steps = factorDenominator(localD);
   const requiresLimiter = Boolean(b.requiresLimiter && b.limiterSpeed != null);
   const limiterSpeed = b.limiterSpeed;
+  const branchFuelId = b.fuelId;
+  const branchFuelMeta = branchFuelId
+    ? FUEL_OPTIONS.find((f) => f.id === branchFuelId) ||
+      SECONDARY_FUEL_OPTIONS.find((f) => f.id === branchFuelId)
+    : undefined;
+  const branchFuelLabel = branchFuelMeta
+    ? branchFuelMeta.name?.[locale] || branchFuelMeta.name?.en
+    : branchFuelId;
+  const limiterDesc =
+    requiresLimiter && limiterSpeed != null
+      ? t("inputRateLimitLabel", { value: String(limiterSpeed) })
+      : undefined;
+  const fuelDesc =
+    showFuelLabel && branchFuelLabel ? String(branchFuelLabel) : undefined;
   const description =
     b.description ||
-    (requiresLimiter && limiterSpeed != null
-      ? t("inputRateLimitLabel", { value: String(limiterSpeed) })
-      : undefined);
+    [fuelDesc, limiterDesc].filter(Boolean).join(" · ") ||
+    undefined;
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;

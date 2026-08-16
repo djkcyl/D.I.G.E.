@@ -134,9 +134,12 @@ interface OscillatingSolutionInput {
     branchInterval?: number;
     splitterCount?: { split2: number; split3: number; total: number };
     description?: string;
+    fuelId?: string;
+    fuel?: Fuel;
   }>;
   fuel: Fuel;
   isPrimary: boolean;
+  isMixed?: boolean;
   avgPower: number;
   waste: number;
   variance: number;
@@ -178,7 +181,17 @@ function buildUnifiedBOM(
   secondaryFuel: Fuel | null | undefined,
   fuelOverrides?: Record<string, { power?: number; burnTime?: number }>,
   /** 震荡侧平均功率 (W)，用于估算「若满载供同样功率」所需台数 */
-  oscAvgPower: number = 0
+  oscAvgPower: number = 0,
+  /** 可选：按分支拆分震荡消耗（混合燃料） */
+  oscBranches?: Array<{
+    fuelId?: string;
+    power?: number;
+    branchInterval?: number;
+    localDenominator?: number;
+    denominator?: number;
+  }> | null,
+  /** 母带间隔，用于 branchInterval fallback */
+  inputIntervalForBom: number = 2
 ): UnifiedFuelBOMItem[] {
   const fuelIdSet = new Set<string>();
   fuelIdSet.add(primaryFuel.id);
@@ -187,6 +200,36 @@ function buildUnifiedBOM(
   }
   baseDetails.manualLines.forEach((l) => fuelIdSet.add(l.fuel.id));
   if (oscFuel) fuelIdSet.add(oscFuel.id);
+  if (oscBranches) {
+    for (const b of oscBranches) {
+      if (b.fuelId) fuelIdSet.add(b.fuelId);
+    }
+  }
+
+  // 按燃料聚合震荡速率与功率
+  const oscRateByFuel = new Map<string, number>();
+  const oscPowerByFuel = new Map<string, number>();
+  if (oscBranches && oscBranches.length > 0) {
+    for (const branch of oscBranches) {
+      const fid = branch.fuelId || oscFuel?.id;
+      if (!fid) continue;
+      let bi = branch.branchInterval;
+      if (!(bi != null && Number.isFinite(bi) && bi > 0)) {
+        const d = branch.localDenominator ?? branch.denominator ?? 1;
+        bi = inputIntervalForBom * d;
+      }
+      if (bi === Infinity || bi <= 0 || !Number.isFinite(bi)) continue;
+      const ratePerSec = 1 / bi;
+      oscRateByFuel.set(fid, (oscRateByFuel.get(fid) || 0) + ratePerSec);
+      oscPowerByFuel.set(
+        fid,
+        (oscPowerByFuel.get(fid) || 0) + (branch.power ?? 0)
+      );
+    }
+  } else if (oscFuel && oscRatePerSec > 0) {
+    oscRateByFuel.set(oscFuel.id, oscRatePerSec);
+    oscPowerByFuel.set(oscFuel.id, oscAvgPower > 0 ? oscAvgPower : 0);
+  }
 
   const bomList: UnifiedFuelBOMItem[] = [];
 
@@ -207,15 +250,16 @@ function buildUnifiedBOM(
 
     let oscRatePerMin = 0;
     let oscGenCount = 0;
-    if (oscFuel && oscFuel.id === fuelId && oscRatePerSec > 0) {
-      oscRatePerMin = oscRatePerSec * 60;
+    const fuelOscRateSec = oscRateByFuel.get(fuelId) || 0;
+    const fuelOscPower = oscPowerByFuel.get(fuelId) || 0;
+    if (fuelOscRateSec > 0) {
+      oscRatePerMin = fuelOscRateSec * 60;
       // 与旧 FuelConsumptionTable 一致：按震荡功率估算满载台数（ceil），
       // 不可用 round(rate*burnTime)——低速震荡会变成 0，导致「每天节省」恒为 0。
       const powerForGens =
-        oscAvgPower > 0 && Number.isFinite(oscAvgPower)
-          ? oscAvgPower
-          : // 无功率时用「实际进料率 × 单机满载功率」反推等效功率下界
-            oscRatePerSec * fuel.burnTime * fuel.power;
+        fuelOscPower > 0 && Number.isFinite(fuelOscPower)
+          ? fuelOscPower
+          : fuelOscRateSec * fuel.burnTime * fuel.power;
       if (powerForGens > 0 && fuel.power > 0) {
         oscGenCount = Math.max(1, Math.ceil(powerForGens / fuel.power));
       }
@@ -333,6 +377,7 @@ function buildSolutionOutput({
     branchInterval: b.branchInterval,
     splitterCount: b.splitterCount,
     description: b.description,
+    fuelId: b.fuelId ?? b.fuel?.id ?? solution.fuel.id,
   }));
   return {
     baseConfig,
@@ -341,6 +386,7 @@ function buildSolutionOutput({
     oscillatingFuel: solution.fuel,
     fuel: solution.fuel,
     isPrimary: solution.isPrimary,
+    isMixed: Boolean(solution.isMixed),
     inputInterval,
     inputSourceId,
     rateLimitPerMin,
@@ -498,6 +544,7 @@ class PowerCycleSimulator {
       branchInterval?: number;
       localDenominator?: number;
       baseInterval?: number;
+      fuel?: Fuel;
     }>,
     fuel: Fuel
   ): SimulateCycleResult {
@@ -540,14 +587,15 @@ class PowerCycleSimulator {
       let lastBurnEnd = 0;
 
       for (let t = branchStartTime; t < totalDuration; t += inputInterval) {
+        const branchFuel = branch.fuel ?? fuel;
         const burnStart = Math.max(t, lastBurnEnd);
-        const burnEnd = burnStart + fuel.burnTime;
+        const burnEnd = burnStart + branchFuel.burnTime;
         lastBurnEnd = burnEnd;
 
         const start = Math.floor(burnStart);
         const end = Math.min(Math.ceil(burnEnd), totalDuration);
         for (let i = start; i < end; i += 1) {
-          powerTimeline[i] += fuel.power;
+          powerTimeline[i] += branchFuel.power;
           branchBurnTimeline[branchIndex][i] = 1;
         }
       }
@@ -678,6 +726,8 @@ export class FactoryDesigner {
    * undefined + 无 manual → 旧 floor；true → 补齐；false → 不补齐
    */
   autoPlanBasePools: boolean | undefined;
+  /** undefined=legacy 不混合；auto/primaryOnly/secondaryOnly/mixed */
+  multiFuelMode: CalcParams["multiFuelMode"];
   fuelOverrides?: Record<string, { power?: number; burnTime?: number }>;
   validDenominators: number[];
   simulator: PowerCycleSimulator;
@@ -753,6 +803,7 @@ export class FactoryDesigner {
       params.autoPlanBasePools === null
         ? undefined
         : Boolean(params.autoPlanBasePools);
+    this.multiFuelMode = params.multiFuelMode;
     this.fuelOverrides = params.fuelOverrides;
 
     this.validDenominators = generateValidDenominators();
@@ -1032,6 +1083,8 @@ export class FactoryDesigner {
           requiresLimiter: opt.requiresLimiter,
           splitterCount: opt.splitterCount,
           description: opt.description,
+          fuelId: fuel.id,
+          fuel,
           complexity: {
             total: opt.splitterCount.total,
             twoWay: opt.splitterCount.split2,
@@ -1059,6 +1112,7 @@ export class FactoryDesigner {
           solutions.push({
             fuel,
             isPrimary,
+            isMixed: false,
             branches: branchConfigs.map((branchConfig) => ({
               denominator: branchConfig.denominator,
               phaseOffsetCells: branchConfig.phaseOffsetCells,
@@ -1069,6 +1123,8 @@ export class FactoryDesigner {
               branchInterval: branchConfig.branchInterval,
               splitterCount: branchConfig.splitterCount,
               description: branchConfig.description,
+              fuelId: branchConfig.fuelId ?? fuel.id,
+              fuel: branchConfig.fuel ?? fuel,
               complexity: branchConfig.complexity,
               blueprint: buildBranchBlueprint(
                 branchConfig.complexity.threeWay,
@@ -1098,15 +1154,230 @@ export class FactoryDesigner {
     return solutions;
   }
 
+  /** 剪枝分支候选（复用 buildBranchLimiterOptions） */
+  getPrunedBranchOptions(
+    fuel: Fuel,
+    gap: number,
+    K: number
+  ): BranchLimiterPlan[] {
+    const allBranchOptions: BranchLimiterPlan[] = buildBranchLimiterOptions(
+      fuel,
+      this.inputSource.id,
+      this.validDenominators,
+      this.excludeItemGateLimiter
+    );
+    const maxSinglePower = gap + this.maxWaste + 10;
+    const pruned = allBranchOptions
+      .filter((o) => o.power > 0 && o.power <= maxSinglePower)
+      .sort((a, b) => {
+        if (a.hardwareCost !== b.hardwareCost)
+          return a.hardwareCost - b.hardwareCost;
+        return a.power - b.power;
+      });
+    return pruned.length > K ? pruned.slice(0, K) : pruned;
+  }
+
+  private _optToBranchConfig(
+    opt: BranchLimiterPlan,
+    index: number,
+    fuel: Fuel
+  ) {
+    return {
+      denominator: opt.denominator,
+      localDenominator: opt.localDenominator,
+      branchInterval: opt.branchInterval,
+      phaseOffsetCells: this.branchPhaseOffsets[index] ?? 0,
+      power: opt.power,
+      limiterSpeed: opt.limiterSpeed,
+      requiresLimiter: opt.requiresLimiter,
+      splitterCount: opt.splitterCount,
+      description: opt.description,
+      fuelId: fuel.id,
+      fuel,
+      complexity: {
+        total: opt.splitterCount.total,
+        twoWay: opt.splitterCount.split2,
+        threeWay: opt.splitterCount.split3,
+      },
+    };
+  }
+
+  buildMixedSolutionOutput(
+    branchConfigs: Array<{
+      denominator: number;
+      phaseOffsetCells?: number;
+      power?: number;
+      limiterSpeed?: number | null;
+      requiresLimiter?: boolean;
+      localDenominator?: number;
+      branchInterval?: number;
+      splitterCount?: { split2: number; split3: number; total: number };
+      description?: string;
+      fuelId?: string;
+      fuel?: Fuel;
+      complexity?: { total: number; twoWay: number; threeWay: number };
+    }>,
+    result: SimulateCycleSuccess,
+    primaryFuel: Fuel
+  ): OscillatingSolutionInput {
+    const totalSplitters = branchConfigs.reduce(
+      (sum, b) => sum + (b.splitterCount?.total ?? 0),
+      0
+    );
+    return {
+      fuel: primaryFuel,
+      isPrimary: true,
+      isMixed: true,
+      branches: branchConfigs.map((branchConfig) => ({
+        denominator: branchConfig.denominator,
+        phaseOffsetCells: branchConfig.phaseOffsetCells,
+        power: branchConfig.power,
+        limiterSpeed: branchConfig.limiterSpeed,
+        requiresLimiter: branchConfig.requiresLimiter,
+        localDenominator: branchConfig.localDenominator,
+        branchInterval: branchConfig.branchInterval,
+        splitterCount: branchConfig.splitterCount,
+        description: branchConfig.description,
+        fuelId: branchConfig.fuelId ?? branchConfig.fuel?.id ?? primaryFuel.id,
+        fuel: branchConfig.fuel,
+        complexity: branchConfig.complexity,
+        blueprint: buildBranchBlueprint(
+          branchConfig.complexity?.threeWay ?? 0,
+          branchConfig.complexity?.twoWay ?? 0,
+          this.excludeBelt
+        ),
+      })),
+      branchCount: branchConfigs.length,
+      totalSplitters,
+      period: result.period ?? 0,
+      avgPower: result.avgPower ?? 0,
+      waste: result.waste ?? 0,
+      variance: result.variance ?? 0,
+      minBattery: result.minBattery ?? 0,
+      minBatteryPercent: result.minBatteryPercent ?? 0,
+      batteryLog: result.batteryLog ?? [],
+      powerLog: result.powerLog ?? [],
+      burnStateLog: result.burnStateLog ?? [],
+      preciseBatteryLog: result.preciseBatteryLog ?? [],
+      precisePowerLog: result.precisePowerLog ?? [],
+      preciseBurnStateLog: result.preciseBurnStateLog ?? [],
+    };
+  }
+
+  calculateMixedOscillatingPlans(baseConfig: {
+    totalPower: number;
+  }): OscillatingSolutionInput[] {
+    if (this._isZeroInputRate()) return [];
+    if (!this.secondaryFuel) return [];
+    const gap = this.targetPower - baseConfig.totalPower;
+    if (gap <= 0) return [];
+
+    const primary = this.primaryFuel;
+    const secondary = this.secondaryFuel;
+    const solutions: OscillatingSolutionInput[] = [];
+    const MAX_SIM_CALLS = 300;
+    let simCount = 0;
+
+    const tryCombo = (opts: BranchLimiterPlan[], fuels: Fuel[]): boolean => {
+      // returns true if budget exhausted
+      if (simCount >= MAX_SIM_CALLS) return true;
+      const theoryPower = opts.reduce((sum, o) => sum + o.power, 0);
+      const theoryWaste =
+        baseConfig.totalPower + theoryPower - this.targetPower;
+      if (theoryWaste < 0 || theoryWaste > this.maxWaste + 10) return false;
+
+      const branchConfigs = opts.map((opt, i) =>
+        this._optToBranchConfig(opt, i, fuels[i])
+      );
+      simCount += 1;
+      const result = this.simulator.simulateCycle(
+        baseConfig,
+        branchConfigs,
+        primary // fallback; per-branch fuel used inside
+      );
+      if (
+        result.success &&
+        result.waste != null &&
+        result.waste >= 0 &&
+        result.waste <= this.maxWaste
+      ) {
+        solutions.push(
+          this.buildMixedSolutionOutput(branchConfigs, result, primary)
+        );
+      }
+      return simCount >= MAX_SIM_CALLS;
+    };
+
+    // 2-branch: 1P + 1S，池 Top-24
+    if (this.maxBranches >= 2) {
+      const pOpts = this.getPrunedBranchOptions(primary, gap, 24);
+      const sOpts = this.getPrunedBranchOptions(secondary, gap, 24);
+      outer2: for (const po of pOpts) {
+        for (const so of sOpts) {
+          if (tryCombo([po, so], [primary, secondary])) break outer2;
+        }
+      }
+    }
+
+    // 3-branch: 2P+1S 与 1P+2S，池 Top-16，共享 sim 预算
+    if (this.maxBranches >= 3 && simCount < MAX_SIM_CALLS) {
+      const pOpts = this.getPrunedBranchOptions(primary, gap, 16);
+      const sOpts = this.getPrunedBranchOptions(secondary, gap, 16);
+
+      // 2P + 1S
+      outer3a: for (let i = 0; i < pOpts.length; i += 1) {
+        for (let j = i; j < pOpts.length; j += 1) {
+          for (const so of sOpts) {
+            if (
+              tryCombo([pOpts[i], pOpts[j], so], [primary, primary, secondary])
+            )
+              break outer3a;
+          }
+        }
+      }
+
+      // 1P + 2S
+      if (simCount < MAX_SIM_CALLS) {
+        outer3b: for (const po of pOpts) {
+          for (let i = 0; i < sOpts.length; i += 1) {
+            for (let j = i; j < sOpts.length; j += 1) {
+              if (
+                tryCombo(
+                  [po, sOpts[i], sOpts[j]],
+                  [primary, secondary, secondary]
+                )
+              )
+                break outer3b;
+            }
+          }
+        }
+      }
+    }
+
+    return solutions;
+  }
+
   _buildSolutionSignature(solution: OscillatingSolutionInput): string {
     const round = (value: number, digits: number): number => {
       const factor = 10 ** digits;
       return Math.round(value * factor) / factor;
     };
 
+    const branchKey = (solution.branches || [])
+      .map((b) => {
+        const fid = b.fuelId ?? b.fuel?.id ?? solution.fuel.id;
+        const d = b.denominator;
+        const lim =
+          b.limiterSpeed == null || !Number.isFinite(b.limiterSpeed)
+            ? "n"
+            : String(b.limiterSpeed);
+        return fid + ":" + d + ":" + lim;
+      })
+      .join(",");
+
     return [
-      solution.fuel.id,
-      solution.isPrimary ? "primary" : "secondary",
+      solution.isMixed ? "mix" : "mono",
+      branchKey,
       solution.branchCount,
       round(solution.avgPower, 1),
       round(solution.waste, 1),
@@ -1203,16 +1474,51 @@ export class FactoryDesigner {
 
     const allOscillatingSolutions: OscillatingSolutionInput[] = [];
     if (baseConfig.totalPower < this.targetPower) {
-      allOscillatingSolutions.push(
-        ...this.calculateOscillatingPlans(this.primaryFuel, baseConfig, true)
-      );
-      if (this.secondaryFuel) {
+      const mode = this.multiFuelMode ?? "auto";
+      const hasSecondary = Boolean(this.secondaryFuel);
+
+      if (mode === "primaryOnly" || !hasSecondary) {
+        allOscillatingSolutions.push(
+          ...this.calculateOscillatingPlans(this.primaryFuel, baseConfig, true)
+        );
+      } else if (mode === "secondaryOnly") {
         allOscillatingSolutions.push(
           ...this.calculateOscillatingPlans(
-            this.secondaryFuel,
+            this.secondaryFuel!,
             baseConfig,
             false
           )
+        );
+      } else if (mode === "mixed") {
+        allOscillatingSolutions.push(
+          ...this.calculateMixedOscillatingPlans(baseConfig)
+        );
+      } else if (mode === "legacy") {
+        // 主+副各自单燃料全枚举，不跑混合
+        allOscillatingSolutions.push(
+          ...this.calculateOscillatingPlans(this.primaryFuel, baseConfig, true)
+        );
+        allOscillatingSolutions.push(
+          ...this.calculateOscillatingPlans(
+            this.secondaryFuel!,
+            baseConfig,
+            false
+          )
+        );
+      } else {
+        // auto（默认）：主 + 副 + 混合联合竞争
+        allOscillatingSolutions.push(
+          ...this.calculateOscillatingPlans(this.primaryFuel, baseConfig, true)
+        );
+        allOscillatingSolutions.push(
+          ...this.calculateOscillatingPlans(
+            this.secondaryFuel!,
+            baseConfig,
+            false
+          )
+        );
+        allOscillatingSolutions.push(
+          ...this.calculateMixedOscillatingPlans(baseConfig)
         );
       }
     }
@@ -1278,7 +1584,9 @@ export class FactoryDesigner {
         this.primaryFuel,
         this.secondaryFuel,
         this.fuelOverrides,
-        oscAvgPower
+        oscAvgPower,
+        solution.branches,
+        this.inputInterval
       );
       outputs.push(
         buildSolutionOutput({
@@ -1305,28 +1613,33 @@ export class FactoryDesigner {
       );
     }
 
+    const secondaryId = this.secondaryFuel?.id;
     outputs.sort((a, b) => {
-      // 保留前 4 级核心排序；弱化 isPrimary 偏见（平局键恒 0）
-      const keyA = [
-        a.branchCount,
-        a.totalSplitters,
-        Math.round(a.variance * 10) / 10,
-        Math.round(a.waste * 10) / 10,
-        0,
-      ];
-      const keyB = [
-        b.branchCount,
-        b.totalSplitters,
-        Math.round(b.variance * 10) / 10,
-        Math.round(b.waste * 10) / 10,
-        0,
-      ];
-      for (let i = 0; i < keyA.length; i += 1) {
-        if (keyA[i] !== keyB[i]) {
-          return keyA[i] - keyB[i];
+      // 1. waste，5W 容差
+      const wasteDiff = a.waste - b.waste;
+      if (Math.abs(wasteDiff) > 5.0) {
+        return wasteDiff;
+      }
+      // 2. totalSplitters（限流器紧凑优先）
+      if (a.totalSplitters !== b.totalSplitters) {
+        return a.totalSplitters - b.totalSplitters;
+      }
+      // 3. branchCount
+      if (a.branchCount !== b.branchCount) {
+        return a.branchCount - b.branchCount;
+      }
+      // 4. 副燃料震荡消耗速率（跨区负担）
+      if (secondaryId && secondaryId !== "none") {
+        const aSubRate =
+          a.fuelBOM?.find((f) => f.fuelId === secondaryId)?.oscRatePerMin ?? 0;
+        const bSubRate =
+          b.fuelBOM?.find((f) => f.fuelId === secondaryId)?.oscRatePerMin ?? 0;
+        if (Math.abs(aSubRate - bSubRate) > 1e-4) {
+          return aSubRate - bSubRate;
         }
       }
-      return 0;
+      // 5. variance
+      return a.variance - b.variance;
     });
 
     return outputs.slice(0, 5);

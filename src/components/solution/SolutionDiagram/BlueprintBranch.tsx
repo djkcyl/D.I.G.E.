@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "../../../i18n";
 import type { OscillatingBranch } from "../../../types/calc";
+import { FUEL_OPTIONS, SECONDARY_FUEL_OPTIONS } from "../../../utils/constants";
 import BlueprintCell from "./BlueprintCell";
 
 export interface BlueprintBranchProps {
@@ -19,7 +20,7 @@ export default function BlueprintBranch({
   onTouchMove: onPinchMove,
   onTouchEnd: onPinchEnd,
 }: BlueprintBranchProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const {
     denominator,
     power,
@@ -27,7 +28,15 @@ export default function BlueprintBranch({
     description,
     requiresLimiter,
     limiterSpeed,
+    fuelId,
   } = branch;
+  const branchFuelMeta = fuelId
+    ? FUEL_OPTIONS.find((f) => f.id === fuelId) ||
+      SECONDARY_FUEL_OPTIONS.find((f) => f.id === fuelId)
+    : undefined;
+  const branchFuelLabel = branchFuelMeta
+    ? branchFuelMeta.name?.[locale] || branchFuelMeta.name?.en
+    : fuelId;
   const hasBlueprint =
     Array.isArray(blueprint) &&
     blueprint.length > 0 &&
@@ -184,6 +193,11 @@ export default function BlueprintBranch({
               <span className="text-[10px] text-endfield-text">
                 {power.toFixed(0)}w
               </span>
+              {branchFuelLabel ? (
+                <span className="text-[10px] leading-none text-endfield-text-light/80 border border-endfield-gray-light px-1 py-0.5 rounded-sm whitespace-nowrap">
+                  {branchFuelLabel}
+                </span>
+              ) : null}
               {requiresLimiter && limiterSpeed != null ? (
                 <span className="text-[10px] font-bold text-endfield-yellow border-2 border-endfield-yellow bg-endfield-yellow/15 px-1.5 py-0.5 shadow-[0_0_8px_rgba(255,214,10,0.25)]">
                   {t("gateShort")} {limiterSpeed}/{t("itemPerMin")}

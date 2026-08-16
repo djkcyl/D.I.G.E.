@@ -41,6 +41,7 @@ const DEFAULT_PARAMS: CalcParams = {
   primaryFuelId: "wulingLow",
   secondaryFuelId: "none",
   inputSourceId: "warehouse",
+  multiFuelMode: "auto",
 };
 
 const getInitialParams = (): CalcParams => {

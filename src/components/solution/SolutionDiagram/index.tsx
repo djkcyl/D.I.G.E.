@@ -378,6 +378,22 @@ export default function SolutionDiagram({
                 {oscillating.map((b, i) => {
                   const limited =
                     Boolean(b.requiresLimiter) && b.limiterSpeed != null;
+                  const branchFuelId =
+                    b.fuelId ||
+                    oscillatingFuel?.id ||
+                    (solution.fuel as { id?: string } | null)?.id;
+                  const showBranchFuel =
+                    Boolean(solution.isMixed) ||
+                    (Boolean(b.fuelId) &&
+                      oscillatingFuel?.id != null &&
+                      b.fuelId !== oscillatingFuel.id);
+                  const branchFuelMeta = branchFuelId
+                    ? FUEL_OPTIONS.find((f) => f.id === branchFuelId) ||
+                      SECONDARY_FUEL_OPTIONS.find((f) => f.id === branchFuelId)
+                    : undefined;
+                  const branchFuelLabel = branchFuelMeta
+                    ? branchFuelMeta.name?.[locale] || branchFuelMeta.name?.en
+                    : branchFuelId;
                   return (
                     <span
                       key={`${b.denominator}-${b.power}-${i}`}
@@ -395,6 +411,11 @@ export default function SolutionDiagram({
                       >
                         {b.power.toFixed(0)}w
                       </span>
+                      {showBranchFuel && branchFuelLabel ? (
+                        <span className="text-[10px] leading-none text-endfield-text-light/80 border border-endfield-gray-light px-1 py-0.5 rounded-sm whitespace-nowrap">
+                          {branchFuelLabel}
+                        </span>
+                      ) : null}
                       {limited ? (
                         <span className="text-[10px] leading-none text-endfield-yellow border border-endfield-yellow/50 bg-endfield-yellow/10 px-1 py-0.5 rounded-sm whitespace-nowrap">
                           {t("gateShort")} {b.limiterSpeed}/{t("itemPerMin")}
@@ -485,7 +506,19 @@ export default function SolutionDiagram({
                   }
                 >
                   {mode === "simple" ? (
-                    <SimpleBranch branch={branch} t={t} />
+                    <SimpleBranch
+                      branch={branch}
+                      t={t}
+                      locale={locale}
+                      showFuelLabel={
+                        Boolean(solution.isMixed) ||
+                        Boolean(
+                          branch.fuelId &&
+                            oscillatingFuel?.id &&
+                            branch.fuelId !== oscillatingFuel.id
+                        )
+                      }
+                    />
                   ) : (
                     <BlueprintBranch
                       branch={branch}

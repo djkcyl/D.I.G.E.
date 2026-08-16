@@ -1,18 +1,18 @@
-import { useState } from 'react';
-import { useI18n } from '../../../i18n';
-import type { CalcParams } from '../../../types/calc';
-import type { Fuel } from '../../../utils/constants';
+import { useState } from "react";
+import { useI18n } from "../../../i18n";
+import type { CalcParams } from "../../../types/calc";
+import type { Fuel } from "../../../utils/constants";
 import {
   FUEL_OPTIONS,
   isCustomFuel,
   resolveFuel,
   SECONDARY_FUEL_OPTIONS,
-} from '../../../utils/constants';
-import CustomFuelModal from '../../modals/CustomFuelModal';
-import Icon from '../../ui/Icon';
-import type { SelectOption } from '../../ui/Select';
-import Select from '../../ui/Select';
-import SidebarSection from './SidebarSection';
+} from "../../../utils/constants";
+import CustomFuelModal from "../../modals/CustomFuelModal";
+import Icon from "../../ui/Icon";
+import type { SelectOption } from "../../ui/Select";
+import Select from "../../ui/Select";
+import SidebarSection from "./SidebarSection";
 
 export interface FuelConfigFieldProps {
   params: CalcParams;
@@ -20,14 +20,24 @@ export interface FuelConfigFieldProps {
   locale: string;
 }
 
-export default function FuelConfigField({ params, onChange, locale }: FuelConfigFieldProps) {
+export default function FuelConfigField({
+  params,
+  onChange,
+  locale,
+}: FuelConfigFieldProps) {
   const { t } = useI18n();
-  const [customModalTarget, setCustomModalTarget] = useState<string | null>(null);
+  const [customModalTarget, setCustomModalTarget] = useState<string | null>(
+    null
+  );
 
-  const getFuelName = (fuel: { name?: Fuel['name'] } | undefined) =>
-    fuel?.name?.[locale] || fuel?.name?.en || '';
+  const getFuelName = (fuel: { name?: Fuel["name"] } | undefined) =>
+    fuel?.name?.[locale] || fuel?.name?.en || "";
 
-  const primaryOptions = FUEL_OPTIONS.map((f) => ({ value: f.id, label: getFuelName(f), ...f }));
+  const primaryOptions = FUEL_OPTIONS.map((f) => ({
+    value: f.id,
+    label: getFuelName(f),
+    ...f,
+  }));
   const secondaryOptions = SECONDARY_FUEL_OPTIONS.map((f) => ({
     value: f.id,
     label: getFuelName(f),
@@ -37,9 +47,14 @@ export default function FuelConfigField({ params, onChange, locale }: FuelConfig
   const renderFuelOption = (opt: SelectOption<string> & Partial<Fuel>) => (
     <>
       {opt.image && (
-        <img src={opt.image} alt="" className="w-6 h-6 object-contain" aria-hidden="true" />
+        <img
+          src={opt.image}
+          alt=""
+          className="w-6 h-6 object-contain"
+          aria-hidden="true"
+        />
       )}
-      <span>{opt.label ?? getFuelName(opt as { name?: Fuel['name'] })}</span>
+      <span>{opt.label ?? getFuelName(opt as { name?: Fuel["name"] })}</span>
     </>
   );
 
@@ -53,7 +68,10 @@ export default function FuelConfigField({ params, onChange, locale }: FuelConfig
   const handleCustomConfirm = (power: number, burnTime: number) => {
     if (!customModalTarget) return;
     const prev = params.fuelOverrides || {};
-    onChange('fuelOverrides', { ...prev, [customModalTarget]: { power, burnTime } });
+    onChange("fuelOverrides", {
+      ...prev,
+      [customModalTarget]: { power, burnTime },
+    });
   };
 
   const customModalValues = customModalTarget
@@ -73,7 +91,7 @@ export default function FuelConfigField({ params, onChange, locale }: FuelConfig
             type="button"
             onClick={() => setCustomModalTarget(fuelId)}
             className="text-endfield-text/50 hover:text-endfield-text transition-colors"
-            title={t('editFuelValues')}
+            title={t("editFuelValues")}
           >
             <Icon name="edit" className="!w-4 !h-4" />
           </button>
@@ -88,20 +106,24 @@ export default function FuelConfigField({ params, onChange, locale }: FuelConfig
   };
 
   return (
-    <SidebarSection icon="local_gas_station" title={t('fuelConfig')} className="space-y-4">
+    <SidebarSection
+      icon="local_gas_station"
+      title={t("fuelConfig")}
+      className="space-y-4"
+    >
       <div className="space-y-2">
         <label
           id="primary-fuel-label"
           htmlFor="primary-fuel-select"
           className="text-sm text-endfield-text"
         >
-          {t('primaryFuel')}
+          {t("primaryFuel")}
         </label>
         <Select
           id="primary-fuel-select"
           value={params.primaryFuelId}
           options={primaryOptions}
-          onChange={(opt) => handleFuelChange('primaryFuelId', opt.value)}
+          onChange={(opt) => handleFuelChange("primaryFuelId", opt.value)}
           renderOption={renderFuelOption}
           ariaLabelledby="primary-fuel-label"
         />
@@ -114,29 +136,65 @@ export default function FuelConfigField({ params, onChange, locale }: FuelConfig
           htmlFor="secondary-fuel-select"
           className="text-sm text-endfield-text"
         >
-          {t('secondaryFuel')}
+          {t("secondaryFuelLabel")}
         </label>
         <Select
           id="secondary-fuel-select"
           value={params.secondaryFuelId}
           options={secondaryOptions}
-          onChange={(opt) => handleFuelChange('secondaryFuelId', opt.value)}
+          onChange={(opt) => handleFuelChange("secondaryFuelId", opt.value)}
           renderOption={renderFuelOption}
           ariaLabelledby="secondary-fuel-label"
         />
-        {params.secondaryFuelId === 'none' ? (
-          <p className="text-sm text-endfield-text/50">{t('secondaryFuelHint')}</p>
+        {params.secondaryFuelId === "none" ? (
+          <p className="text-sm text-endfield-text/50">
+            {t("secondaryFuelHint")}
+          </p>
         ) : (
           renderFuelInfo(params.secondaryFuelId)
         )}
       </div>
+
+      {params.secondaryFuelId && params.secondaryFuelId !== "none" ? (
+        <div className="space-y-2">
+          <label
+            id="multi-fuel-mode-label"
+            htmlFor="multi-fuel-mode-select"
+            className="text-sm text-endfield-text"
+          >
+            {t("multiFuelMode")}
+          </label>
+          <Select
+            id="multi-fuel-mode-select"
+            value={params.multiFuelMode ?? "auto"}
+            options={[
+              { value: "auto", label: t("multiFuelModeAuto") },
+              { value: "legacy", label: t("multiFuelModeLegacy") },
+              { value: "mixed", label: t("multiFuelModeMixed") },
+              { value: "primaryOnly", label: t("multiFuelModePrimaryOnly") },
+              {
+                value: "secondaryOnly",
+                label: t("multiFuelModeSecondaryOnly"),
+              },
+            ]}
+            onChange={(opt) => onChange("multiFuelMode", opt.value)}
+            ariaLabelledby="multi-fuel-mode-label"
+          />
+          <p className="text-sm text-endfield-text/50">
+            {t("multiFuelModeHint")}
+          </p>
+        </div>
+      ) : null}
 
       {customModalTarget && customModalValues && (
         <CustomFuelModal
           key={customModalTarget}
           show
           onClose={() => setCustomModalTarget(null)}
-          currentValues={{ power: customModalValues.power, burnTime: customModalValues.burnTime }}
+          currentValues={{
+            power: customModalValues.power,
+            burnTime: customModalValues.burnTime,
+          }}
           onConfirm={handleCustomConfirm}
         />
       )}

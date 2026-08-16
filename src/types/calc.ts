@@ -44,6 +44,14 @@ export interface BasePowerDetails {
   totalBasePower: number;
 }
 
+/** 震荡分支多燃料策略模式（显式枚举，含 legacy） */
+export type MultiFuelMode =
+  | "auto"
+  | "legacy"
+  | "mixed"
+  | "primaryOnly"
+  | "secondaryOnly";
+
 /** 侧边栏/计算器使用的完整参数 */
 export interface CalcParams {
   targetPower: number;
@@ -75,6 +83,14 @@ export interface CalcParams {
    * - false：不自动补齐
    */
   autoPlanBasePools?: boolean;
+  /**
+   * 震荡分支多燃料策略。
+   * - 缺省 / undefined：按 'auto'（智能混编）处理
+   * - auto：主 + 副 + 混合联合竞争
+   * - legacy：主/副各自单燃料枚举，不混合
+   * - mixed / primaryOnly / secondaryOnly：见 UI 文案
+   */
+  multiFuelMode?: MultiFuelMode;
   [key: string]: unknown;
 }
 
@@ -94,6 +110,8 @@ export interface OscillatingBranch {
   branchInterval?: number;
   splitterCount?: { split2: number; split3: number; total: number };
   description?: string;
+  /** 分支所属燃料 ID；缺省 fallback 到方案 oscillatingFuel/fuel.id */
+  fuelId?: string;
   [key: string]: unknown;
 }
 
@@ -146,5 +164,7 @@ export interface SolutionResult {
   fuelBOM?: UnifiedFuelBOMItem[];
   /** 常驻明细拆分（增量） */
   baseDetails?: BasePowerDetails;
+  /** 是否为多燃料混合震荡方案 */
+  isMixed?: boolean;
   [key: string]: unknown;
 }
