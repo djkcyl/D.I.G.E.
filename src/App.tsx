@@ -32,7 +32,8 @@ const PRIVACY_FOOTER_DISMISSED_KEY = "dige-privacy-footer-dismissed";
 const SHARE_STATUS_VISIBLE_MS = 1800;
 const SHARE_STATUS_FADE_MS = 220;
 const DEFAULT_PARAMS: CalcParams = {
-  targetPower: 2656,
+  /** 中期玩家常用：约 5.8kW 电网 */
+  targetPower: 5800,
   minBatteryPercent: 5,
   maxWaste: 300,
   maxBranches: 3,
@@ -42,10 +43,12 @@ const DEFAULT_PARAMS: CalcParams = {
   excludeBelt: true,
   /** 排除物品准入口限速器：false=默认关=启用限速求解；true=开=忽略限速/满速 */
   excludeItemGateLimiter: false,
-  primaryFuelId: "wulingLow",
-  secondaryFuelId: "none",
+  /** 中容武陵 + 高容谷地，智能混编 + 自动常驻 */
+  primaryFuelId: "wulingMid",
+  secondaryFuelId: "valleyHigh",
   inputSourceId: "warehouse",
   multiFuelMode: "auto",
+  autoPlanBasePools: true,
 };
 
 const getInitialParams = (): CalcParams => {
