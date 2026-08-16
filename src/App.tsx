@@ -18,6 +18,10 @@ import { I18nProvider, useI18n } from "./i18n";
 import type { CalcParams, SolutionResult } from "./types/calc";
 import type { WorkerResponse } from "./utils/factoryDesigner.worker";
 import {
+  diagnoseNoSolution,
+  type DiagnosisResult,
+} from "./utils/failureDiagnose";
+import {
   buildShareUrl,
   getShareParamsFromUrl,
   type ShareParams,
@@ -30,7 +34,7 @@ const SHARE_STATUS_FADE_MS = 220;
 const DEFAULT_PARAMS: CalcParams = {
   targetPower: 2656,
   minBatteryPercent: 5,
-  maxWaste: 30,
+  maxWaste: 300,
   maxBranches: 3,
   phaseOffsetBranch1: 0,
   phaseOffsetBranch2: 0,
@@ -79,6 +83,9 @@ function AppContent({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [showError, setShowError] = useState(false);
+  const [lastDiagnosis, setLastDiagnosis] = useState<DiagnosisResult | null>(
+    null
+  );
   const [showPrivacyFooter, setShowPrivacyFooter] = useState(() => {
     if (typeof window === "undefined") return true;
     return localStorage.getItem(PRIVACY_FOOTER_DISMISSED_KEY) !== "1";
@@ -138,11 +145,14 @@ function AppContent({
         setIsLoading(false);
 
         if (!results || results.length === 0) {
+          const diagnosis = diagnoseNoSolution(calcParams, t);
+          setLastDiagnosis(diagnosis);
           setShowError(true);
           setSolutions([]);
           return;
         }
 
+        setLastDiagnosis(null);
         setSolutions(results);
         setSelectedIndex(0);
         setParamsDirty(false);
@@ -152,6 +162,7 @@ function AppContent({
       } catch (error) {
         console.error("Calculation failed:", error);
         setIsLoading(false);
+        setLastDiagnosis(null);
         setShowError(true);
         setSolutions([]);
       } finally {
@@ -161,7 +172,7 @@ function AppContent({
         }
       }
     },
-    [params]
+    [params, t]
   );
 
   useEffect(() => {
@@ -346,6 +357,7 @@ function AppContent({
               selectedIndex={selectedIndex}
               onSelectSolution={setSelectedIndex}
               params={params}
+              diagnosis={lastDiagnosis}
             />
 
             <LoadingOverlay isLoading={isLoading} />
@@ -391,6 +403,7 @@ function AppContent({
         show={showError}
         onDismiss={() => setShowError(false)}
         closeOnBackdrop={false}
+        diagnosis={lastDiagnosis}
       />
     </div>
   );

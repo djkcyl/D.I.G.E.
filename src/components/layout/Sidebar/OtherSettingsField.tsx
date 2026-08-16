@@ -7,20 +7,21 @@ import SidebarSection from "./SidebarSection";
 export interface OtherSettingsFieldProps {
   params: CalcParams;
   onChange: (key: keyof CalcParams | string, value: unknown) => void;
-  onShowExcludeBeltWarning: () => void;
   onShowItemGateLimiterHint?: () => void;
+  onShowExcludeBeltWarning?: () => void;
 }
 
+/** 其他设置：准入口限速开关 + 排除传送带（主区常驻） */
 export default function OtherSettingsField({
   params,
   onChange,
-  onShowExcludeBeltWarning,
   onShowItemGateLimiterHint,
+  onShowExcludeBeltWarning,
 }: OtherSettingsFieldProps) {
   const { t } = useI18n();
-  const excludeBelt = params.excludeBelt !== false;
   // false/缺省=关=限速求解；true=开=忽略限速
   const excludeItemGateLimiter = Boolean(params.excludeItemGateLimiter);
+  const excludeBelt = params.excludeBelt !== false;
 
   return (
     <SidebarSection
@@ -29,29 +30,6 @@ export default function OtherSettingsField({
       className="space-y-2"
     >
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-sm text-endfield-text">
-              {t("excludeBelt")}
-            </span>
-            <button
-              type="button"
-              onClick={onShowExcludeBeltWarning}
-              className="w-5 h-5 inline-flex items-center justify-center leading-none text-endfield-text/50 hover:text-endfield-yellow transition-colors shrink-0"
-              title={t("excludeBeltWarning")}
-              aria-label={t("excludeBeltWarning")}
-              aria-haspopup="dialog"
-            >
-              <Icon name="info" className="leading-none" />
-            </button>
-          </div>
-          <Toggle
-            checked={excludeBelt}
-            onChange={(checked) => onChange("excludeBelt", checked)}
-            ariaLabel={t("excludeBelt")}
-          />
-        </div>
-
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-sm text-endfield-text">
@@ -74,6 +52,29 @@ export default function OtherSettingsField({
             checked={excludeItemGateLimiter}
             onChange={(checked) => onChange("excludeItemGateLimiter", checked)}
             ariaLabel={t("excludeItemGateLimiter")}
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-sm text-endfield-text">{t("excludeBelt")}</span>
+            {onShowExcludeBeltWarning ? (
+              <button
+                type="button"
+                onClick={onShowExcludeBeltWarning}
+                className="w-5 h-5 inline-flex items-center justify-center leading-none text-endfield-text/50 hover:text-endfield-yellow transition-colors shrink-0"
+                title={t("excludeBeltWarning")}
+                aria-label={t("excludeBeltWarning")}
+                aria-haspopup="dialog"
+              >
+                <Icon name="info" className="leading-none" />
+              </button>
+            ) : null}
+          </div>
+          <Toggle
+            checked={excludeBelt}
+            onChange={(checked) => onChange("excludeBelt", checked)}
+            ariaLabel={t("excludeBelt")}
           />
         </div>
       </div>

@@ -8,8 +8,9 @@ import {
   PARAM_LIMITS,
 } from "../../../utils/constants";
 import CloseButton from "../../ui/CloseButton";
-import ConstraintsField from "./ConstraintsField";
+import AdvancedSettingsField from "./AdvancedSettingsField";
 import BasePowerBuilder from "./BasePowerBuilder";
+import ConstraintsField from "./ConstraintsField";
 import FuelConfigField from "./FuelConfigField";
 import InputSourceField from "./InputSourceField";
 import OtherSettingsField from "./OtherSettingsField";
@@ -154,14 +155,6 @@ export default function Sidebar({
 
           <div className="w-full shrink-0 border-t border-endfield-gray-light/90" />
 
-          <ConstraintsField
-            params={params}
-            onChange={handleChange}
-            onCalculate={onCalculate}
-          />
-
-          <div className="w-full shrink-0 border-t border-endfield-gray-light/90" />
-
           <FuelConfigField
             params={params}
             onChange={handleChange}
@@ -178,6 +171,14 @@ export default function Sidebar({
 
           <div className="w-full shrink-0 border-t border-endfield-gray-light/90" />
 
+          <ConstraintsField
+            params={params}
+            onChange={handleChange}
+            onCalculate={onCalculate}
+          />
+
+          <div className="w-full shrink-0 border-t border-endfield-gray-light/90" />
+
           <InputSourceField
             params={params}
             onChange={handleChange}
@@ -190,8 +191,16 @@ export default function Sidebar({
           <OtherSettingsField
             params={params}
             onChange={handleChange}
-            onShowExcludeBeltWarning={() => setShowExcludeBeltWarning(true)}
             onShowItemGateLimiterHint={() => setShowItemGateLimiterHint(true)}
+            onShowExcludeBeltWarning={() => setShowExcludeBeltWarning(true)}
+          />
+
+          <div className="w-full shrink-0 border-t border-endfield-gray-light/90" />
+
+          <AdvancedSettingsField
+            params={params}
+            onChange={handleChange}
+            onCalculate={onCalculate}
           />
 
           <div className="w-full shrink-0 border-t border-endfield-gray-light/90" />
