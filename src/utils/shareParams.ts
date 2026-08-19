@@ -634,19 +634,51 @@ export function decodeShareParams(value: unknown): ShareParams | null {
   return decoded;
 }
 
+/** Official public site; used when running in Capacitor / localhost shells. */
+export const CANONICAL_WEB_ORIGIN = "https://dige.aunly.cn";
+
+/**
+ * Base origin for shareable HTTPS links.
+ * Native WebView (localhost / capacitor://) must not produce unusable URLs.
+ */
+export function getShareBaseUrl(): string {
+  if (typeof window === "undefined") return CANONICAL_WEB_ORIGIN;
+  const { protocol, origin, hostname } = window.location;
+  if (
+    protocol === "capacitor:" ||
+    protocol === "ionic:" ||
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname.endsWith(".localhost")
+  ) {
+    return CANONICAL_WEB_ORIGIN;
+  }
+  return origin;
+}
+
 export function getShareParamsFromUrl(): ShareParams | null {
   if (typeof window === "undefined") return null;
+
   const params = new URLSearchParams(window.location.search);
   const token = params.get(SHARE_PARAM_KEY);
   return decodeShareParams(token);
 }
 
 export function buildShareUrl(params: ShareParams): string | null {
-  if (typeof window === "undefined") return null;
   const token = encodeShareParams(params);
   if (!token) return null;
-  const url = new URL(window.location.href);
+  const base = getShareBaseUrl();
+  const url = new URL(base.endsWith("/") ? base : `${base}/`);
   url.searchParams.set(SHARE_PARAM_KEY, token);
+  // Preserve non-share query keys (e.g. lang) when on real web origin
+  if (typeof window !== "undefined") {
+    const current = new URLSearchParams(window.location.search);
+    current.forEach((value, key) => {
+      if (key !== SHARE_PARAM_KEY && !url.searchParams.has(key)) {
+        url.searchParams.set(key, value);
+      }
+    });
+  }
   return url.toString();
 }
 
