@@ -89,7 +89,11 @@
           "Classement plus pragmatique : moins de gaspillage, moins d’équipements et de branches, réseau plus stable.",
           "Les contraintes avancées sont repliées dans la barre latérale ; en cas d’échec, des conseils actionnables s’affichent.",
           "Stabilité renforcée sur paramètres extrêmes pour éviter freezes/crashs dus aux périodes ultra-longues.",
-          "Réglages par défaut plus mid-game : 5800 W, Wuling moyen + Valley élevé, base auto et mix intelligent activés."
+          "Réglages par défaut plus mid-game : 5800 W, Wuling moyen + Valley élevé, base auto et mix intelligent activés.",
+          "Codes réseau : copiez un code DIGE depuis Partager, ou collez un code/lien dans le menu des profils pour l’enregistrer localement.",
+          "Profils locaux multi-emplacements avec sauvegarde auto, préréglages Vallée IV / Wuling, Enregistrer sous et bascule rapide.",
+          "Choix de la zone d’usine (Vallée IV / Wuling / Libre) ; en Vallée, les batteries Wuling n’utilisent pas le limiteur item-gate, avec un rappel.",
+          "Correction des en-têtes de carburants mixtes qui n’affichaient qu’un seul nom ; branches plus claires. Textes latéraux allégés."
         ]
       },
       {

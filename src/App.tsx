@@ -8,6 +8,8 @@ import Announcement, {
 import ErrorState from "./components/modals/ErrorState";
 import PrivacyPolicyModal from "./components/modals/PrivacyPolicyModal";
 import QAModal from "./components/modals/QAModal";
+import ImportProfileModal from "./components/modals/ImportProfileModal";
+import SaveProfileModal from "./components/modals/SaveProfileModal";
 import ShareModal from "./components/modals/ShareModal";
 import DirtyOverlay from "./components/overlays/DirtyOverlay";
 import LoadingOverlay from "./components/overlays/LoadingOverlay";
@@ -16,11 +18,20 @@ import UpdateToast from "./components/overlays/UpdateToast";
 import SolutionList from "./components/solution/SolutionList";
 import { I18nProvider, useI18n } from "./i18n";
 import type { CalcParams, SolutionResult } from "./types/calc";
+import type { ProfileModalMode, ProfilesStorageState } from "./types/profile";
+import { DEFAULT_PARAMS } from "./utils/defaultParams";
 import type { WorkerResponse } from "./utils/factoryDesigner.worker";
 import {
   diagnoseNoSolution,
   type DiagnosisResult,
 } from "./utils/failureDiagnose";
+import {
+  createProfileId,
+  getActiveProfile,
+  loadProfilesStorage,
+  saveProfilesStorage,
+} from "./utils/profileStorage";
+import { buildGridCode } from "./utils/gridCode";
 import {
   buildShareUrl,
   getShareParamsFromUrl,
@@ -31,34 +42,38 @@ const getRandomTargetPower = () => Math.floor(Math.random() * 4500) + 500;
 const PRIVACY_FOOTER_DISMISSED_KEY = "dige-privacy-footer-dismissed";
 const SHARE_STATUS_VISIBLE_MS = 1800;
 const SHARE_STATUS_FADE_MS = 220;
-const DEFAULT_PARAMS: CalcParams = {
-  /** 中期玩家常用：约 5.8kW 电网 */
-  targetPower: 5800,
-  minBatteryPercent: 5,
-  maxWaste: 300,
-  maxBranches: 3,
-  phaseOffsetBranch1: 0,
-  phaseOffsetBranch2: 0,
-  phaseOffsetBranch3: 0,
-  excludeBelt: true,
-  /** 排除物品准入口限速器：false=默认关=启用限速求解；true=开=忽略限速/满速 */
-  excludeItemGateLimiter: false,
-  /** 中容武陵 + 高容谷地，智能混编 + 自动常驻 */
-  primaryFuelId: "wulingMid",
-  secondaryFuelId: "valleyHigh",
-  inputSourceId: "warehouse",
-  /** 默认自由建造：不施加跨区限速限制，旧链接结果不变 */
-  factoryRegion: "free",
-  multiFuelMode: "auto",
-  autoPlanBasePools: true,
-};
+const PROFILE_AUTOSAVE_MS = 300;
 
-const getInitialParams = (): CalcParams => {
-  if (typeof window === "undefined") return DEFAULT_PARAMS;
+interface BootstrapState {
+  params: CalcParams;
+  profileState: ProfilesStorageState;
+  isUrlSession: boolean;
+}
+
+const getBootstrapState = (): BootstrapState => {
+  const profileState = loadProfilesStorage();
+  if (typeof window === "undefined") {
+    const active = getActiveProfile(profileState);
+    return {
+      params: active ? { ...active.params } : { ...DEFAULT_PARAMS },
+      profileState,
+      isUrlSession: false,
+    };
+  }
   const sharedParams = getShareParamsFromUrl();
-  return sharedParams
-    ? ({ ...DEFAULT_PARAMS, ...sharedParams } as CalcParams)
-    : DEFAULT_PARAMS;
+  if (sharedParams) {
+    return {
+      params: { ...DEFAULT_PARAMS, ...sharedParams } as CalcParams,
+      profileState,
+      isUrlSession: true,
+    };
+  }
+  const active = getActiveProfile(profileState);
+  return {
+    params: active ? { ...active.params } : { ...DEFAULT_PARAMS },
+    profileState,
+    isUrlSession: false,
+  };
 };
 
 interface AppContentProps {
@@ -73,7 +88,19 @@ function AppContent({
   onOpenQA,
 }: AppContentProps) {
   const { t } = useI18n();
-  const [params, setParams] = useState<CalcParams>(getInitialParams);
+  const bootstrapRef = useRef<BootstrapState | null>(null);
+  if (!bootstrapRef.current) {
+    bootstrapRef.current = getBootstrapState();
+  }
+  const bootstrap = bootstrapRef.current;
+
+  const [params, setParams] = useState<CalcParams>(() => bootstrap.params);
+  const [profileState, setProfileState] = useState<ProfilesStorageState>(
+    () => bootstrap.profileState
+  );
+  const [isUrlSession, setIsUrlSession] = useState(
+    () => bootstrap.isUrlSession
+  );
   const [shareStatusMessage, setShareStatusMessage] = useState("");
   const [shareStatusVisible, setShareStatusVisible] = useState(false);
   const shareStatusTimer = useRef<{
@@ -83,6 +110,8 @@ function AppContent({
   }>({ hide: null, clear: null, frame: null });
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
+  const [shareGridCode, setShareGridCode] = useState("");
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const [solutions, setSolutions] = useState<SolutionResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -102,6 +131,18 @@ function AppContent({
   const lastCalcParamsRef = useRef<CalcParams | null>(null);
   const hasAutoCalculatedRef = useRef(false);
   const workerRef = useRef<Worker | null>(null);
+  const skipNextAutosaveRef = useRef(true);
+
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [profileModalMode, setProfileModalMode] =
+    useState<ProfileModalMode>("saveAs");
+  const [profileModalInitialName, setProfileModalInitialName] = useState("");
+  const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
+
+  const commitProfileState = useCallback((next: ProfilesStorageState) => {
+    setProfileState(next);
+    saveProfilesStorage(next);
+  }, []);
 
   const setParamsWithDirty = useCallback(
     (updater: React.SetStateAction<CalcParams>) => {
@@ -250,13 +291,19 @@ function AppContent({
 
   const handleOpenShareModal = useCallback(() => {
     const nextUrl = buildShareUrl(params as ShareParams);
-    if (!nextUrl) {
+    const nextCode = buildGridCode(params as ShareParams);
+    if (!nextUrl && !nextCode) {
       showShareStatus(t("shareFailed"));
       return;
     }
 
-    window.history.replaceState({}, "", nextUrl);
-    setShareUrl(nextUrl);
+    if (nextUrl) {
+      window.history.replaceState({}, "", nextUrl);
+      setShareUrl(nextUrl);
+    } else {
+      setShareUrl("");
+    }
+    setShareGridCode(nextCode || "");
     setShareModalOpen(true);
   }, [params, showShareStatus, t]);
 
@@ -264,26 +311,36 @@ function AppContent({
     setShareModalOpen(false);
   }, []);
 
-  const handleCopyShareUrl = useCallback(async () => {
-    if (!shareUrl) {
-      showShareStatus(t("shareFailed"));
-      return;
-    }
-
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
-        showShareStatus(t("shareCopied"));
-      } else {
-        window.prompt(t("shareCopyPrompt"), shareUrl);
-        showShareStatus(t("shareCopied"));
+  const copyTextToClipboard = useCallback(
+    async (text: string, successKey: string) => {
+      if (!text) {
+        showShareStatus(t("shareFailed"));
+        return;
       }
-    } catch (error) {
-      console.error("Share error:", error);
-      const reason = getCopyErrorReason(error as Error);
-      showShareStatus(`${t("copyFailed")}: ${reason}`);
-    }
-  }, [shareUrl, showShareStatus, t, getCopyErrorReason]);
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+          showShareStatus(t(successKey));
+        } else {
+          window.prompt(t("shareCopyPrompt"), text);
+          showShareStatus(t(successKey));
+        }
+      } catch (error) {
+        console.error("Copy error:", error);
+        const reason = getCopyErrorReason(error as Error);
+        showShareStatus(`${t("copyFailed")}: ${reason}`);
+      }
+    },
+    [showShareStatus, t, getCopyErrorReason]
+  );
+
+  const handleCopyShareUrl = useCallback(async () => {
+    await copyTextToClipboard(shareUrl, "shareCopied");
+  }, [shareUrl, copyTextToClipboard]);
+
+  const handleCopyGridCode = useCallback(async () => {
+    await copyTextToClipboard(shareGridCode, "gridCodeCopied");
+  }, [shareGridCode, copyTextToClipboard]);
 
   const handleNativeShare = useCallback(async () => {
     if (!shareUrl || !navigator.share) return;
@@ -302,6 +359,234 @@ function AppContent({
     setParams(newParams);
     runCalculation(newParams);
   }, [params, runCalculation]);
+
+  /** 300ms 防抖自动写入当前激活存档（URL 会话跳过） */
+  useEffect(() => {
+    if (isUrlSession) return;
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      setProfileState((prev) => {
+        const next: ProfilesStorageState = {
+          ...prev,
+          profiles: prev.profiles.map((p) =>
+            p.id === prev.activeProfileId
+              ? { ...p, params: { ...params }, updatedAt: Date.now() }
+              : p
+          ),
+        };
+        saveProfilesStorage(next);
+        return next;
+      });
+    }, PROFILE_AUTOSAVE_MS);
+    return () => clearTimeout(timer);
+  }, [params, isUrlSession]);
+
+  const clearUrlSessionFlag = useCallback(() => {
+    setIsUrlSession(false);
+    if (typeof window !== "undefined") {
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has("p")) {
+          url.searchParams.delete("p");
+          window.history.replaceState(
+            {},
+            "",
+            url.pathname + url.search + url.hash
+          );
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }, []);
+
+  const handleSelectProfile = useCallback(
+    (id: string) => {
+      const target = profileState.profiles.find((p) => p.id === id);
+      if (!target) return;
+      skipNextAutosaveRef.current = true;
+      const nextParams = { ...target.params };
+      const nextState: ProfilesStorageState = {
+        ...profileState,
+        activeProfileId: id,
+      };
+      commitProfileState(nextState);
+      setParams(nextParams);
+      setParamsDirty(false);
+      setShowDirtyOverlay(false);
+      setDirtyDismissed(false);
+      clearUrlSessionFlag();
+      runCalculation(nextParams);
+    },
+    [profileState, commitProfileState, clearUrlSessionFlag, runCalculation]
+  );
+
+  const openSaveAsModal = useCallback(() => {
+    const active = getActiveProfile(profileState);
+    setProfileModalMode("saveAs");
+    setRenameTargetId(null);
+    setProfileModalInitialName(active?.name ? `${active.name}` : "");
+    setProfileModalOpen(true);
+  }, [profileState]);
+
+  const openRenameModal = useCallback(
+    (id: string) => {
+      const target = profileState.profiles.find((p) => p.id === id);
+      if (!target) return;
+      setProfileModalMode("rename");
+      setRenameTargetId(id);
+      setProfileModalInitialName(target.name);
+      setProfileModalOpen(true);
+    },
+    [profileState]
+  );
+
+  const handleProfileModalConfirm = useCallback(
+    (name: string) => {
+      const now = Date.now();
+      if (profileModalMode === "rename" && renameTargetId) {
+        const next: ProfilesStorageState = {
+          ...profileState,
+          profiles: profileState.profiles.map((p) =>
+            p.id === renameTargetId ? { ...p, name, updatedAt: now } : p
+          ),
+        };
+        commitProfileState(next);
+        return;
+      }
+
+      const newId = createProfileId();
+      const newProfile = {
+        id: newId,
+        name,
+        createdAt: now,
+        updatedAt: now,
+        params: { ...params },
+      };
+      const next: ProfilesStorageState = {
+        ...profileState,
+        activeProfileId: newId,
+        profiles: [...profileState.profiles, newProfile],
+      };
+      skipNextAutosaveRef.current = true;
+      commitProfileState(next);
+      clearUrlSessionFlag();
+      setParamsDirty(false);
+    },
+    [
+      profileModalMode,
+      renameTargetId,
+      profileState,
+      params,
+      commitProfileState,
+      clearUrlSessionFlag,
+    ]
+  );
+
+  const handleDeleteProfile = useCallback(
+    (id: string) => {
+      if (profileState.profiles.length <= 1) return;
+      const remaining = profileState.profiles.filter((p) => p.id !== id);
+      if (remaining.length === 0) return;
+
+      const deletedActive = profileState.activeProfileId === id;
+      const nextActiveId = deletedActive
+        ? remaining[0].id
+        : profileState.activeProfileId;
+      const next: ProfilesStorageState = {
+        version: profileState.version,
+        activeProfileId: nextActiveId,
+        profiles: remaining,
+      };
+      commitProfileState(next);
+
+      if (deletedActive) {
+        const target =
+          remaining.find((p) => p.id === nextActiveId) ?? remaining[0];
+        skipNextAutosaveRef.current = true;
+        const nextParams = { ...target.params };
+        setParams(nextParams);
+        setParamsDirty(false);
+        setShowDirtyOverlay(false);
+        setDirtyDismissed(false);
+        clearUrlSessionFlag();
+        runCalculation(nextParams);
+      }
+    },
+    [profileState, commitProfileState, clearUrlSessionFlag, runCalculation]
+  );
+
+  const handleSaveUrlSessionToLocal = useCallback(() => {
+    openSaveAsModal();
+  }, [openSaveAsModal]);
+
+  const openImportModal = useCallback(() => {
+    setImportModalOpen(true);
+  }, []);
+
+  const handleImportConfirm = useCallback(
+    ({
+      name,
+      params: importedShare,
+      prefixMismatch,
+      actualPower,
+    }: {
+      name: string;
+      params: ShareParams;
+      prefixMismatch: boolean;
+      actualPower?: number;
+    }) => {
+      const now = Date.now();
+      const newId = createProfileId();
+      const nextParams = {
+        ...DEFAULT_PARAMS,
+        ...importedShare,
+      } as CalcParams;
+      const newProfile = {
+        id: newId,
+        name: name.slice(0, 32),
+        createdAt: now,
+        updatedAt: now,
+        params: { ...nextParams },
+      };
+      const next: ProfilesStorageState = {
+        ...profileState,
+        activeProfileId: newId,
+        profiles: [...profileState.profiles, newProfile],
+      };
+      skipNextAutosaveRef.current = true;
+      commitProfileState(next);
+      clearUrlSessionFlag();
+      setParams(nextParams);
+      setParamsDirty(false);
+      setShowDirtyOverlay(false);
+      setDirtyDismissed(false);
+      runCalculation(nextParams);
+
+      if (prefixMismatch) {
+        const powerLabel =
+          actualPower != null && Number.isFinite(actualPower)
+            ? String(Math.round(actualPower))
+            : String(nextParams.targetPower ?? "");
+        showShareStatus(
+          t("importCodePrefixMismatch").replace("{power}", powerLabel)
+        );
+      } else {
+        showShareStatus(t("importCodeSuccess"));
+      }
+    },
+    [
+      profileState,
+      commitProfileState,
+      clearUrlSessionFlag,
+      runCalculation,
+      showShareStatus,
+      t,
+    ]
+  );
 
   useEffect(() => {
     if (hasAutoCalculatedRef.current) return;
@@ -363,6 +648,17 @@ function AppContent({
               onSelectSolution={setSelectedIndex}
               params={params}
               diagnosis={lastDiagnosis}
+              profile={{
+                profiles: profileState.profiles,
+                activeProfileId: profileState.activeProfileId,
+                isUrlSession,
+                onSelectProfile: handleSelectProfile,
+                onSaveAs: openSaveAsModal,
+                onRename: openRenameModal,
+                onDelete: handleDeleteProfile,
+                onSaveUrlSessionToLocal: handleSaveUrlSessionToLocal,
+                onImportCode: openImportModal,
+              }}
             />
 
             <LoadingOverlay isLoading={isLoading} />
@@ -399,8 +695,10 @@ function AppContent({
       <ShareModal
         show={shareModalOpen}
         shareUrl={shareUrl}
+        gridCode={shareGridCode}
         onClose={handleCloseShareModal}
-        onCopy={handleCopyShareUrl}
+        onCopyUrl={handleCopyShareUrl}
+        onCopyGridCode={handleCopyGridCode}
         onShare={handleNativeShare}
         closeOnBackdrop={true}
       />
@@ -409,6 +707,18 @@ function AppContent({
         onDismiss={() => setShowError(false)}
         closeOnBackdrop={false}
         diagnosis={lastDiagnosis}
+      />
+      <SaveProfileModal
+        show={profileModalOpen}
+        mode={profileModalMode}
+        initialName={profileModalInitialName}
+        onClose={() => setProfileModalOpen(false)}
+        onConfirm={handleProfileModalConfirm}
+      />
+      <ImportProfileModal
+        show={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onConfirm={handleImportConfirm}
       />
     </div>
   );

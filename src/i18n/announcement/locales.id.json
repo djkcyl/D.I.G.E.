@@ -89,7 +89,11 @@
           "Peringkat solusi lebih praktis: utamakan limbah rendah, lebih sedikit perangkat/cabang, dan jaringan lebih stabil.",
           "Batasan lanjutan disimpan di panel samping yang dapat dilipat; jika tak ada solusi, saran penyesuaian ditampilkan.",
           "Stabilitas parameter ekstrem diperkuat agar tidak freeze/crash karena periode simulasi sangat panjang.",
-          "Default lebih mid-game: 5800W, Wuling menengah + Valley tinggi, perencanaan basis otomatis dan smart mix aktif."
+          "Default lebih mid-game: 5800W, Wuling menengah + Valley tinggi, perencanaan basis otomatis dan smart mix aktif.",
+          "Kode jaringan: salin kode DIGE dari Bagikan, atau tempel kode/tautan di menu profil untuk menyimpan arsip lokal.",
+          "Profil jaringan multi-slot lokal dengan simpan otomatis, preset Lembah IV / Wuling, Simpan sebagai, dan ganti cepat.",
+          "Pilih wilayah pabrik (Lembah IV / Wuling / Bebas); di Lembah, baterai Wuling tidak memakai pembatas item-gate, dengan petunjuk.",
+          "Perbaikan header bahan bakar campuran yang hanya menampilkan satu nama; cabang lebih jelas. Teks bilah sisi dipersingkat."
         ]
       },
       {
