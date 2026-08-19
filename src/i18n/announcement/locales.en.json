@@ -89,7 +89,11 @@
           "Solution ranking is more practical: prefer lower waste, fewer devices, fewer branches, and a steadier grid.",
           "Advanced constraints are tucked into a collapsible sidebar section; when no solution is found, actionable tips are shown.",
           "Hardened stability for extreme parameters to avoid freezes or crashes from ultra-long simulation periods.",
-          "Defaults lean mid-game: 5800W, SC Wuling + Valley High batteries, with auto base planning and smart fuel mix on by default."
+          "Defaults lean mid-game: 5800W, SC Wuling + Valley High batteries, with auto base planning and smart fuel mix on by default.",
+          "Share and import power-grid codes: copy a DIGE blueprint code from Share, or paste a code/link from the profile menu to load a local archive.",
+          "Local multi-slot grid profiles with autosave, Valley IV / Wuling presets, Save as, and quick switching.",
+          "Choose factory region (Valley IV / Wuling / Free build); in Valley, Wuling batteries cannot use item-gate limiters, with a clear cross-region hint.",
+          "Fixed mixed primary/secondary fuel headers that showed only one battery name; branch fuels and watts are clearer. Sidebar copy is leaner."
         ]
       },
       {

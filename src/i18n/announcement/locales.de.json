@@ -89,7 +89,11 @@
           "Praxisnähere Sortierung: weniger Verlust, weniger Geräte und Zweige, stabileres Netz.",
           "Erweiterte Constraints sind einklappbar; ohne Lösung erscheinen konkrete Anpassungsvorschläge.",
           "Stabilität bei Extremparametern verbessert – weniger Freezes/Crashes durch ultralange Perioden.",
-          "Defaults näher am Midgame: 5800 W, Wuling mittel + Valley hoch, Auto-Basis und Smart-Mix standardmäßig an."
+          "Defaults näher am Midgame: 5800 W, Wuling mittel + Valley hoch, Auto-Basis und Smart-Mix standardmäßig an.",
+          "Netzcodes teilen und importieren: DIGE-Blueprint aus Teilen kopieren oder Code/Link im Profilmenü einfügen und lokal speichern.",
+          "Lokale Mehrfach-Profile mit Autosave, Vorlagen Tal IV / Wuling, Speichern unter und schnellem Wechsel.",
+          "Werksregion wählbar (Tal IV / Wuling / Frei); im Tal keine Item-Gate-Limits für Wuling-Batterien, mit Hinweis.",
+          "Gemischte Primär-/Sekundärkraftstoff-Überschriften korrigiert; Zweige klarer. Seitenleisten-Texte gestrafft."
         ]
       },
       {
