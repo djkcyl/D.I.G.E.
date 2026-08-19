@@ -1,6 +1,8 @@
 import { useI18n } from "../../../i18n";
-import type { CalcParams } from "../../../types/calc";
+import type { CalcParams, FactoryRegion } from "../../../types/calc";
+import { normalizeFactoryRegion } from "../../../utils/regionLimiter";
 import Icon from "../../ui/Icon";
+import Select from "../../ui/Select";
 import Toggle from "../../ui/Toggle";
 import SidebarSection from "./SidebarSection";
 
@@ -11,7 +13,7 @@ export interface OtherSettingsFieldProps {
   onShowExcludeBeltWarning?: () => void;
 }
 
-/** 其他设置：准入口限速开关 + 排除传送带（主区常驻） */
+/** 其他设置：建设地区 + 准入口限速开关 + 排除传送带 */
 export default function OtherSettingsField({
   params,
   onChange,
@@ -22,6 +24,9 @@ export default function OtherSettingsField({
   // false/缺省=关=限速求解；true=开=忽略限速
   const excludeItemGateLimiter = Boolean(params.excludeItemGateLimiter);
   const excludeBelt = params.excludeBelt !== false;
+  const factoryRegion: FactoryRegion = normalizeFactoryRegion(
+    params.factoryRegion
+  );
 
   return (
     <SidebarSection
@@ -30,6 +35,30 @@ export default function OtherSettingsField({
       className="space-y-2"
     >
       <div className="space-y-3">
+        <div className="space-y-2">
+          <label
+            id="factory-region-label"
+            htmlFor="factory-region-select"
+            className="text-sm text-endfield-text"
+          >
+            {t("factoryRegion")}
+          </label>
+          <Select
+            id="factory-region-select"
+            value={factoryRegion}
+            options={[
+              { value: "free", label: t("factoryRegionFree") },
+              { value: "valley", label: t("factoryRegionValley") },
+              { value: "wuling", label: t("factoryRegionWuling") },
+            ]}
+            onChange={(opt) =>
+              onChange("factoryRegion", opt.value as FactoryRegion)
+            }
+            ariaLabelledby="factory-region-label"
+          />
+          <p className="text-sm text-endfield-text/50">{t("factoryRegionHint")}</p>
+        </div>
+
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-sm text-endfield-text">

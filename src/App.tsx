@@ -47,6 +47,8 @@ const DEFAULT_PARAMS: CalcParams = {
   primaryFuelId: "wulingMid",
   secondaryFuelId: "valleyHigh",
   inputSourceId: "warehouse",
+  /** 默认自由建造：不施加跨区限速限制，旧链接结果不变 */
+  factoryRegion: "free",
   multiFuelMode: "auto",
   autoPlanBasePools: true,
 };

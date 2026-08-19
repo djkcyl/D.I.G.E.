@@ -1,6 +1,7 @@
 import type {
   BasePowerDetails,
   CalcParams,
+  FactoryRegion,
   ManualBaseLine,
   OscillatingBranch,
   SolutionResult,
@@ -23,6 +24,10 @@ import {
   PARAM_LIMITS,
   resolveFuel,
 } from "./constants";
+import {
+  isFuelLimiterSupported,
+  normalizeFactoryRegion,
+} from "./regionLimiter";
 
 export type FactoryDesignerParams = CalcParams;
 
@@ -791,6 +796,8 @@ export class FactoryDesigner {
   autoPlanBasePools: boolean | undefined;
   /** undefined=legacy 不混合；auto/primaryOnly/secondaryOnly/mixed */
   multiFuelMode: CalcParams["multiFuelMode"];
+  /** 建设地区：影响准入口限速与燃料兼容性 */
+  factoryRegion: FactoryRegion;
   fuelOverrides?: Record<string, { power?: number; burnTime?: number }>;
   validDenominators: number[];
   simulator: PowerCycleSimulator;
@@ -867,6 +874,7 @@ export class FactoryDesigner {
         ? undefined
         : Boolean(params.autoPlanBasePools);
     this.multiFuelMode = params.multiFuelMode;
+    this.factoryRegion = normalizeFactoryRegion(params.factoryRegion);
     this.fuelOverrides = params.fuelOverrides;
 
     this.validDenominators = generateValidDenominators();
@@ -1094,11 +1102,15 @@ export class FactoryDesigner {
 
     const solutions: OscillatingSolutionInput[] = [];
     // true=忽略限速（满速）；false=枚举准入口限速
+    // 地区规则：谷地不可对武陵电池使用准入口限速
+    const effectiveExcludeLimiter =
+      this.excludeItemGateLimiter ||
+      !isFuelLimiterSupported(fuel.id, this.factoryRegion);
     const allBranchOptions: BranchLimiterPlan[] = buildBranchLimiterOptions(
       fuel,
       this.inputSource.id,
       this.validDenominators,
-      this.excludeItemGateLimiter
+      effectiveExcludeLimiter
     );
     // 剪枝：单支功率不超过 gap+容差；按硬件成本优先保留，避免组合爆炸
     const maxSinglePower = gap + this.maxWaste + 10;
@@ -1230,11 +1242,14 @@ export class FactoryDesigner {
     gap: number,
     K: number
   ): BranchLimiterPlan[] {
+    const effectiveExcludeLimiter =
+      this.excludeItemGateLimiter ||
+      !isFuelLimiterSupported(fuel.id, this.factoryRegion);
     const allBranchOptions: BranchLimiterPlan[] = buildBranchLimiterOptions(
       fuel,
       this.inputSource.id,
       this.validDenominators,
-      this.excludeItemGateLimiter
+      effectiveExcludeLimiter
     );
     const maxSinglePower = gap + this.maxWaste + 10;
     const pruned = allBranchOptions

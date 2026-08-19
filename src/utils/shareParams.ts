@@ -426,6 +426,37 @@ const SHARE_FIELDS = assignFieldIndices([
       return rev[value] ?? null;
     },
   } as ShareField,
+  // 建设地区：0=missing→omit→App 默认 free；1=valley 2=wuling 3=free(显式)
+  {
+    index: 0,
+    key: "factoryRegion",
+    bits: 2,
+    mask: bitMaskFromBits(2),
+    maxEncodedValue: maxValueFromBits(2),
+    optional: true,
+    missingRawValue: 0,
+    encode: (value: unknown): number | null => {
+      if (value === undefined || value === null || value === "") return 0;
+      if (typeof value !== "string") return null;
+      const map: Record<string, number> = {
+        valley: 1,
+        wuling: 2,
+        free: 3,
+      };
+      const raw = map[value];
+      return raw == null ? null : raw;
+    },
+    decode: (value: number): string | null => {
+      if (!isValidNonNegativeInt(value)) return null;
+      if (value === 0) return null; // missing → omit → DEFAULT free
+      const rev: Record<number, string> = {
+        1: "valley",
+        2: "wuling",
+        3: "free",
+      };
+      return rev[value] ?? null;
+    },
+  } as ShareField,
 ]);
 
 const LAYOUT_FIELDS = [...SHARE_FIELDS].sort((a, b) => a.index - b.index);
@@ -445,6 +476,8 @@ export interface ShareParams {
   autoPlanBasePools?: boolean;
   /** 多燃料震荡模式；缺失=App 默认 auto */
   multiFuelMode?: "auto" | "legacy" | "mixed" | "primaryOnly" | "secondaryOnly";
+  /** 建设地区；缺失=App 默认 free */
+  factoryRegion?: "free" | "valley" | "wuling";
   maxBranches?: number;
   excludeBelt?: boolean;
   fuelOverrides?: Record<string, { power?: number; burnTime?: number }>;

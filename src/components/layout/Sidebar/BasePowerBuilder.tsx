@@ -2,11 +2,7 @@ import { useMemo } from "react";
 import { useI18n } from "../../../i18n";
 import type { CalcParams, ManualBaseLine } from "../../../types/calc";
 import type { Fuel } from "../../../utils/constants";
-import {
-  CONSTANTS,
-  FUEL_OPTIONS,
-  resolveFuel,
-} from "../../../utils/constants";
+import { CONSTANTS, FUEL_OPTIONS, resolveFuel } from "../../../utils/constants";
 import Icon from "../../ui/Icon";
 import type { SelectOption } from "../../ui/Select";
 import Select from "../../ui/Select";
@@ -130,7 +126,9 @@ export default function BasePowerBuilder({
         </div>
 
         {lines.length === 0 ? (
-          <p className="text-xs text-endfield-text/50">{t("manualBaseLinesEmpty")}</p>
+          <p className="text-xs text-endfield-text/50">
+            {t("manualBaseLinesEmpty")}
+          </p>
         ) : (
           <ul className="space-y-2">
             {lines.map((line) => {
@@ -203,14 +201,9 @@ export default function BasePowerBuilder({
       </div>
 
       <div className="flex items-center justify-between gap-2 pt-1">
-        <div className="flex flex-col gap-0.5 min-w-0">
-          <span className="text-sm text-endfield-text">
-            {t("autoPlanBasePools")}
-          </span>
-          <span className="text-xs text-endfield-text/50 leading-snug">
-            {t("autoPlanBasePoolsHint")}
-          </span>
-        </div>
+        <span className="text-sm text-endfield-text min-w-0">
+          {t("autoPlanBasePools")}
+        </span>
         <Toggle
           checked={autoPlanChecked}
           onChange={(checked) => onChange("autoPlanBasePools", checked)}

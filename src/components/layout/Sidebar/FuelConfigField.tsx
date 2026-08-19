@@ -8,6 +8,7 @@ import {
   resolveFuel,
   SECONDARY_FUEL_OPTIONS,
 } from "../../../utils/constants";
+import { shouldShowWulingCrossRegionLimiterHint } from "../../../utils/regionLimiter";
 import CustomFuelModal from "../../modals/CustomFuelModal";
 import Icon from "../../ui/Icon";
 import type { SelectOption } from "../../ui/Select";
@@ -180,11 +181,25 @@ export default function FuelConfigField({
             onChange={(opt) => onChange("multiFuelMode", opt.value)}
             ariaLabelledby="multi-fuel-mode-label"
           />
-          <p className="text-sm text-endfield-text/50">
-            {t("multiFuelModeHint")}
-          </p>
         </div>
       ) : null}
+
+      {(shouldShowWulingCrossRegionLimiterHint(
+        params.primaryFuelId ?? "",
+        params.factoryRegion
+      ) ||
+        shouldShowWulingCrossRegionLimiterHint(
+          params.secondaryFuelId ?? "",
+          params.factoryRegion
+        )) && (
+        <div
+          role="status"
+          className="p-2.5 bg-endfield-yellow/10 border border-endfield-yellow/40 text-xs text-endfield-yellow flex items-start gap-2"
+        >
+          <Icon name="warning" className="!w-4 !h-4 shrink-0 mt-0.5" />
+          <span>{t("crossRegionWulingLimiterHint")}</span>
+        </div>
+      )}
 
       {customModalTarget && customModalValues && (
         <CustomFuelModal

@@ -52,6 +52,14 @@ export type MultiFuelMode =
   | "primaryOnly"
   | "secondaryOnly";
 
+/**
+ * 厂址 / 建设地区（准入口限速与燃料兼容性）。
+ * - free：不施加跨区限制（默认，兼容旧链接）
+ * - valley：四号谷地 — 武陵电池不可用准入口限速
+ * - wuling：武陵 — 向下兼容，全部燃料可限速
+ */
+export type FactoryRegion = "free" | "valley" | "wuling";
+
 /** 侧边栏/计算器使用的完整参数 */
 export interface CalcParams {
   targetPower: number;
@@ -60,6 +68,11 @@ export interface CalcParams {
   primaryFuelId: string;
   secondaryFuelId: string;
   inputSourceId?: string;
+  /**
+   * 建设地区；缺省 / undefined → free（不限制）。
+   * 影响「该燃料分支是否允许准入口限速枚举」。
+   */
+  factoryRegion?: FactoryRegion;
   /** 物品准入口限速档位（个/分钟）。null/undefined = 不限速（遗留字段，求解不再读取） */
   inputRateLimitPerMin?: 0 | 6 | 12 | 18 | 24 | 30 | null;
   /**
