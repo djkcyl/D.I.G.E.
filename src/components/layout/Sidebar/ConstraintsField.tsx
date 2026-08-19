@@ -10,6 +10,7 @@ export interface ConstraintsFieldProps {
   onCalculate?: () => void;
 }
 
+/** 主区约束：仅 minBatteryPercent + maxBranches */
 export default function ConstraintsField({ params, onChange, onCalculate }: ConstraintsFieldProps) {
   const { t } = useI18n();
 
@@ -17,16 +18,6 @@ export default function ConstraintsField({ params, onChange, onCalculate }: Cons
     const clamped = Math.min(100, Math.max(0, val));
     onChange('minBatteryPercent', clamped);
   };
-
-  const visibleBranchCount = Math.max(
-    PARAM_LIMITS.MIN_BRANCHES,
-    Math.min(PARAM_LIMITS.MAX_BRANCHES, params.maxBranches ?? PARAM_LIMITS.MAX_BRANCHES)
-  );
-
-  const phaseOffsetBranchKeys = Array.from(
-    { length: visibleBranchCount },
-    (_, index) => `phaseOffsetBranch${index + 1}` as keyof CalcParams
-  );
 
   return (
     <SidebarSection icon="tune" title={t('constraints')} className="space-y-4">
@@ -59,27 +50,6 @@ export default function ConstraintsField({ params, onChange, onCalculate }: Cons
         />
       </div>
 
-      <div className="space-y-2">
-        <div className="flex justify-between">
-          <label htmlFor="max-waste-input" className="text-sm text-endfield-text">
-            {t('maxWaste')}
-          </label>
-          <span className="text-sm text-endfield-text-light" aria-live="polite">
-            {params.maxWaste} w
-          </span>
-        </div>
-        <input
-          id="max-waste-input"
-          type="number"
-          min="0"
-          max={PARAM_LIMITS.MAX_MAX_WASTE}
-          value={params.maxWaste}
-          onChange={(e) => onChange('maxWaste', parseInt(e.target.value, 10) || 0)}
-          onKeyDown={(e) => e.key === 'Enter' && onCalculate?.()}
-          className="w-full bg-endfield-gray border border-endfield-gray-light px-3 py-2 text-sm text-endfield-text-light focus:border-endfield-yellow focus:outline-none"
-        />
-      </div>
-
       <RangeField
         id="max-branches-input"
         label={t('maxBranches')}
@@ -96,35 +66,6 @@ export default function ConstraintsField({ params, onChange, onCalculate }: Cons
         }
         ticks={Array.from({ length: PARAM_LIMITS.MAX_BRANCHES }, (_, i) => i + 1)}
       />
-
-      <div className="space-y-2">
-        <div className="text-sm text-endfield-text">{t('branchPhaseOffset')}</div>
-        <p className="text-xs text-endfield-text/70">{t('branchPhaseOffsetHint')}</p>
-        <div className="space-y-3">
-          {phaseOffsetBranchKeys.map((key, index) => {
-            const val = params[key];
-            const numVal = typeof val === 'number' ? val : 0;
-            return (
-              <RangeField
-                key={key}
-                id={`phase-offset-branch-${index + 1}`}
-                label={`${t('branch')} ${index + 1}`}
-                value={numVal}
-                min={PARAM_LIMITS.MIN_PHASE_OFFSET_CELLS}
-                max={PARAM_LIMITS.MAX_PHASE_OFFSET_CELLS}
-                step={1}
-                onChange={(nextValue) => onChange(key as keyof CalcParams, nextValue)}
-                ariaLabel={`${t('branch')} ${index + 1} ${t('branchPhaseOffset')}`}
-                rightSlot={
-                  <span className="text-sm text-endfield-text-light" aria-live="polite">
-                    {numVal}
-                  </span>
-                }
-              />
-            );
-          })}
-        </div>
-      </div>
     </SidebarSection>
   );
 }

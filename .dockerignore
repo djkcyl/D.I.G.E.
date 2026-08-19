@@ -1,0 +1,16 @@
+node_modules
+dist
+.git
+.github
+.snow
+.vscode
+.devcontainer
+android
+ios
+*.log
+.DS_Store
+**/*.md
+!README.md
+coverage
+.env
+.env.*

@@ -79,9 +79,27 @@
   "changelog": {
     "sections": [
       {
+        "version": "v1.11.0",
+        "title": "Pembaruan v1.11.0",
+        "defaultOpen": true,
+        "items": [
+          "Solver dapat menerapkan batas laju item-gate otomatis pada cabang osilasi untuk mengurangi atau menghilangkan splitter bertingkat.",
+          "Menambah daya dasar berlapis (inti / manual / isi otomatis) dengan statistik konsumsi bahan bakar seluruh jaringan.",
+          "Mendukung campuran bahan bakar utama/sekunder di cabang terpisah, dengan strategi seperti smart mix.",
+          "Peringkat solusi lebih praktis: utamakan limbah rendah, lebih sedikit perangkat/cabang, dan jaringan lebih stabil.",
+          "Batasan lanjutan disimpan di panel samping yang dapat dilipat; jika tak ada solusi, saran penyesuaian ditampilkan.",
+          "Stabilitas parameter ekstrem diperkuat agar tidak freeze/crash karena periode simulasi sangat panjang.",
+          "Default lebih mid-game: 5800W, Wuling menengah + Valley tinggi, perencanaan basis otomatis dan smart mix aktif.",
+          "Kode jaringan: salin kode DIGE dari Bagikan, atau tempel kode/tautan di menu profil untuk menyimpan arsip lokal.",
+          "Profil jaringan multi-slot lokal dengan simpan otomatis, preset Lembah IV / Wuling, Simpan sebagai, dan ganti cepat.",
+          "Pilih wilayah pabrik (Lembah IV / Wuling / Bebas); di Lembah, baterai Wuling tidak memakai pembatas item-gate, dengan petunjuk.",
+          "Perbaikan header bahan bakar campuran yang hanya menampilkan satu nama; cabang lebih jelas. Teks bilah sisi dipersingkat."
+        ]
+      },
+      {
         "version": "v1.10.0",
         "title": "Pembaruan v1.10.0",
-        "defaultOpen": true,
+        "defaultOpen": false,
         "items": [
           "Rilis ini berfokus pada refaktor internal dan peningkatan stabilitas; fitur dan alur kerja inti tetap sama.",
           "Peningkatan penggunaan keyboard: menu bahasa, menu Lainnya, dan pratinjau gambar kini mendukung navigasi keyboard yang lebih lengkap.",

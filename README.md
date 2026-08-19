@@ -34,7 +34,7 @@ pnpm install
 pnpm dev
 ```
 
-默认开发地址：`http://localhost:5173`
+默认开发地址：`http://localhost:3000`（本机若 5173 被 Windows 保留端口占用会改用 3000；Docker 开发仍为 5173）
 
 ## 常用命令
 
@@ -48,6 +48,15 @@ pnpm build
 # 预览构建产物
 pnpm preview
 
+# Docker 生产（http://localhost:8080）
+docker compose up --build -d
+
+# Docker 开发热重载（http://localhost:3000 → 容器 5173）
+docker compose -f docker-compose.dev.yml up --build
+
+# Android（需本机/CI Android SDK；详见 docs/docker-apk.md）
+pnpm cap:android
+
 # 检查 i18n 同步状态
 pnpm run i18n
 
@@ -60,6 +69,8 @@ pnpm run i18n translate delete <key1> [<key2> ...]
 # 清理未使用翻译 key
 pnpm run i18n prune --write
 ```
+
+容器与 APK 说明见 [`docs/docker-apk.md`](docs/docker-apk.md)。
 
 ## 参数与计算说明
 

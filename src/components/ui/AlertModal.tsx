@@ -1,6 +1,6 @@
-import Button from './Button';
-import Modal from './Modal';
-import ModalHeader from './ModalHeader';
+import Button from "./Button";
+import Modal from "./Modal";
+import ModalHeader from "./ModalHeader";
 
 const TONE_STYLE_MAP: Record<
   string,
@@ -12,22 +12,22 @@ const TONE_STYLE_MAP: Record<
   }
 > = {
   danger: {
-    iconClassName: 'text-red-300',
-    messageClassName: 'text-red-200',
-    contentClassName: '!border-red-900/50 corner-mark',
-    actionVariant: 'danger',
+    iconClassName: "text-red-300",
+    messageClassName: "text-red-200",
+    contentClassName: "!border-red-900/50 corner-mark",
+    actionVariant: "danger",
   },
   warning: {
-    iconClassName: 'text-red-300',
-    messageClassName: 'text-red-200',
-    contentClassName: '!border-red-900/50 corner-mark',
-    actionVariant: 'danger',
+    iconClassName: "text-red-300",
+    messageClassName: "text-red-200",
+    contentClassName: "!border-red-900/50 corner-mark",
+    actionVariant: "danger",
   },
   neutral: {
-    iconClassName: 'text-endfield-yellow',
-    messageClassName: 'text-endfield-text-light',
-    contentClassName: '',
-    actionVariant: 'secondary',
+    iconClassName: "text-endfield-yellow",
+    messageClassName: "text-endfield-text-light",
+    contentClassName: "",
+    actionVariant: "secondary",
   },
 };
 
@@ -40,7 +40,7 @@ export interface AlertModalProps {
   message?: React.ReactNode;
   actionLabel?: React.ReactNode;
   icon?: string;
-  tone?: 'danger' | 'warning' | 'neutral';
+  tone?: "danger" | "warning" | "neutral";
   contentClassName?: string;
 }
 
@@ -52,9 +52,9 @@ export default function AlertModal({
   title,
   message,
   actionLabel,
-  icon = 'warning',
-  tone = 'danger',
-  contentClassName = '',
+  icon = "warning",
+  tone = "danger",
+  contentClassName = "",
 }: AlertModalProps) {
   if (!show) return null;
 
@@ -77,9 +77,11 @@ export default function AlertModal({
       }
       contentClassName={`max-w-lg gap-4 ${toneStyle.contentClassName} ${contentClassName}`.trim()}
     >
-      <p className={`text-sm leading-relaxed ${toneStyle.messageClassName}`}>{message}</p>
+      <div className={`text-sm leading-relaxed ${toneStyle.messageClassName}`}>
+        {message}
+      </div>
       <Button
-        variant={toneStyle.actionVariant as 'danger' | 'secondary'}
+        variant={toneStyle.actionVariant as "danger" | "secondary"}
         fullWidth
         onClick={onClose}
       >

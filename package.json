@@ -1,7 +1,7 @@
 {
   "name": "factory-designer",
   "private": true,
-  "version": "1.10.5",
+  "version": "1.11.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,9 +14,18 @@
     "i18n:changelog": "tsx scripts/i18n.ts changelog",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "cap:sync": "pnpm build && cap sync",
+    "cap:android": "pnpm build && cap sync android",
+    "cap:open:android": "cap open android"
+  },
+  "packageManager": "pnpm@9.13.0",
+  "engines": {
+    "node": ">=22"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "@iconify/react": "^6.0.2",
     "@sentry/react": "^10.38.0",
     "chart.js": "^4.5.1",
@@ -29,6 +38,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.2",
+    "@capacitor/cli": "^8.5.0",
     "@sentry/vite-plugin": "^4.9.1",
     "@tailwindcss/vite": "^4.1.18",
     "@types/node": "^22.19.11",

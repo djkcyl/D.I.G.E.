@@ -21,123 +21,123 @@ export interface Fuel {
 
 const CUSTOM_FUEL_BASE = {
   name: {
-    en: 'Custom Fuel',
-    zh: '自定义燃料',
-    ja: 'カスタム燃料',
-    ko: '사용자 지정 연료',
-    ru: 'Своё топливо',
-    fr: 'Carburant perso.',
-    de: 'Eigener Brennstoff',
-    id: 'Bahan Bakar Kustom',
+    en: "Custom Fuel",
+    zh: "自定义燃料",
+    ja: "カスタム燃料",
+    ko: "사용자 지정 연료",
+    ru: "Своё топливо",
+    fr: "Carburant perso.",
+    de: "Eigener Brennstoff",
+    id: "Bahan Bakar Kustom",
   },
   power: 100,
   burnTime: 10,
-  image: '',
+  image: "",
 };
 
 export const FUELS: Record<string, Fuel> = {
   ore: {
-    id: 'ore',
+    id: "ore",
     name: {
-      en: 'Originium Ore',
-      zh: '源矿',
-      ja: '源石鉱物',
-      ko: '오리지늄광물',
-      ru: 'Ориджиниевая руда',
+      en: "Originium Ore",
+      zh: "源矿",
+      ja: "源石鉱物",
+      ko: "오리지늄광물",
+      ru: "Ориджиниевая руда",
       fr: "Minerai d'Originium",
-      de: 'Originium-Erz',
-      id: 'Bijih Originium',
+      de: "Originium-Erz",
+      id: "Bijih Originium",
     },
     power: 50, // w
     burnTime: 8, // s
-    image: '/fuels/ore.webp',
+    image: "/fuels/ore.webp",
   },
   valleyLow: {
-    id: 'valleyLow',
+    id: "valleyLow",
     name: {
-      en: 'LC Valley Battery',
-      zh: '低容谷地电池',
-      ja: '小容量谷地バッテリー',
-      ko: '소용량협곡배터리',
-      ru: 'Батарея МЕ Долины',
-      fr: 'Batterie Vallée (faible)',
-      de: 'NK Tal-Batterie',
-      id: 'Baterai KR Lembah',
+      en: "LC Valley Battery",
+      zh: "低容谷地电池",
+      ja: "小容量谷地バッテリー",
+      ko: "소용량협곡배터리",
+      ru: "Батарея МЕ Долины",
+      fr: "Batterie Vallée (faible)",
+      de: "NK Tal-Batterie",
+      id: "Baterai KR Lembah",
     },
     power: 220,
     burnTime: 40,
-    image: '/fuels/valleyLow.webp',
+    image: "/fuels/valleyLow.webp",
   },
   valleyMid: {
-    id: 'valleyMid',
+    id: "valleyMid",
     name: {
-      en: 'SC Valley Battery',
-      zh: '中容谷地电池',
-      ja: '中容量谷地バッテリー',
-      ko: '중용량협곡배터리',
-      ru: 'Батарея СЕ Долины',
-      fr: 'Batterie Vallée (moy.)',
-      de: 'SK Tal-Batterie',
-      id: 'Baterai KS Lembah',
+      en: "SC Valley Battery",
+      zh: "中容谷地电池",
+      ja: "中容量谷地バッテリー",
+      ko: "중용량협곡배터리",
+      ru: "Батарея СЕ Долины",
+      fr: "Batterie Vallée (moy.)",
+      de: "SK Tal-Batterie",
+      id: "Baterai KS Lembah",
     },
     power: 420,
     burnTime: 40,
-    image: '/fuels/valleyMid.webp',
+    image: "/fuels/valleyMid.webp",
   },
   valleyHigh: {
-    id: 'valleyHigh',
+    id: "valleyHigh",
     name: {
-      en: 'HC Valley Battery',
-      zh: '高容谷地电池',
-      ja: '大容量谷地バッテリー',
-      ko: '대용량협곡배터리',
-      ru: 'Батарея ВЕ Долины',
-      fr: 'Batterie Vallée (haute)',
-      de: 'HK Tal-Batterie',
-      id: 'Baterai KT Lembah',
+      en: "HC Valley Battery",
+      zh: "高容谷地电池",
+      ja: "大容量谷地バッテリー",
+      ko: "대용량협곡배터리",
+      ru: "Батарея ВЕ Долины",
+      fr: "Batterie Vallée (haute)",
+      de: "HK Tal-Batterie",
+      id: "Baterai KT Lembah",
     },
     power: 1100,
     burnTime: 40,
-    image: '/fuels/valleyHigh.webp',
+    image: "/fuels/valleyHigh.webp",
   },
   wulingLow: {
-    id: 'wulingLow',
+    id: "wulingLow",
     name: {
-      en: 'LC Wuling Battery',
-      zh: '低容武陵电池',
-      ja: '小容量武陵バッテリー',
-      ko: '저용량무릉배터리',
-      ru: 'Батарея МЕ Улина',
-      fr: 'Batterie Wuling (faible)',
-      de: 'NK Wuling-Batterie',
-      id: 'Baterai KR Wuling',
+      en: "LC Wuling Battery",
+      zh: "低容武陵电池",
+      ja: "小容量武陵バッテリー",
+      ko: "저용량무릉배터리",
+      ru: "Батарея МЕ Улина",
+      fr: "Batterie Wuling (faible)",
+      de: "NK Wuling-Batterie",
+      id: "Baterai KR Wuling",
     },
     power: 1600,
     burnTime: 40,
-    image: '/fuels/wulingLow.webp',
+    image: "/fuels/wulingLow.webp",
   },
   wulingMid: {
-    id: 'wulingMid',
+    id: "wulingMid",
     name: {
-      en: 'SC Wuling Battery',
-      zh: '中容武陵电池',
-      ja: '中容量武陵バッテリー',
-      ko: '중용량무릉배터리',
-      ru: 'Батарея СЕ Улина',
-      fr: 'Batterie Wuling (moy.)',
-      de: 'SK Wuling-Batterie',
-      id: 'Baterai KS Wuling',
+      en: "SC Wuling Battery",
+      zh: "中容武陵电池",
+      ja: "中容量武陵バッテリー",
+      ko: "중용량무릉배터리",
+      ru: "Батарея СЕ Улина",
+      fr: "Batterie Wuling (moy.)",
+      de: "SK Wuling-Batterie",
+      id: "Baterai KS Wuling",
     },
     power: 3200,
     burnTime: 40,
-    image: '/fuels/wulingMid.webp',
+    image: "/fuels/wulingMid.webp",
   },
   customPrimary: {
-    id: 'customPrimary',
+    id: "customPrimary",
     ...CUSTOM_FUEL_BASE,
   },
   customSecondary: {
-    id: 'customSecondary',
+    id: "customSecondary",
     ...CUSTOM_FUEL_BASE,
   },
 };
@@ -159,30 +159,42 @@ export function resolveFuel(
 }
 
 export function isCustomFuel(fuelId: string): boolean {
-  return fuelId === 'customPrimary' || fuelId === 'customSecondary';
+  return fuelId === "customPrimary" || fuelId === "customSecondary";
 }
 
 // 燃料选项列表（用于下拉菜单）
-export const FUEL_OPTIONS = Object.values(FUELS).filter((f) => f.id !== 'customSecondary');
+export const FUEL_OPTIONS = Object.values(FUELS).filter(
+  (f) => f.id !== "customSecondary"
+);
 
 // 副燃料选项（包含"无"）
-export const SECONDARY_FUEL_OPTIONS = [
+// 显式标注 name: FuelName，避免字面量推断导致 name[locale:string] 类型错误
+export const SECONDARY_FUEL_OPTIONS: Array<
+  | Fuel
+  | {
+      id: string;
+      name: FuelName;
+      power: number;
+      burnTime: number;
+      image?: string;
+    }
+> = [
   {
-    id: 'none',
+    id: "none",
     name: {
-      en: 'None',
-      zh: '无',
-      ja: 'なし',
-      ko: '없음',
-      ru: 'Нет',
-      fr: 'Aucun',
-      de: 'Keiner',
-      id: 'Kosong',
+      en: "None",
+      zh: "无",
+      ja: "なし",
+      ko: "없음",
+      ru: "Нет",
+      fr: "Aucun",
+      de: "Keiner",
+      id: "Kosong",
     },
     power: 0,
     burnTime: 0,
   },
-  ...Object.values(FUELS).filter((f) => f.id !== 'customPrimary'),
+  ...Object.values(FUELS).filter((f) => f.id !== "customPrimary"),
 ];
 
 // 参数范围限制（用于 UI 滑块、分享编码等）
@@ -245,9 +257,13 @@ export function formatTime(seconds: number): string {
   const secs = Math.floor(seconds % 60);
 
   if (hrs > 0) {
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${hrs.toString().padStart(2, "0")}:${mins
+      .toString()
+      .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   }
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  return `${mins.toString().padStart(2, "0")}:${secs
+    .toString()
+    .padStart(2, "0")}`;
 }
 
 // 有效的分流分母（2和3的幂次组合）
@@ -289,7 +305,7 @@ export function analyzeSplitterComplexity(denominator: number): {
   };
 }
 
-export const DEFAULT_INPUT_SOURCE_ID = 'warehouse';
+export const DEFAULT_INPUT_SOURCE_ID = "warehouse";
 
 export interface InputSource {
   id: string;
@@ -300,31 +316,31 @@ export interface InputSource {
 
 export const INPUT_SOURCES: Record<string, InputSource> = {
   warehouse: {
-    id: 'warehouse',
+    id: "warehouse",
     name: {
-      en: 'Warehouse',
-      zh: '仓库',
-      ja: '倉庫',
-      ko: '창고',
-      ru: 'Склад',
-      fr: 'Entrepôt',
-      de: 'Lager',
-      id: 'Gudang',
+      en: "Warehouse",
+      zh: "仓库",
+      ja: "倉庫",
+      ko: "창고",
+      ru: "Склад",
+      fr: "Entrepôt",
+      de: "Lager",
+      id: "Gudang",
     },
     speed: CONSTANTS.BELT_SPEED,
     interval: CONSTANTS.BELT_INTERVAL,
   },
   packer: {
-    id: 'packer',
+    id: "packer",
     name: {
-      en: 'Packaging Unit',
-      zh: '封装机',
-      ja: '包装機',
-      ko: '포장기',
-      ru: 'Упаковщик',
+      en: "Packaging Unit",
+      zh: "封装机",
+      ja: "包装機",
+      ko: "포장기",
+      ru: "Упаковщик",
       fr: "Unité d'emballage",
-      de: 'Verpackungseinheit',
-      id: 'Mesin Pengemas',
+      de: "Verpackungseinheit",
+      id: "Mesin Pengemas",
     },
     speed: 0.1,
     interval: 10,

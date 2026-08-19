@@ -79,9 +79,27 @@
   "changelog": {
     "sections": [
       {
+        "version": "v1.11.0",
+        "title": "v1.11.0 Updates",
+        "defaultOpen": true,
+        "items": [
+          "Solver can auto-apply item-gate rate limits on oscillating branches to reduce or remove multi-stage splitters.",
+          "Added layered base power (core / manual / auto-fill) with unified full-network fuel consumption stats.",
+          "Supports mixed primary/secondary fuel on independent branches, with smart-mix and other fuel strategies.",
+          "Solution ranking is more practical: prefer lower waste, fewer devices, fewer branches, and a steadier grid.",
+          "Advanced constraints are tucked into a collapsible sidebar section; when no solution is found, actionable tips are shown.",
+          "Hardened stability for extreme parameters to avoid freezes or crashes from ultra-long simulation periods.",
+          "Defaults lean mid-game: 5800W, SC Wuling + Valley High batteries, with auto base planning and smart fuel mix on by default.",
+          "Share and import power-grid codes: copy a DIGE blueprint code from Share, or paste a code/link from the profile menu to load a local archive.",
+          "Local multi-slot grid profiles with autosave, Valley IV / Wuling presets, Save as, and quick switching.",
+          "Choose factory region (Valley IV / Wuling / Free build); in Valley, Wuling batteries cannot use item-gate limiters, with a clear cross-region hint.",
+          "Fixed mixed primary/secondary fuel headers that showed only one battery name; branch fuels and watts are clearer. Sidebar copy is leaner."
+        ]
+      },
+      {
         "version": "v1.10.0",
         "title": "v1.10.0 Updates",
-        "defaultOpen": true,
+        "defaultOpen": false,
         "items": [
           "This release focuses on internal refactoring and stability improvements; core features and workflows remain the same.",
           "Keyboard usability is improved: the language menu, More menu, and image preview now support more complete keyboard navigation.",
