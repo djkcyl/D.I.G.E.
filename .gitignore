@@ -2,6 +2,20 @@ node_modules/
 extracted.html
 dist/
 
+# Capacitor / Android local build artifacts (engine may be generated in CI)
+android/.gradle/
+android/app/build/
+android/build/
+android/captures/
+android/local.properties
+android/*.iml
+android/.idea/
+*.keystore
+*.jks
+
+# Local tooling
+.snow/
+
 .py[cod]
 __pycache__/
 .mypy_cache/

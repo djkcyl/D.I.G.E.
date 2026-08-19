@@ -1,0 +1,15 @@
+services:
+  dige-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: dige-dev
+    ports:
+      # Host 5173 is often reserved by Windows Hyper-V; map free host port 3000.
+      - "3000:5173"
+    volumes:
+      - .:/app
+      # Anonymous volume: isolate container node_modules from host (esp. Windows)
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development

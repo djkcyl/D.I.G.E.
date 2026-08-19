@@ -1,7 +1,14 @@
 @import url("https://fontsapi.zeoseven.com/670/main/result.css");
 @import "tailwindcss";
 
-/* 全局字体 */
+/* 全局字体 + 移动端刘海/手势条安全区（Capacitor / PWA） */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
 html {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -12,6 +19,10 @@ body {
   font-family: "Frex Sans GB VF", sans-serif;
   font-weight: normal;
   text-autospace: normal;
+  padding-top: var(--sat);
+  padding-bottom: var(--sab);
+  padding-left: var(--sal);
+  padding-right: var(--sar);
 }
 
 * {
@@ -74,9 +85,7 @@ button {
 
 /* Yellow glow effect */
 .glow-yellow {
-  box-shadow:
-    0 0 20px rgba(255, 250, 0, 0.3),
-    0 0 40px rgba(255, 250, 0, 0.1);
+  box-shadow: 0 0 20px rgba(255, 250, 0, 0.3), 0 0 40px rgba(255, 250, 0, 0.1);
 }
 
 /* Input styling */
