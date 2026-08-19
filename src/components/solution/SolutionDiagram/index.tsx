@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../../i18n";
 import type { CalcParams, SolutionResult } from "../../../types/calc";
 import {
@@ -139,13 +139,87 @@ export default function SolutionDiagram({
 
   const oscillating = solution?.oscillating ?? [];
   const oscillatingFuel = solution?.oscillatingFuel as
-    | { name?: Record<string, string> }
-    | undefined;
+    | { id?: string; name?: Record<string, string> }
+    | undefined
+    | null;
   const inputSourceId = solution?.inputSourceId;
   const excludeBelt = solution?.excludeBelt;
   const showPackerWarning = inputSourceId === "packer";
   const showExcludeBeltWarning = excludeBelt === false;
   const hasOscillating = Array.isArray(oscillating) && oscillating.length > 0;
+
+  /** 按分支燃料聚合表头文案，避免混合方案误显示「N × 单一 oscillatingFuel」 */
+  const oscillatingHeaderFuelLabel = useMemo(() => {
+    if (!hasOscillating) return "";
+
+    const fallbackFuelId =
+      oscillatingFuel?.id ||
+      (solution?.fuel as { id?: string } | null | undefined)?.id;
+    const fallbackFuelName =
+      oscillatingFuel?.name?.[locale] ||
+      oscillatingFuel?.name?.en ||
+      (solution?.fuel as { name?: Record<string, string> } | null | undefined)
+        ?.name?.[locale] ||
+      (solution?.fuel as { name?: Record<string, string> } | null | undefined)
+        ?.name?.en ||
+      "";
+
+    const groups = new Map<string, { count: number; label: string }>();
+    for (const branch of oscillating) {
+      const fuelId = branch.fuelId || fallbackFuelId || "__unknown__";
+      const meta =
+        FUEL_OPTIONS.find((f) => f.id === fuelId) ||
+        SECONDARY_FUEL_OPTIONS.find((f) => f.id === fuelId);
+      const label =
+        meta?.name?.[locale] ||
+        meta?.name?.en ||
+        (fuelId !== "__unknown__" ? fuelId : fallbackFuelName) ||
+        fallbackFuelName ||
+        fuelId;
+      const prev = groups.get(fuelId);
+      if (prev) {
+        prev.count += 1;
+      } else {
+        groups.set(fuelId, { count: 1, label });
+      }
+    }
+
+    const parts = Array.from(groups.values()).map(
+      (g) => `${g.count}×${g.label}`
+    );
+    // 单燃料：保留「x 燃料名」由外层 count 展示；这里只返回燃料名
+    // 多燃料：返回完整「1×A + 1×B」，外层不再重复写单一燃料名
+    if (groups.size <= 1) {
+      return parts[0]?.replace(/^\d+×/, "") || fallbackFuelName;
+    }
+    return parts.join(" + ");
+  }, [hasOscillating, locale, oscillating, oscillatingFuel, solution?.fuel]);
+
+  const oscillatingHasMultipleFuels = useMemo(() => {
+    if (!hasOscillating) return false;
+    const fallbackFuelId =
+      oscillatingFuel?.id ||
+      (solution?.fuel as { id?: string } | null | undefined)?.id;
+    const ids = new Set(
+      oscillating.map((b) => b.fuelId || fallbackFuelId || "__unknown__")
+    );
+    return (
+      Boolean(solution?.isMixed) ||
+      ids.size > 1 ||
+      oscillating.some(
+        (b) =>
+          Boolean(b.fuelId) &&
+          oscillatingFuel?.id != null &&
+          b.fuelId !== oscillatingFuel.id
+      )
+    );
+  }, [
+    hasOscillating,
+    oscillating,
+    oscillatingFuel,
+    solution?.fuel,
+    solution?.isMixed,
+  ]);
   const canExportBlueprint = mode === "blueprint" && hasOscillating;
   const handleExportSingleBranch = useCallback(
     (branchIndex: number) => {
@@ -355,19 +429,28 @@ export default function SolutionDiagram({
           <span className="text-sm text-endfield-text uppercase">
             {t("oscillatingShort")}:
           </span>
-          <span className="text-sm font-bold text-endfield-text-light">
-            {hasOscillating ? oscillating.length : 0}
-          </span>
+          {!hasOscillating || !oscillatingHasMultipleFuels ? (
+            <span className="text-sm font-bold text-endfield-text-light">
+              {hasOscillating ? oscillating.length : 0}
+            </span>
+          ) : null}
           {hasOscillating ? (
             <>
               <span className="text-sm text-endfield-text">
-                x{" "}
-                {oscillatingFuel
-                  ? oscillatingFuel.name?.[locale] || oscillatingFuel.name?.en
-                  : (solution.fuel as { name?: Record<string, string> })
-                      ?.name?.[locale] ||
-                    (solution.fuel as { name?: Record<string, string> })?.name
-                      ?.en}
+                {oscillatingHasMultipleFuels ? (
+                  oscillatingHeaderFuelLabel
+                ) : (
+                  <>
+                    x{" "}
+                    {oscillatingHeaderFuelLabel ||
+                      oscillatingFuel?.name?.[locale] ||
+                      oscillatingFuel?.name?.en ||
+                      (solution.fuel as { name?: Record<string, string> })
+                        ?.name?.[locale] ||
+                      (solution.fuel as { name?: Record<string, string> })?.name
+                        ?.en}
+                  </>
+                )}
               </span>
               <span className="text-sm text-endfield-text">=</span>
               <span className="text-sm font-bold text-endfield-text-light">
