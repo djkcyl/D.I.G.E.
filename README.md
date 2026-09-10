@@ -72,6 +72,40 @@ pnpm run i18n prune --write
 
 容器与 APK 说明见 [`docs/docker-apk.md`](docs/docker-apk.md)。
 
+## Cloudflare Pages 托管
+
+本仓库是纯前端 Vite SPA + PWA，适合直接挂在 Cloudflare Pages（免费、全球 CDN、Git push 自动部署）。`public/_redirects` 与 `public/_headers` 会随 `pnpm build` 复制到 `dist/`。
+
+### Dashboard 构建参数
+
+| 项                     | 值                                       |
+| ---------------------- | ---------------------------------------- |
+| Framework preset       | Vite                                     |
+| Build command          | `pnpm build`                             |
+| Build output directory | `dist`                                   |
+| Root directory         | `/`（留空）                              |
+| Production branch      | 你的主分支（如 `main`）                  |
+| Environment variables  | `NODE_VERSION=22`、`PNPM_VERSION=9.13.0` |
+
+仓库根目录已有 `.nvmrc`（`22`），`package.json` 也声明了 `packageManager: pnpm@9.13.0`。建议仍在 Pages 环境变量里显式写上，避免镜像默认 Node 过旧。
+
+Sentry source map 上传是可选的：只有同时设置 `SENTRY_AUTH_TOKEN`、`SENTRY_ORG`、`SENTRY_PROJECT` 时才会启用；未配置时不要把这些密钥填进 Pages。
+
+### 一次性接入
+
+1. Cloudflare Dashboard → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**。
+2. 授权并选中你的 GitHub Fork。
+3. 填入上表构建参数后 **Save and Deploy**。
+4. 约 1 分钟后会得到 `https://<project>.pages.dev`。自定义域名在项目 **Custom domains** 里绑定即可。
+
+### 上线后快速核对
+
+- 打开首页与 `?p=` / `?lang=` 分享链接，刷新不应 404。
+- 响应头：`/sw.js`、`/manifest.json` 为 `no-store`；`/assets/*` 为长缓存 `immutable`。
+- 分享链接在 `*.pages.dev` 上会使用当前 origin（Capacitor / localhost 仍回落到 `https://dige.aunly.cn`）。
+
+GitHub Pages 也能托管静态产物，但没有 `_headers` 级缓存控制，SPA 回退要另做 `404.html` 技巧。本项目优先 Cloudflare Pages。
+
 ## 参数与计算说明
 
 主要输入参数：
