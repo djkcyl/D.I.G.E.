@@ -33,7 +33,7 @@
         "items": [
           "Atur daya target di panel kontrol sebelah kiri",
           "Pilih bahan bakar utama (wajib) dan bahan bakar sekunder (opsional)",
-          "Sesuaikan batas minimum baterai dan batas maksimum limbah",
+          "Pilih jumlah port dan pita redundansi di papan 3×3 sebelah kanan",
           "Klik \"Hitung\" untuk mendapatkan solusi optimal",
           "Lihat detail dan diagram solusi di sisi kanan"
         ]
@@ -79,9 +79,22 @@
   "changelog": {
     "sections": [
       {
+        "version": "v1.11.1",
+        "title": "Pembaruan v1.11.1",
+        "defaultOpen": true,
+        "items": [
+          "Siap game 1.5: solver mencari 1–4 port pengambilan dengan jendela 1000W dan lantai baterai 5% — tidak perlu menebak maxWaste / maxBranches / minBattery.",
+          "Satu kalkulasi menjalankan dua jalur: isi otomatis basis dan osilasi murni/manual, lalu ember Pareto lima tingkat.",
+          "Papan 3×3: baris = port 1–3, kolom = puluhan / ratusan / kilowatt; sel kosong bergaris merah, sudut kanan bawah tidak bisa dipilih.",
+          "Di PC papan 3×3 di kiri dan dasbor di kanan; di seluler, ketuk chip atas untuk modal 3×3 di tengah layar, bukan bottom sheet.",
+          "Slider batasan di sidebar dihapus; tersisa daya target, bahan bakar, daya dasar, dan pengaturan lain.",
+          "Tema putih industri / malam kutub. Bisa diganti di kanan atas; tanpa pilihan manual, tema terang dipakai pukul 6:00–18:00 waktu lokal."
+        ]
+      },
+      {
         "version": "v1.11.0",
         "title": "Pembaruan v1.11.0",
-        "defaultOpen": true,
+        "defaultOpen": false,
         "items": [
           "Solver dapat menerapkan batas laju item-gate otomatis pada cabang osilasi untuk mengurangi atau menghilangkan splitter bertingkat.",
           "Menambah daya dasar berlapis (inti / manual / isi otomatis) dengan statistik konsumsi bahan bakar seluruh jaringan.",

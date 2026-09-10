@@ -13,3 +13,5 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
+      - DOCKER_DEV=1
+      - CHOKIDAR_USEPOLLING=true

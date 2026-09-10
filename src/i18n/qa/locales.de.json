@@ -5,8 +5,8 @@
       "answer": "Zielleistung ist die gewünschte Leistungsabgabe (in kW) für Ihr Thermal-Pool-System. Das Tool berechnet automatisch die optimale Brennstoffkonfiguration, Verzweigungsstufen und Speicheranzahl."
     },
     {
-      "question": "Wofür sind die Einschränkungen? Warum wird keine Lösung gefunden?",
-      "answer": "Einschränkungen steuern die Plangenerierung. Höherer Mindestbatteriestand, niedrigere Redundanzgrenze oder weniger Zweige machen sie strenger und können gültige Lösungen verhindern. Versuchen Sie, sie zu lockern."
+      "question": "Wie nutze ich das Entscheidungsboard? Warum wird keine Lösung gefunden?",
+      "answer": "Das Board ersetzt die alten Constraint-Schieberegler: Zeilen sind Abholpunkte, Spalten Redundanzstufen. Der Solver sucht automatisch in einem weiten Fenster. Ist eine Zelle leer, wählen Sie weniger/mehr Ports oder eine lockerere Stufe. Das Dashboard rechts zeigt den besten Plan der Zelle."
     },
     {
       "question": "Was ist der Unterschied zwischen Primär- und Sekundärbrennstoff?",

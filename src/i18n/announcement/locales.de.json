@@ -33,7 +33,7 @@
         "items": [
           "Zielleistung im linken Bedienfeld einstellen",
           "Primärbrennstoff (erforderlich) und Sekundärbrennstoff (optional) auswählen",
-          "Mindestbatteriestand und maximale Verschwendung anpassen",
+          "Auf dem 3×3-Board rechts Abholpunkte und Redundanzstufe wählen",
           "Auf „Berechnen\" klicken, um optimale Lösungen zu erhalten",
           "Lösungsdetails und Diagramme rechts ansehen"
         ]
@@ -79,9 +79,22 @@
   "changelog": {
     "sections": [
       {
+        "version": "v1.11.1",
+        "title": "v1.11.1 Updates",
+        "defaultOpen": true,
+        "items": [
+          "Spiel 1.5: Der Solver sucht intern 1–4 Abholpunkte mit 1000W Verlustfenster und 5% Batterie-Untergrenze — maxWaste / maxBranches / minBattery müssen nicht mehr geraten werden.",
+          "Ein Berechnungsdurchlauf fährt zwei Spuren: Auto-Basisauffüllung und reine Oszillation/manuelle Basis, danach Fünf-Stufen-Pareto-Buckets.",
+          "Neues 3×3-Board: Zeilen = Abholpunkte 1–3, Spalten = zehn/hundert/Kilowatt Redundanz; leere Zellen mit rotem Schrägstrich, untere rechte Ecke nicht wählbar.",
+          "Am PC sitzt das 3×3-Board links neben dem Lösungs-Dashboard; mobil öffnet der Statuschip ein zentriertes, halbtransparentes Modal statt eines Bottom-Sheets.",
+          "Die Constraint-Schieberegler in der Sidebar entfallen; übrig bleiben Zielleistung, Brennstoff, Basisleistung und weitere Einstellungen.",
+          "Zwei Themes: industrielles Weiß und Polarnacht. Umschalter oben rechts; ohne manuelle Wahl gilt 6:00–18:00 Ortszeit das helle Theme."
+        ]
+      },
+      {
         "version": "v1.11.0",
         "title": "v1.11.0 Updates",
-        "defaultOpen": true,
+        "defaultOpen": false,
         "items": [
           "Der Solver kann Item-Gate-Ratenlimits auf oszillierenden Zweigen automatisch anwenden und mehrstufige Splitter reduzieren.",
           "Mehrschichtige Basisleistung (Kern / manuell / Auto-Auffüllung) und einheitliche Netz-Brennstoffstatistik hinzugefügt.",

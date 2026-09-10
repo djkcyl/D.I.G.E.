@@ -13,13 +13,30 @@ const sentryOrg = process.env.SENTRY_ORG;
 const sentryProject = process.env.SENTRY_PROJECT;
 const sentryEnabled = Boolean(sentryAuthToken && sentryOrg && sentryProject);
 
+const isDockerDev = process.env.DOCKER_DEV === "1";
+
 export default defineConfig({
   // Windows Hyper-V/WSL often reserves 5145–5244 (includes Vite default 5173 → EACCES).
-  // Host dev uses 3000; Docker dev still maps container 5173 via compose.
+  // Host `pnpm dev` uses 3000; Docker compose maps host 3000 → container 5173.
   server: {
-    host: "127.0.0.1",
-    port: 3000,
-    strictPort: false,
+    host: isDockerDev ? "0.0.0.0" : "127.0.0.1",
+    port: isDockerDev ? 5173 : 3000,
+    strictPort: isDockerDev,
+    watch: isDockerDev
+      ? {
+          // Docker Desktop bind mounts on Windows do not emit inotify.
+          usePolling: true,
+          interval: 300,
+        }
+      : undefined,
+    hmr: isDockerDev
+      ? {
+          // Browser talks to host:3000; without clientPort HMR opens :5173 and stalls.
+          protocol: "ws",
+          host: "localhost",
+          clientPort: 3000,
+        }
+      : undefined,
   },
   preview: {
     host: "127.0.0.1",

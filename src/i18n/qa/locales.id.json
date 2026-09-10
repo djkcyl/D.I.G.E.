@@ -5,8 +5,8 @@
       "answer": "Daya target adalah jumlah daya keluaran (dalam kW) yang ingin dicapai oleh sistem thermal pool Anda. Alat ini akan otomatis menghitung konfigurasi bahan bakar, level splitter, dan jumlah penyimpanan yang optimal berdasarkan target tersebut."
     },
     {
-      "question": "Apa fungsi batasan? Kenapa tidak ditemukan solusi?",
-      "answer": "Batasan menentukan bagaimana solusi dihasilkan. Minimum baterai yang lebih tinggi, batas redundansi yang lebih rendah, atau jumlah cabang maksimal yang lebih sedikit akan membuat syarat semakin ketat dan bisa menyebabkan tidak ada solusi yang valid. Coba longgarkan batasannya."
+      "question": "Bagaimana memakai papan keputusan? Kenapa tidak ditemukan solusi?",
+      "answer": "Papan menggantikan slider batasan lama: baris = jumlah port, kolom = pita surplus. Solver mencari otomatis dengan jendela lebar. Jika sel kosong, coba lebih sedikit/lebih banyak port atau pita yang lebih longgar. Dasbor di kanan menampilkan rencana terbaik untuk sel itu."
     },
     {
       "question": "Apa perbedaan bahan bakar utama dan sekunder?",

@@ -33,7 +33,7 @@
         "items": [
           "Set target power in the left control panel",
           "Select primary fuel (required) and secondary fuel (optional)",
-          "Adjust minimum battery level and max waste limits",
+          "Pick pickup-port count and redundancy on the 3×3 board",
           "Click \"Calculate\" to get optimal solutions",
           "View solution details and diagrams on the right"
         ]
@@ -79,9 +79,22 @@
   "changelog": {
     "sections": [
       {
+        "version": "v1.11.1",
+        "title": "v1.11.1 Updates",
+        "defaultOpen": true,
+        "items": [
+          "Game 1.5 ready: the solver now auto-searches 1–4 pickup ports with a 1000W waste window and 5% battery floor — no more guessing maxWaste / maxBranches / minBattery.",
+          "A single calculate pass runs two tracks: auto base-fill and pure oscillating/manual, then buckets results with five-level Pareto ranking.",
+          "The board is now a 3×3 grid: rows are pickup ports 1–3, columns are tens / hundreds / kilowatts of waste; empty cells get a red slash, and the bottom-right dead corner stays unselectable.",
+          "On PC the board sits left of a solution dashboard; on mobile, tapping the top chip opens a centered translucent 3×3 modal instead of a bottom sheet.",
+          "The sidebar dropped the old constraint sliders and now keeps only target power, fuel, base power, and other settings.",
+          "Added industrial-white / polar-night themes. Toggle from the top-right; without a manual override, 6:00–18:00 local time uses the light theme."
+        ]
+      },
+      {
         "version": "v1.11.0",
         "title": "v1.11.0 Updates",
-        "defaultOpen": true,
+        "defaultOpen": false,
         "items": [
           "Solver can auto-apply item-gate rate limits on oscillating branches to reduce or remove multi-stage splitters.",
           "Added layered base power (core / manual / auto-fill) with unified full-network fuel consumption stats.",

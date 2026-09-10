@@ -5,8 +5,8 @@
       "answer": "La puissance cible est la puissance de sortie souhaitée (en kW) pour votre système de pool thermique. L'outil calcule automatiquement la configuration optimale de carburant, les niveaux de répartition et le nombre de stockages."
     },
     {
-      "question": "À quoi servent les contraintes ? Pourquoi aucune solution n'est trouvée ?",
-      "answer": "Les contraintes ajustent la génération des plans. Plus le niveau minimum de batterie est élevé, plus la limite de redondance est basse ou moins il y a de branches, plus les contraintes sont strictes et peuvent empêcher des solutions valides. Essayez de les assouplir."
+      "question": "Comment utiliser le plateau de décision ? Pourquoi aucune solution n'est trouvée ?",
+      "answer": "Le plateau remplace les anciens curseurs de contraintes : les lignes sont le nombre de ports, les colonnes les bandes de surplus. Le solveur cherche automatiquement dans une fenêtre large. Si une case est vide, essayez plus/moins de ports ou une bande plus souple. Le tableau de bord à droite affiche le meilleur plan de la case."
     },
     {
       "question": "Quelle est la différence entre carburant principal et secondaire ?",
@@ -28,7 +28,10 @@
       "question": "Quand les pertes sont similaires entre une branche et plusieurs branches, que choisir ?",
       "answer": "Préférez une seule branche sauf si plusieurs branches offrent un avantage net. Une branche a des cycles plus courts, des formes d'onde plus stables, pas de problèmes de phase, une empreinte plus petite et une meilleure résilience."
     },
-    { "question": "Si j'ajoute des consommateurs, dois-je régénérer le plan ?", "answer": "Oui." },
+    {
+      "question": "Si j'ajoute des consommateurs, dois-je régénérer le plan ?",
+      "answer": "Oui."
+    },
     {
       "question": "Y a-t-il un ordre requis pour placer les appareils ?",
       "answer": "Le calcul actuel n'impose aucun ordre."

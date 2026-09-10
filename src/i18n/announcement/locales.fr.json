@@ -33,7 +33,7 @@
         "items": [
           "Définissez la puissance cible dans le panneau de gauche",
           "Sélectionnez le carburant principal (requis) et secondaire (optionnel)",
-          "Ajustez le niveau minimum de batterie et la limite de gaspillage",
+          "Choisissez le nombre de ports et la bande de redondance sur le plateau 3×3 à droite",
           "Cliquez sur « Calculer » pour obtenir les solutions optimales",
           "Consultez les détails et schémas à droite"
         ]
@@ -79,9 +79,22 @@
   "changelog": {
     "sections": [
       {
+        "version": "v1.11.1",
+        "title": "v1.11.1 Mises à jour",
+        "defaultOpen": true,
+        "items": [
+          "Jeu 1.5 : le solveur cherche automatiquement 1–4 ports de ramassage avec une fenêtre de 1000W et un plancher batterie de 5% — plus besoin de deviner maxWaste / maxBranches / minBattery.",
+          "Un seul calcul lance deux pistes : complément auto de base et oscillation pure / base manuelle, puis seaux Pareto à cinq niveaux.",
+          "Plateau 3×3 : lignes = ports 1–3, colonnes = dizaines / centaines / kilowatts ; cases vides en barre rouge, coin bas-droit non sélectionnable.",
+          "Sur PC, la grille 3×3 est à gauche du tableau de bord ; sur mobile, le bandeau ouvre un modal centré translucide (plus de tiroir bas).",
+          "Les curseurs de contraintes de la barre latérale disparaissent ; restent puissance cible, carburant, base et autres réglages.",
+          "Thèmes blanc industriel / nuit polaire. Bascule en haut à droite ; sans choix manuel, le thème clair s'applique de 6:00 à 18:00 (heure locale)."
+        ]
+      },
+      {
         "version": "v1.11.0",
         "title": "v1.11.0 Mises à jour",
-        "defaultOpen": true,
+        "defaultOpen": false,
         "items": [
           "Le solveur peut appliquer automatiquement des limites de débit item-gate sur les branches oscillantes pour réduire les splitters multi-étages.",
           "Ajout d’une alimentation de base en couches (cœur / manuel / auto) avec statistiques unifiées de consommation de carburant.",

@@ -5,8 +5,8 @@
       "answer": "Target power is the desired power output (in kW) for your thermal pool system. The tool will automatically calculate the optimal fuel configuration, splitter levels, and storage count based on this target."
     },
     {
-      "question": "What do constraints do? Why is no solution found?",
-      "answer": "Constraints tune how solutions are generated. Higher minimum battery, lower redundancy limit, or fewer max branches make constraints stricter and may prevent valid solutions. Try relaxing these limits."
+      "question": "How do I use the decision board? Why is no solution found?",
+      "answer": "The board replaces the old constraint sliders: rows are pickup-port counts, columns are waste bands. The solver searches a wide window automatically. If a cell is empty, try fewer/more ports or a looser waste band. The dashboard on the right shows the best plan for the selected cell."
     },
     {
       "question": "What is the difference between primary and secondary fuel?",
