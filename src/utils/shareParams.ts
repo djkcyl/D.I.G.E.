@@ -32,10 +32,13 @@ const OVERRIDE_BURN_TIME_BITS = 9;
 const INPUT_RATE_LIMIT_BITS = 6;
 const INPUT_RATE_LIMIT_MISSING = 0;
 const INPUT_RATE_LIMIT_STEPS = new Set([0, 6, 12, 18, 24, 30]);
+/** Legacy SHARE_FIELDS middle slots: only branches 1–3. Branch 4 is appended at the tail. */
+const LEGACY_PHASE_OFFSET_BRANCH_COUNT = 3;
 const PHASE_OFFSET_FIELD_KEYS = Array.from(
-  { length: PARAM_LIMITS.MAX_BRANCHES },
+  { length: LEGACY_PHASE_OFFSET_BRANCH_COUNT },
   (_, index) => `phaseOffsetBranch${index + 1}`
 );
+const PHASE_OFFSET_BRANCH4_KEY = "phaseOffsetBranch4";
 
 const toBase52 = (value: bigint | number): string | null => {
   let num = BigInt(value);
@@ -457,6 +460,15 @@ const SHARE_FIELDS = assignFieldIndices([
       return rev[value] ?? null;
     },
   } as ShareField,
+  // v1.11.1: branch-4 phase is OPTIONAL and appended at the tail only.
+  createNumberField({
+    key: PHASE_OFFSET_BRANCH4_KEY,
+    bits: PHASE_OFFSET_BITS,
+    min: PARAM_LIMITS.MIN_PHASE_OFFSET_CELLS,
+    max: PARAM_LIMITS.MAX_PHASE_OFFSET_CELLS,
+    optional: true,
+    missingRawValue: 0,
+  }),
 ]);
 
 const LAYOUT_FIELDS = [...SHARE_FIELDS].sort((a, b) => a.index - b.index);
@@ -579,6 +591,10 @@ function unflattenOverrides(decoded: ShareParams): void {
 export function encodeShareParams(params: ShareParams | null): string | null {
   if (!params) return null;
   const flat = flattenOverrides(params);
+  // v1.11.1: keep historical bit slots but always encode the wide-window values.
+  flat.maxWaste = 1000;
+  flat.minBatteryPercent = 5;
+  flat.maxBranches = 4;
   const activeBranchCount = clampMaxBranches(flat.maxBranches);
 
   let packed = 0n;
@@ -631,6 +647,10 @@ export function decodeShareParams(value: unknown): ShareParams | null {
   }
 
   unflattenOverrides(decoded);
+  // v1.11.1: keep historical bit slots on the wire, but lock solver-window values.
+  decoded.maxWaste = 1000;
+  decoded.minBatteryPercent = 5;
+  decoded.maxBranches = 4;
   return decoded;
 }
 

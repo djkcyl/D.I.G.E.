@@ -7,6 +7,12 @@ import type {
   SolutionResult,
   UnifiedFuelBOMItem,
 } from "../types/calc";
+import {
+  MIN_BATTERY_CUTOFF,
+  SEARCH_MAX_WASTE,
+  type SudokuDecisionMatrix,
+} from "../types/matrix";
+import { buildSudokuDecisionMatrix } from "./decisionMatrix";
 import type { Fuel } from "./constants";
 import {
   buildBranchLimiterOptions,
@@ -804,8 +810,9 @@ export class FactoryDesigner {
 
   constructor(params: FactoryDesignerParams) {
     this.targetPower = params.targetPower;
-    this.minBatteryPercent = params.minBatteryPercent;
-    this.maxWaste = params.maxWaste;
+    // v1.11.1: internal wide-window search; ignore tight UI/share values.
+    this.minBatteryPercent = MIN_BATTERY_CUTOFF;
+    this.maxWaste = SEARCH_MAX_WASTE;
     const resolvedPrimary = resolveFuel(
       params.primaryFuelId,
       params.fuelOverrides
@@ -839,13 +846,7 @@ export class FactoryDesigner {
     this.rateLimitPerMin = null;
     this.isRateLimited = false;
     this.batteryCapacity = CONSTANTS.BATTERY_CAPACITY;
-    const normalizedMaxBranches = Number.isInteger(params.maxBranches)
-      ? params.maxBranches ?? PARAM_LIMITS.MAX_BRANCHES
-      : PARAM_LIMITS.MAX_BRANCHES;
-    this.maxBranches = Math.min(
-      PARAM_LIMITS.MAX_BRANCHES,
-      Math.max(PARAM_LIMITS.MIN_BRANCHES, normalizedMaxBranches)
-    );
+    this.maxBranches = PARAM_LIMITS.MAX_BRANCHES;
     this.branchPhaseOffsets = Array.from(
       { length: this.maxBranches },
       (_, index) => {
@@ -913,23 +914,23 @@ export class FactoryDesigner {
 
     const inputSpeed = getBeltThroughput(this.inputInterval);
     const gensPerBelt = inputSpeed * this.primaryFuel.burnTime;
-    const minGenerators = Math.max(
+    // Covering count always emitted so the 1-port kW cell can show a pure-base
+    // hard-top (e.g. 7665W → 3×3200W+200W=9800W, waste 2135W > SEARCH_MAX_WASTE).
+    const coveringGenerators = Math.max(
       0,
       Math.ceil(
         (this.targetPower - CONSTANTS.BASE_POWER) / this.primaryFuel.power
       )
     );
-    const maxGenerators = Math.max(
+    const windowMaxGenerators = Math.max(
       0,
       Math.floor(
         (this.targetPower + this.maxWaste - CONSTANTS.BASE_POWER) /
           this.primaryFuel.power
       )
     );
-
-    if (maxGenerators < minGenerators) {
-      return [];
-    }
+    const maxGenerators = Math.max(coveringGenerators, windowMaxGenerators);
+    const minGenerators = coveringGenerators;
 
     const configs: Array<{
       generators: number;
@@ -944,7 +945,11 @@ export class FactoryDesigner {
       const totalPower =
         CONSTANTS.BASE_POWER + generators * this.primaryFuel.power;
       const waste = totalPower - this.targetPower;
-      if (waste < 0 || waste > this.maxWaste) {
+      if (waste < 0) {
+        continue;
+      }
+      const isCoveringHardTop = generators === coveringGenerators;
+      if (waste > this.maxWaste && !isCoveringHardTop) {
         continue;
       }
       configs.push({
@@ -1128,19 +1133,21 @@ export class FactoryDesigner {
           return a.hardwareCost - b.hardwareCost;
         return a.power - b.power;
       });
-    const MAX_BRANCH_OPTIONS = 48;
-    const branchOptions =
-      pruned.length > MAX_BRANCH_OPTIONS
-        ? pruned.slice(0, MAX_BRANCH_OPTIONS)
-        : pruned;
-    if (branchOptions.length === 0) {
+    const BRANCH_POOL_BY_R: Record<number, number> = {
+      1: 48,
+      2: 36,
+      3: 20,
+      4: 12,
+    };
+    if (pruned.length === 0) {
       return solutions;
     }
 
-    // 组合索引（可重复组合）
-    const optionIndexList = branchOptions.map((_, i) => i);
-
     for (let r = 1; r <= this.maxBranches; r += 1) {
+      const poolSize = BRANCH_POOL_BY_R[r] ?? 12;
+      const branchOptions =
+        pruned.length > poolSize ? pruned.slice(0, poolSize) : pruned;
+      const optionIndexList = branchOptions.map((_, i) => i);
       const combinations = this._getCombinationsWithRepetition(
         optionIndexList,
         r
@@ -1446,6 +1453,67 @@ export class FactoryDesigner {
       }
     }
 
+    // 4-branch: 3P+1S / 2P+2S / 1P+3S，池 Top-12，共享 sim 预算
+    if (this.maxBranches >= 4 && simCount < MAX_SIM_CALLS) {
+      const pOpts = this.getPrunedBranchOptions(primary, gap, 12);
+      const sOpts = this.getPrunedBranchOptions(secondary, gap, 12);
+
+      // 3P + 1S
+      outer4a: for (let i = 0; i < pOpts.length; i += 1) {
+        for (let j = i; j < pOpts.length; j += 1) {
+          for (let k = j; k < pOpts.length; k += 1) {
+            for (const so of sOpts) {
+              if (
+                tryCombo(
+                  [pOpts[i], pOpts[j], pOpts[k], so],
+                  [primary, primary, primary, secondary]
+                )
+              )
+                break outer4a;
+            }
+          }
+        }
+      }
+
+      // 2P + 2S
+      if (simCount < MAX_SIM_CALLS) {
+        outer4b: for (let i = 0; i < pOpts.length; i += 1) {
+          for (let j = i; j < pOpts.length; j += 1) {
+            for (let a = 0; a < sOpts.length; a += 1) {
+              for (let b = a; b < sOpts.length; b += 1) {
+                if (
+                  tryCombo(
+                    [pOpts[i], pOpts[j], sOpts[a], sOpts[b]],
+                    [primary, primary, secondary, secondary]
+                  )
+                )
+                  break outer4b;
+              }
+            }
+          }
+        }
+      }
+
+      // 1P + 3S
+      if (simCount < MAX_SIM_CALLS) {
+        outer4c: for (const po of pOpts) {
+          for (let i = 0; i < sOpts.length; i += 1) {
+            for (let j = i; j < sOpts.length; j += 1) {
+              for (let k = j; k < sOpts.length; k += 1) {
+                if (
+                  tryCombo(
+                    [po, sOpts[i], sOpts[j], sOpts[k]],
+                    [primary, secondary, secondary, secondary]
+                  )
+                )
+                  break outer4c;
+              }
+            }
+          }
+        }
+      }
+    }
+
     return solutions;
   }
 
@@ -1478,7 +1546,7 @@ export class FactoryDesigner {
     ].join("|");
   }
 
-  solve(): SolutionResult[] {
+  private runOscillationPipelines(): SolutionResult[] {
     const layered = this.calculateBasePower();
     const baseConfig = {
       generators: layered.generators,
@@ -1705,35 +1773,53 @@ export class FactoryDesigner {
       );
     }
 
-    const secondaryId = this.secondaryFuel?.id;
-    outputs.sort((a, b) => {
-      // 1. waste，5W 容差
-      const wasteDiff = a.waste - b.waste;
-      if (Math.abs(wasteDiff) > 5.0) {
-        return wasteDiff;
-      }
-      // 2. totalSplitters（限流器紧凑优先）
-      if (a.totalSplitters !== b.totalSplitters) {
-        return a.totalSplitters - b.totalSplitters;
-      }
-      // 3. branchCount
-      if (a.branchCount !== b.branchCount) {
-        return a.branchCount - b.branchCount;
-      }
-      // 4. 副燃料震荡消耗速率（跨区负担）
-      if (secondaryId && secondaryId !== "none") {
-        const aSubRate =
-          a.fuelBOM?.find((f) => f.fuelId === secondaryId)?.oscRatePerMin ?? 0;
-        const bSubRate =
-          b.fuelBOM?.find((f) => f.fuelId === secondaryId)?.oscRatePerMin ?? 0;
-        if (Math.abs(aSubRate - bSubRate) > 1e-4) {
-          return aSubRate - bSubRate;
-        }
-      }
-      // 5. variance
-      return a.variance - b.variance;
-    });
+    return outputs;
+  }
 
-    return outputs.slice(0, 5);
+  private _buildOutputSignature(solution: SolutionResult): string {
+    const round = (value: number, digits: number): number => {
+      const factor = 10 ** digits;
+      return Math.round(value * factor) / factor;
+    };
+    const branchKey = (solution.oscillating || [])
+      .map((b) => {
+        const fid =
+          b.fuelId ?? solution.oscillatingFuel?.id ?? solution.fuel.id;
+        const lim =
+          b.limiterSpeed == null || !Number.isFinite(b.limiterSpeed)
+            ? "n"
+            : String(b.limiterSpeed);
+        return fid + ":" + b.denominator + ":" + lim;
+      })
+      .join(",");
+    return [
+      solution.isMixed ? "mix" : "mono",
+      round(solution.baseConfig.totalPower, 1),
+      solution.baseDetails?.autoBaseCount ?? 0,
+      branchKey,
+      solution.branchCount,
+      round(solution.avgPower, 1),
+      round(solution.waste, 1),
+    ].join("|");
+  }
+
+  solve(): SudokuDecisionMatrix {
+    const savedAuto = this.autoPlanBasePools;
+    this.autoPlanBasePools = true;
+    const trackA = this.runOscillationPipelines();
+    this.autoPlanBasePools = false;
+    const trackB = this.runOscillationPipelines();
+    this.autoPlanBasePools = savedAuto;
+
+    const merged: SolutionResult[] = [];
+    const seenSignatures = new Set<string>();
+    for (const sol of [...trackA, ...trackB]) {
+      const signature = this._buildOutputSignature(sol);
+      if (seenSignatures.has(signature)) continue;
+      seenSignatures.add(signature);
+      merged.push(sol);
+    }
+
+    return buildSudokuDecisionMatrix(merged, this.secondaryFuel?.id);
   }
 }

@@ -5,11 +5,12 @@ export const DEFAULT_PARAMS: CalcParams = {
   /** 中期玩家常用：约 5.8kW 电网 */
   targetPower: 5800,
   minBatteryPercent: 5,
-  maxWaste: 300,
-  maxBranches: 3,
+  maxWaste: 1000,
+  maxBranches: 4,
   phaseOffsetBranch1: 0,
   phaseOffsetBranch2: 0,
   phaseOffsetBranch3: 0,
+  phaseOffsetBranch4: 0,
   excludeBelt: true,
   /** 排除物品准入口限速器：false=默认关=启用限速求解；true=开=忽略限速/满速 */
   excludeItemGateLimiter: false,

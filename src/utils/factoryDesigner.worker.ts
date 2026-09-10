@@ -1,25 +1,36 @@
-import type { CalcParams, SolutionResult } from '../types/calc';
-import { FactoryDesigner } from './FactoryDesigner';
+import type { CalcParams, SolutionResult } from "../types/calc";
+import type { DecisionMatrixGrid, MatrixSelection } from "../types/matrix";
+import { FactoryDesigner } from "./FactoryDesigner";
 
 export type WorkerRequest = {
-  type: 'solve';
+  type: "solve";
   params: CalcParams;
 };
 
 export type WorkerResponse =
-  | { type: 'result'; solutions: SolutionResult[] }
-  | { type: 'error'; message: string };
+  | {
+      type: "result";
+      solutions: SolutionResult[];
+      matrix: DecisionMatrixGrid;
+      defaultSelection: MatrixSelection | null;
+    }
+  | { type: "error"; message: string };
 
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const { type, params } = event.data;
-  if (type === 'solve') {
+  if (type === "solve") {
     try {
       const designer = new FactoryDesigner(params);
-      const results = designer.solve();
-      self.postMessage({ type: 'result', solutions: results } satisfies WorkerResponse);
+      const result = designer.solve();
+      self.postMessage({
+        type: "result",
+        solutions: result.solutions,
+        matrix: result.matrix,
+        defaultSelection: result.defaultSelection,
+      } satisfies WorkerResponse);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      self.postMessage({ type: 'error', message } satisfies WorkerResponse);
+      self.postMessage({ type: "error", message } satisfies WorkerResponse);
     }
   }
 };

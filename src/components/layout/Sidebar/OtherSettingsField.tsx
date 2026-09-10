@@ -4,11 +4,14 @@ import { normalizeFactoryRegion } from "../../../utils/regionLimiter";
 import Icon from "../../ui/Icon";
 import Select from "../../ui/Select";
 import Toggle from "../../ui/Toggle";
+import InputSourceField from "./InputSourceField";
 import SidebarSection from "./SidebarSection";
 
 export interface OtherSettingsFieldProps {
   params: CalcParams;
   onChange: (key: keyof CalcParams | string, value: unknown) => void;
+  locale: string;
+  onShowInputWarning?: () => void;
   onShowItemGateLimiterHint?: () => void;
   onShowExcludeBeltWarning?: () => void;
 }
@@ -17,6 +20,8 @@ export interface OtherSettingsFieldProps {
 export default function OtherSettingsField({
   params,
   onChange,
+  locale,
+  onShowInputWarning,
   onShowItemGateLimiterHint,
   onShowExcludeBeltWarning,
 }: OtherSettingsFieldProps) {
@@ -56,8 +61,20 @@ export default function OtherSettingsField({
             }
             ariaLabelledby="factory-region-label"
           />
-          <p className="text-sm text-endfield-text/50">{t("factoryRegionHint")}</p>
+          <p className="text-sm text-endfield-text/50">
+            {t("factoryRegionHint")}
+          </p>
         </div>
+
+        {onShowInputWarning ? (
+          <InputSourceField
+            params={params}
+            onChange={onChange}
+            locale={locale}
+            onShowInputWarning={onShowInputWarning}
+            embedded
+          />
+        ) : null}
 
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
@@ -86,7 +103,9 @@ export default function OtherSettingsField({
 
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-sm text-endfield-text">{t("excludeBelt")}</span>
+            <span className="text-sm text-endfield-text">
+              {t("excludeBelt")}
+            </span>
             {onShowExcludeBeltWarning ? (
               <button
                 type="button"

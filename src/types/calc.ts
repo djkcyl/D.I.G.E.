@@ -85,6 +85,7 @@ export interface CalcParams {
   phaseOffsetBranch1?: number;
   phaseOffsetBranch2?: number;
   phaseOffsetBranch3?: number;
+  phaseOffsetBranch4?: number;
   excludeBelt?: boolean;
   fuelOverrides?: Record<string, { power?: number; burnTime?: number }>;
   /** 用户手动配置的多燃料常驻行（本阶段不进分享 URL） */

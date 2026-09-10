@@ -94,7 +94,7 @@ export function diagnoseNoSolution(
   params: CalcParams,
   t: TranslateFn
 ): DiagnosisResult {
-  const maxBranches = Math.max(1, Math.min(3, params.maxBranches ?? 3));
+  const maxBranches = 4;
   const basePower = estimateBasePower(params);
   const gapPower = Math.max(0, params.targetPower - basePower);
   const unitPower = maxOscFuelPower(params);
@@ -122,19 +122,7 @@ export function diagnoseNoSolution(
 
   // 场景 B：综合约束
   const secondaryHints: string[] = [];
-  const minBat = params.minBatteryPercent ?? 0;
-  const maxWaste = params.maxWaste ?? 300;
-
-  if (minBat >= 10) {
-    secondaryHints.push(
-      t("diagLowerBatteryPercent", { current: Math.round(minBat) })
-    );
-  }
-  if (maxWaste <= 50) {
-    secondaryHints.push(
-      t("diagIncreaseMaxWaste", { current: Math.round(maxWaste) })
-    );
-  }
+  secondaryHints.push(t("diagCheckDecisionMatrix"));
   if (!hasSecondary) {
     secondaryHints.push(t("diagTrySecondaryFuel"));
   }

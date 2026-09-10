@@ -18,6 +18,7 @@ import UpdateToast from "./components/overlays/UpdateToast";
 import SolutionList from "./components/solution/SolutionList";
 import { I18nProvider, useI18n } from "./i18n";
 import type { CalcParams, SolutionResult } from "./types/calc";
+import type { DecisionMatrixGrid, MatrixSelection } from "./types/matrix";
 import type { ProfileModalMode, ProfilesStorageState } from "./types/profile";
 import { DEFAULT_PARAMS } from "./utils/defaultParams";
 import type { WorkerResponse } from "./utils/factoryDesigner.worker";
@@ -114,6 +115,9 @@ function AppContent({
   const [importModalOpen, setImportModalOpen] = useState(false);
 
   const [solutions, setSolutions] = useState<SolutionResult[]>([]);
+  const [matrix, setMatrix] = useState<DecisionMatrixGrid | null>(null);
+  const [defaultSelection, setDefaultSelection] =
+    useState<MatrixSelection | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [showError, setShowError] = useState(false);
@@ -171,36 +175,48 @@ function AppContent({
       workerRef.current = worker;
 
       try {
-        const results = await new Promise<SolutionResult[]>(
-          (resolve, reject) => {
-            worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-              const data = event.data;
-              if (data.type === "result") {
-                resolve(data.solutions);
-              } else {
-                reject(new Error(data.message));
-              }
-            };
-            worker.onerror = (error) => {
-              reject(new Error(error.message || "Worker error"));
-            };
-            worker.postMessage({ type: "solve", params: calcParams });
-          }
-        );
+        type SolveResult = Extract<WorkerResponse, { type: "result" }>;
+        const payload = await new Promise<SolveResult>((resolve, reject) => {
+          worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+            const data = event.data;
+            if (data.type === "result") {
+              resolve(data);
+            } else {
+              reject(new Error(data.message));
+            }
+          };
+          worker.onerror = (error) => {
+            reject(new Error(error.message || "Worker error"));
+          };
+          worker.postMessage({ type: "solve", params: calcParams });
+        });
 
         setIsLoading(false);
 
-        if (!results || results.length === 0) {
+        if (!payload.solutions || payload.solutions.length === 0) {
           const diagnosis = diagnoseNoSolution(calcParams, t);
           setLastDiagnosis(diagnosis);
           setShowError(true);
           setSolutions([]);
+          setMatrix(payload.matrix ?? null);
+          setDefaultSelection(payload.defaultSelection ?? null);
           return;
         }
 
         setLastDiagnosis(null);
-        setSolutions(results);
-        setSelectedIndex(0);
+        setSolutions(payload.solutions);
+        setMatrix(payload.matrix);
+        setDefaultSelection(payload.defaultSelection);
+        const defaultSol =
+          payload.defaultSelection && payload.matrix
+            ? payload.matrix[payload.defaultSelection.row]?.[
+                payload.defaultSelection.col
+              ]
+            : null;
+        const defaultIdx = defaultSol
+          ? payload.solutions.findIndex((s) => s === defaultSol)
+          : 0;
+        setSelectedIndex(defaultIdx >= 0 ? defaultIdx : 0);
         setParamsDirty(false);
         setShowDirtyOverlay(false);
         setDirtyDismissed(false);
@@ -211,6 +227,8 @@ function AppContent({
         setLastDiagnosis(null);
         setShowError(true);
         setSolutions([]);
+        setMatrix(null);
+        setDefaultSelection(null);
       } finally {
         worker.terminate();
         if (workerRef.current === worker) {
@@ -635,7 +653,7 @@ function AppContent({
 
         <section
           aria-label={t("mainContentArea")}
-          className="flex-1 overflow-hidden border-0 p-0 m-0 min-w-0 bg-[radial-gradient(circle_at_85%_20%,rgba(255,250,0,0.08),transparent_40%),repeating-linear-gradient(135deg,rgba(255,250,0,0.04)_0_1px,transparent_1px_14px),linear-gradient(180deg,rgba(255,250,0,0.02),transparent_35%,rgba(255,250,0,0.015))] relative"
+          className="flex-1 overflow-hidden border-0 p-0 m-0 min-w-0 dige-main-field relative"
           onMouseEnter={() =>
             paramsDirty && !dirtyDismissed && setShowDirtyOverlay(true)
           }
@@ -648,6 +666,8 @@ function AppContent({
               onSelectSolution={setSelectedIndex}
               params={params}
               diagnosis={lastDiagnosis}
+              matrix={matrix}
+              defaultSelection={defaultSelection}
               profile={{
                 profiles: profileState.profiles,
                 activeProfileId: profileState.activeProfileId,

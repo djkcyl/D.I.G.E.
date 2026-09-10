@@ -10,9 +10,7 @@ import {
 import CloseButton from "../../ui/CloseButton";
 import AdvancedSettingsField from "./AdvancedSettingsField";
 import BasePowerBuilder from "./BasePowerBuilder";
-import ConstraintsField from "./ConstraintsField";
 import FuelConfigField from "./FuelConfigField";
-import InputSourceField from "./InputSourceField";
 import OtherSettingsField from "./OtherSettingsField";
 import SidebarFooter from "./SidebarFooter";
 import TargetPowerField from "./TargetPowerField";
@@ -117,9 +115,9 @@ export default function Sidebar({
       <aside
         className={`
           w-80 sm:w-96
-          bg-endfield-dark/95 md:bg-endfield-dark/80 
-          border-r border-endfield-gray-light 
-          overflow-hidden flex flex-col shrink-0 
+          bg-endfield-dark
+          border-r border-endfield-gray-light
+          overflow-hidden flex flex-col shrink-0
           transition-all duration-300
           fixed md:relative inset-y-0 left-0 z-30 md:z-10
           ${
@@ -133,7 +131,7 @@ export default function Sidebar({
       >
         <div className="md:hidden shrink-0 p-3 border-b border-endfield-gray-light flex items-center justify-between">
           <span className="text-sm font-bold text-endfield-text-light">
-            {t("constraints")}
+            {t("sidebarConfigPanel")}
           </span>
           <CloseButton
             onClick={onClose}
@@ -171,26 +169,11 @@ export default function Sidebar({
 
           <div className="w-full shrink-0 border-t border-endfield-gray-light/90" />
 
-          <ConstraintsField
-            params={params}
-            onChange={handleChange}
-            onCalculate={onCalculate}
-          />
-
-          <div className="w-full shrink-0 border-t border-endfield-gray-light/90" />
-
-          <InputSourceField
+          <OtherSettingsField
             params={params}
             onChange={handleChange}
             locale={locale}
             onShowInputWarning={() => setShowInputWarning(true)}
-          />
-
-          <div className="w-full shrink-0 border-t border-endfield-gray-light/90" />
-
-          <OtherSettingsField
-            params={params}
-            onChange={handleChange}
             onShowItemGateLimiterHint={() => setShowItemGateLimiterHint(true)}
             onShowExcludeBeltWarning={() => setShowExcludeBeltWarning(true)}
           />

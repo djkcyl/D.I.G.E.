@@ -11,8 +11,9 @@ export interface AdvancedSettingsFieldProps {
   onCalculate?: () => void;
 }
 /**
- * 高级约束与时序：maxWaste / 相位差
- * 默认折叠，折叠状态不进 URL。传送带排除开关在「其他设置」主区。
+ * 高级时序：分支相位差。
+ * maxWaste / maxBranches / minBatteryPercent 已内化为数独决策盘。
+ * 默认折叠，折叠状态不进 URL。
  */
 export default function AdvancedSettingsField({
   params,
@@ -46,35 +47,6 @@ export default function AdvancedSettingsField({
       className="space-y-0"
     >
       <div className="space-y-4">
-        <div className="space-y-2">
-          <div className="flex justify-between">
-            <label
-              htmlFor="max-waste-input"
-              className="text-sm text-endfield-text"
-            >
-              {t("maxWaste")}
-            </label>
-            <span
-              className="text-sm text-endfield-text-light"
-              aria-live="polite"
-            >
-              {params.maxWaste} w
-            </span>
-          </div>
-          <input
-            id="max-waste-input"
-            type="number"
-            min="0"
-            max={PARAM_LIMITS.MAX_MAX_WASTE}
-            value={params.maxWaste}
-            onChange={(e) =>
-              onChange("maxWaste", parseInt(e.target.value, 10) || 0)
-            }
-            onKeyDown={(e) => e.key === "Enter" && onCalculate?.()}
-            className="w-full bg-endfield-gray border border-endfield-gray-light px-3 py-2 text-sm text-endfield-text-light focus:border-endfield-yellow focus:outline-none"
-          />
-        </div>
-
         <div className="space-y-2">
           <div className="text-sm text-endfield-text">
             {t("branchPhaseOffset")}
