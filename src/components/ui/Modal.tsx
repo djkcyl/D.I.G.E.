@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 export interface ModalProps {
   show: boolean;
@@ -13,21 +13,25 @@ export interface ModalProps {
 }
 
 const FOCUSABLE_SELECTOR = [
-  'a[href]',
-  'button:not([disabled])',
+  "a[href]",
+  "button:not([disabled])",
   'input:not([disabled]):not([type="hidden"])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
+  "select:not([disabled])",
+  "textarea:not([disabled])",
   '[tabindex]:not([tabindex="-1"])',
-].join(', ');
+].join(", ");
 
 function getFocusableElements(container: HTMLElement): HTMLElement[] {
-  const candidates = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+  const candidates = Array.from(
+    container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+  );
   return candidates.filter(
     (el) =>
-      !el.hasAttribute('disabled') &&
-      !el.getAttribute('aria-hidden') &&
-      (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0)
+      !el.hasAttribute("disabled") &&
+      !el.getAttribute("aria-hidden") &&
+      (el.offsetWidth > 0 ||
+        el.offsetHeight > 0 ||
+        el.getClientRects().length > 0)
   );
 }
 
@@ -43,17 +47,19 @@ export default function Modal({
   title,
   ariaLabelledby,
   children,
-  contentClassName = '',
+  contentClassName = "",
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const lastFocusedRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (!show || typeof document === 'undefined') return;
+    if (!show || typeof document === "undefined") return;
 
     lastFocusedRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
 
     const dialog = dialogRef.current;
     if (!dialog) return;
@@ -64,13 +70,13 @@ export default function Modal({
     const onKeyDown = (event: KeyboardEvent) => {
       if (!dialog.contains(event.target as Node)) return;
 
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         event.preventDefault();
         onClose();
         return;
       }
 
-      if (event.key !== 'Tab') return;
+      if (event.key !== "Tab") return;
 
       const currentFocusable = getFocusableElements(dialog);
       if (currentFocusable.length === 0) {
@@ -97,9 +103,9 @@ export default function Modal({
       }
     };
 
-    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener("keydown", onKeyDown);
       const lastFocused = lastFocusedRef.current;
       if (lastFocused && document.contains(lastFocused)) {
         lastFocused.focus();
@@ -110,8 +116,8 @@ export default function Modal({
   if (!show) return null;
 
   const overlayClass = fullscreen
-    ? 'fixed inset-0 z-[60] bg-endfield-black/95 backdrop-blur overflow-hidden'
-    : 'fixed inset-0 z-50 bg-endfield-black/95 backdrop-blur overflow-y-auto';
+    ? "fixed inset-0 z-[60] bg-[var(--ef-scrim)] backdrop-blur overflow-hidden"
+    : "fixed inset-0 z-50 bg-[var(--ef-scrim)] backdrop-blur overflow-y-auto";
 
   const handleOverlayClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!closeOnBackdrop) return;
@@ -134,7 +140,7 @@ export default function Modal({
         closeOnBackdrop
           ? (e) => {
               if (e.target !== e.currentTarget) return;
-              if (e.key === 'Enter' || e.key === ' ') {
+              if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
                 onClose();
               }
@@ -145,16 +151,16 @@ export default function Modal({
       <div
         className={
           fullscreen
-            ? 'h-full w-full flex items-stretch justify-stretch p-0'
-            : 'min-h-full w-full flex items-center justify-center p-4'
+            ? "h-full w-full flex items-stretch justify-stretch p-0"
+            : "min-h-full w-full flex items-center justify-center p-4"
         }
       >
         <div
           ref={contentRef}
           className={`${
             fullscreen
-              ? 'w-full h-full relative flex flex-col'
-              : 'bg-endfield-gray border border-endfield-yellow/30 p-6 max-w-xl w-full relative flex flex-col'
+              ? "w-full h-full relative flex flex-col"
+              : "bg-endfield-gray border border-endfield-yellow/30 p-6 max-w-xl w-full relative flex flex-col"
           } ${contentClassName}`.trim()}
         >
           {title && (
@@ -168,7 +174,7 @@ export default function Modal({
     </div>
   );
 
-  if (typeof document === 'undefined') {
+  if (typeof document === "undefined") {
     return node;
   }
   return createPortal(node, document.body);

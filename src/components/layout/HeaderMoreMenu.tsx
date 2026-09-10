@@ -1,9 +1,9 @@
-import type { KeyboardEventHandler, RefObject } from 'react';
-import { useI18n } from '../../i18n';
-import Icon from '../ui/Icon';
+import type { KeyboardEventHandler, RefObject } from "react";
+import { useI18n } from "../../i18n";
+import Icon from "../ui/Icon";
 
 const MENU_ITEM_CLASS =
-  'w-full px-3 py-2.5 flex items-center gap-2 text-left text-sm text-endfield-text-light hover:bg-endfield-gray-light hover:text-endfield-yellow';
+  "w-full px-3 py-2.5 flex items-center gap-2 text-left text-sm text-endfield-text-light hover:bg-endfield-gray-light hover:text-endfield-yellow";
 
 export interface HeaderMoreMenuProps {
   menuId: string;
@@ -13,6 +13,8 @@ export interface HeaderMoreMenuProps {
   onClose: () => void;
   onOpenPrivacyPolicy: () => void;
   onOpenQA: () => void;
+  isLight: boolean;
+  onToggleTheme: () => void;
 }
 
 export default function HeaderMoreMenu({
@@ -23,6 +25,8 @@ export default function HeaderMoreMenu({
   onClose,
   onOpenPrivacyPolicy,
   onOpenQA,
+  isLight,
+  onToggleTheme,
 }: HeaderMoreMenuProps) {
   const { t, locale, changeLocale, languageOptions } = useI18n();
 
@@ -49,7 +53,7 @@ export default function HeaderMoreMenu({
           role="menuitem"
         >
           <Icon name="policy" className="text-base" />
-          {t('privacyPolicyDetails')}
+          {t("privacyPolicyDetails")}
         </button>
       </div>
       <div role="none">
@@ -60,7 +64,7 @@ export default function HeaderMoreMenu({
           role="menuitem"
         >
           <Icon name="help_center" className="text-base" />
-          {t('qa')}
+          {t("qa")}
         </button>
       </div>
       <div role="none">
@@ -73,11 +77,27 @@ export default function HeaderMoreMenu({
           role="menuitem"
         >
           <Icon icon="mdi:github" className="text-base" />
-          {t('github')}
+          {t("github")}
         </a>
       </div>
+      <div role="none">
+        <button
+          type="button"
+          onClick={closeAnd(onToggleTheme)}
+          className={MENU_ITEM_CLASS}
+          role="menuitem"
+        >
+          <Icon
+            name={isLight ? "dark_mode" : "light_mode"}
+            className="text-base"
+          />
+          {isLight ? t("themeSwitchDark") : t("themeSwitchLight")}
+        </button>
+      </div>
       <div className="border-t border-endfield-gray-light" role="none">
-        <div className="px-3 py-2 text-xs text-endfield-text/70">{t('language')}</div>
+        <div className="px-3 py-2 text-xs text-endfield-text/70">
+          {t("language")}
+        </div>
         {languageOptions.map((lang) => (
           <button
             type="button"
@@ -87,7 +107,9 @@ export default function HeaderMoreMenu({
               onClose();
             }}
             className={`w-full px-3 py-1.5 pl-6 text-left text-sm hover:bg-endfield-gray-light transition-colors ${
-              locale === lang.code ? 'text-endfield-yellow' : 'text-endfield-text-light'
+              locale === lang.code
+                ? "text-endfield-yellow"
+                : "text-endfield-text-light"
             }`}
             role="menuitemradio"
             aria-checked={locale === lang.code}

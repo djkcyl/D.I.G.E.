@@ -9,6 +9,66 @@
   --sar: env(safe-area-inset-right, 0px);
 }
 
+/* ── 暗色主题 (Dark Theme - 默认) ── */
+:root,
+html.dark {
+  color-scheme: dark;
+  --ef-black: #0a0a0a; /* 页面底色: 极夜黑 */
+  --ef-dark: #111111; /* 卡片/顶栏: 深灰黑 */
+  --ef-gray: #1a1a1a; /* 容器次级底色 */
+  --ef-gray-light: #2a2a2a; /* 边框分割线: 暗灰 */
+  --ef-text: #888888; /* 次级标注文本 */
+  --ef-text-light: #cccccc; /* 主标题与正文 */
+  --ef-yellow: #fffa00; /* 终末地黄 (文字/描边) */
+  --ef-yellow-bg: #fffa00; /* 实心色块 */
+  --ef-yellow-dim: #ccc800;
+  --ef-yellow-glow: #fffb4d;
+  --ef-ink: #0a0a0a; /* 黄底上的对比字色 */
+  --ef-scrim: rgba(0, 0, 0, 0.75); /* 弹窗遮罩 */
+  --ef-slash: #7f1d1d; /* 九宫格无解暗红斜线 */
+  --ef-chart-grid: #1a1a1a; /* 图表网格线 */
+  --ef-chart-tick: #888888; /* 图表刻度文字 */
+  --ef-chart-canvas: #111111; /* 在线图表画布 */
+  --ef-radial-opacity: 0.15; /* 背景黄色径向光晕 */
+}
+
+/* ── 官网工业白主题 (Endfield Industrial Light) ── */
+html.light {
+  color-scheme: light;
+  /* 1. 结构与背景分层 (杜绝大平白): 大底冷灰，卡片纯白 */
+  --ef-black: #ebecef; /* 页面大背景: 工业冷灰底色 */
+  --ef-dark: #ffffff; /* 卡片/面板/侧栏: 纯白高光 */
+  --ef-gray: #f3f4f6; /* 控件底色/输入框 */
+  --ef-gray-light: #d1d5db; /* 工业边框线: 提升清晰度与锐利度 */
+
+  /* 2. 文字对比度彻底修正 */
+  --ef-text: #4b5563; /* 二级标注小字: 深度工规冷灰 */
+  --ef-text-light: #09090b; /* 主标题与关键数据: 纯黑炭黑 */
+
+  /* 3. 终末地黄核心对比度修复: 杜绝白底荧光黄 */
+  --ef-yellow: #b45309; /* 文字/描边: 高对比深琥珀金 */
+  --ef-yellow-bg: #ffe600; /* 背景高亮: 官网正品高饱和明黄 */
+  --ef-yellow-dim: #92400e;
+  --ef-yellow-glow: rgba(254, 240, 138, 0.4);
+  --ef-ink: #000000; /* 明黄底上的加粗纯黑字 */
+
+  /* 4. 辅助与图表网格 */
+  --ef-scrim: rgba(0, 0, 0, 0.65);
+  --ef-slash: #dc2626; /* 无解斜线: 鲜明工业红 */
+  --ef-chart-grid: #e5e7eb;
+  --ef-chart-tick: #4b5563;
+  --ef-chart-canvas: #f8fafc; /* 在线图表画布 */
+  --ef-radial-opacity: 0; /* 亮色彻底关闭黄色光晕 */
+}
+html.light header,
+html.light aside {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+html.light .decision-cell-selected {
+  background-color: rgb(254 243 199 / 0.5);
+}
+
 html {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -23,6 +83,8 @@ body {
   padding-bottom: var(--sab);
   padding-left: var(--sal);
   padding-right: var(--sar);
+  background-color: var(--ef-black);
+  color: var(--ef-text-light);
 }
 
 * {
@@ -33,17 +95,19 @@ button {
   cursor: pointer;
 }
 
-/* Custom theme colors */
+/* Custom theme colors — runtime-flipped via --ef-* */
 @theme {
-  --color-endfield-yellow: #fffa00;
-  --color-endfield-yellow-dim: #ccc800;
-  --color-endfield-yellow-glow: #fffb4d;
-  --color-endfield-black: #0a0a0a;
-  --color-endfield-dark: #111111;
-  --color-endfield-gray: #1a1a1a;
-  --color-endfield-gray-light: #2a2a2a;
-  --color-endfield-text: #888888;
-  --color-endfield-text-light: #cccccc;
+  --color-endfield-yellow: var(--ef-yellow);
+  --color-endfield-yellow-bg: var(--ef-yellow-bg);
+  --color-endfield-yellow-dim: var(--ef-yellow-dim);
+  --color-endfield-yellow-glow: var(--ef-yellow-glow);
+  --color-endfield-ink: var(--ef-ink);
+  --color-endfield-black: var(--ef-black);
+  --color-endfield-dark: var(--ef-dark);
+  --color-endfield-gray: var(--ef-gray);
+  --color-endfield-gray-light: var(--ef-gray-light);
+  --color-endfield-text: var(--ef-text);
+  --color-endfield-text-light: var(--ef-text-light);
 }
 
 /* Endfield-style scrollbar */
@@ -53,20 +117,40 @@ button {
 }
 
 ::-webkit-scrollbar-track {
-  background: #111111;
+  background: var(--ef-dark);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #333333;
+  background: var(--ef-gray-light);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #fffa00;
+  background: var(--ef-yellow-bg);
 }
 
 /* Blueprint grid - solid background, no cross grid */
 .blueprint-grid {
-  background-color: #0a0a0a;
+  background-color: var(--ef-black);
+}
+
+/* Main canvas yellow wash — opacity follows --ef-radial-opacity */
+.dige-main-field {
+  background-image: radial-gradient(
+      circle at 85% 20%,
+      rgba(255, 250, 0, var(--ef-radial-opacity)),
+      transparent 40%
+    ),
+    repeating-linear-gradient(
+      135deg,
+      rgba(255, 250, 0, calc(var(--ef-radial-opacity) * 0.27)) 0 1px,
+      transparent 1px 14px
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 250, 0, calc(var(--ef-radial-opacity) * 0.13)),
+      transparent 35%,
+      rgba(255, 250, 0, calc(var(--ef-radial-opacity) * 0.1))
+    );
 }
 
 /* Endfield accent line */
@@ -80,7 +164,7 @@ button {
   top: 0;
   bottom: 0;
   width: 3px;
-  background: #fffa00;
+  background: var(--ef-yellow-bg);
 }
 
 /* Yellow glow effect */
@@ -98,7 +182,7 @@ input[type="range"] {
 }
 input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
-  background: #333333;
+  background: var(--ef-gray-light);
   border-radius: 0;
 }
 input[type="range"]::-webkit-slider-thumb {
@@ -106,32 +190,32 @@ input[type="range"]::-webkit-slider-thumb {
   appearance: none;
   width: 14px;
   height: 14px;
-  background: #fffa00;
+  background: var(--ef-yellow-bg);
   border-radius: 0;
   margin-top: -5px;
   cursor: pointer;
   border: none;
 }
 input[type="range"]::-webkit-slider-thumb:hover {
-  background: #fffb4d;
+  background: var(--ef-yellow-glow);
 }
 /* Firefox */
 input[type="range"]::-moz-range-track {
   height: 4px;
-  background: #333333;
+  background: var(--ef-gray-light);
   border-radius: 0;
   border: none;
 }
 input[type="range"]::-moz-range-thumb {
   width: 14px;
   height: 14px;
-  background: #fffa00;
+  background: var(--ef-yellow-bg);
   border-radius: 0;
   cursor: pointer;
   border: none;
 }
 input[type="range"]::-moz-range-thumb:hover {
-  background: #fffb4d;
+  background: var(--ef-yellow-glow);
 }
 
 /* Number input */
@@ -147,13 +231,13 @@ input[type="number"]::-webkit-inner-spin-button {
 select {
   -webkit-appearance: none;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 36px;
 }
 select:focus {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23fffa00' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23fffa00' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%");
 }
 
 /* Corner decoration */
@@ -167,8 +251,8 @@ select:focus {
   left: 0;
   width: 8px;
   height: 8px;
-  border-left: 2px solid #fffa00;
-  border-top: 2px solid #fffa00;
+  border-left: 2px solid var(--ef-yellow);
+  border-top: 2px solid var(--ef-yellow);
 }
 .corner-mark::after {
   content: "";
@@ -177,8 +261,8 @@ select:focus {
   right: 0;
   width: 8px;
   height: 8px;
-  border-right: 2px solid #fffa00;
-  border-bottom: 2px solid #fffa00;
+  border-right: 2px solid var(--ef-yellow);
+  border-bottom: 2px solid var(--ef-yellow);
 }
 
 /* Hide scrollbar for draggable areas */

@@ -1,6 +1,33 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
   <head>
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="msapplication-TileColor" content="#0a0a0a" />
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("dige_theme");
+          var theme;
+          if (saved === "light" || saved === "dark") {
+            theme = saved;
+          } else {
+            // 无手动覆盖: 6:00 ~ 18:00 工业白，其余极夜暗黑
+            var hour = new Date().getHours();
+            theme = hour >= 6 && hour < 18 ? "light" : "dark";
+          }
+          document.documentElement.classList.remove("dark", "light");
+          document.documentElement.classList.add(theme);
+          document.documentElement.style.colorScheme = theme;
+          var themeColor = theme === "light" ? "#ebecef" : "#0a0a0a";
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", themeColor);
+          var tile = document.querySelector(
+            'meta[name="msapplication-TileColor"]'
+          );
+          if (tile) tile.setAttribute("content", themeColor);
+        } catch (e) {}
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta
       name="viewport"
@@ -85,10 +112,6 @@
     <link rel="alternate" hreflang="ja" href="https://dige.aunly.cn/?lang=ja" />
     <link rel="alternate" hreflang="ko" href="https://dige.aunly.cn/?lang=ko" />
     <link rel="alternate" hreflang="x-default" href="https://dige.aunly.cn/" />
-
-    <!-- Theme Color for Mobile Browsers -->
-    <meta name="theme-color" content="#1a1a2e" />
-    <meta name="msapplication-TileColor" content="#1a1a2e" />
 
     <!-- Structured Data (JSON-LD) -->
     <script type="application/ld+json">
