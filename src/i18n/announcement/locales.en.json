@@ -84,8 +84,8 @@
         "defaultOpen": true,
         "items": [
           "Game 1.7 support: added the HC Wuling Battery (6400W / 40s) as a selectable primary or secondary fuel.",
-          "The project is now community-maintained: repository, issue tracker and changelog point to the new site, with an explicit comparison against upstream.",
-          "Share links and site metadata moved to the new host; existing share codes keep working.",
+          "Repository, issue tracker and site metadata are centralised in one config for easier maintenance.",
+          "Target power ceiling raised to 65535W; existing share-code fields stay unchanged, larger values use a new tail slot.",
           "Added custom base and custom oscillation thermal pools: arrange base generators per fuel, or pick one battery with an items-per-minute cap and let the tool build the oscillation plan; power and fuel usage are included in the stats."
         ]
       },

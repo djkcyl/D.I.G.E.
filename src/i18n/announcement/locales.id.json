@@ -84,8 +84,8 @@
         "defaultOpen": true,
         "items": [
           "Dukungan game 1.7: menambahkan Baterai KT Wuling (6400W / 40s) sebagai bahan bakar utama atau sekunder.",
-          "Proyek kini dikelola komunitas: repositori, pelacak masalah, dan changelog mengarah ke situs baru, dengan perbandingan eksplisit terhadap versi asli.",
-          "Tautan berbagi dan metadata situs pindah ke domain baru; kode berbagi lama tetap berfungsi.",
+          "Repositori, pelacak masalah, dan metadata situs kini terpusat dalam satu konfigurasi agar mudah dipelihara.",
+          "Batas daya target dinaikkan ke 65535W; format kode berbagi tetap sama, nilai lebih besar memakai slot ekor baru.",
           "Menambahkan kumpulan termal dasar dan osilasi kustom: atur generator dasar per bahan bakar, atau pilih satu baterai dengan batas item per menit untuk menyusun osilasi; daya dan konsumsi bahan bakar ikut dihitung."
         ]
       },
