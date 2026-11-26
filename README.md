@@ -11,13 +11,13 @@ D.I.G.E.（Dijiang Integrated Generator Efficiency）是《明日方舟：终末
 
 ## 为什么有这个 fork
 
-上游 `main` 最后一次提交是 **2026-04-21**（`2b454a5`），此后游戏已经走完 1.5 → 1.7，燃料表、电网环境都变了，issue 区也积压未处理。本 fork 从 v1.11.0 起接手继续做：
+上游 `main` 停在游戏 1.5 之前的口径，此后游戏走到 1.7，燃料表与电网环境都变了。本仓库在上游基础上继续推进：
 
 - 让计算器跟上游戏版本（当前对齐 **1.7**，含高容武陵电池 6400W / 40s）；
 - 把玩家反复提的痛点做进产品（宽窗求解、电网码分享、多存档、地区规则、准入口限速、主题）；
-- 保持分享码向后兼容，上游时期生成的码在本仓库依然解得开。
+- 保持分享码向后兼容：上游时期生成的码在本仓库依然解得开。
 
-原项目主创与开发同学已 AFK，这里先谢过：**没有上游那套求解器和蓝图 SVG，就没有这个工具**。
+没有上游那套求解器与蓝图 SVG，就没有这个工具。
 
 ## 对比上游（`2b454a5` → 本仓库）
 
@@ -50,8 +50,6 @@ D.I.G.E.（Dijiang Integrated Generator Efficiency）是《明日方舟：终末
 | `main` | 开发主干，随 `main` 自动部署到 Cloudflare Pages |
 | `feature/input-rate-limiter` | 资料分支：记录上游未实现议题（issue #2 回灌分流/能量泄漏）的调研与评估，见该分支的 `docs/upstream-issue-2-loopback.md` |
 | `chore/dev-selftests-2026-08-17` | 归档分支：M1/M2/M3/OOM/limiter 时期的 12 个自测脚本备份 |
-
-`fork/feature/input-rate-limiter`、`fork/feat/add-wuling-mid-battery` 是历史上已合并或已废弃的远端分支，可删。
 
 ## 视频教程（有版本差）
 
