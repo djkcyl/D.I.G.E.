@@ -90,14 +90,12 @@ export interface TokenParseResult {
 
 export type ImportParseResult = GridCodeParseResult | TokenParseResult;
 
-/** 去掉空白、零宽、包裹引号 */
+/** 去掉空白、零宽、包裹引号与分组分隔符（- _ · 等） */
 export function normalizeImportText(raw: string): string {
   if (!raw || typeof raw !== "string") return "";
   let s = raw.trim();
   // 零宽 / BOM
   s = s.replace(/[\u200B-\u200D\uFEFF]/g, "");
-  // 全角 DIGE 等少见情况：去掉所有 Unicode 空白
-  s = s.replace(/\s+/g, "");
   // 首尾引号
   if (
     (s.startsWith('"') && s.endsWith('"')) ||
@@ -106,6 +104,14 @@ export function normalizeImportText(raw: string): string {
     s = s.slice(1, -1).trim();
   }
   return s;
+}
+
+/**
+ * 导入时允许用户带着分组符粘贴：把「空白 / - / _ / · / 全角连字符」等
+ * 非字母数字字符一并剔除；Base52 载荷大小写敏感，只删除不转换。
+ */
+export function stripImportSeparators(text: string): string {
+  return text.replace(/[^A-Za-z0-9]/g, "");
 }
 
 function resolveRegionCode(params: ShareParams): string {
@@ -240,8 +246,8 @@ export function parseImportInput(raw: string): ImportParseResult | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
 
-  // 1) 先尝试去空白后的 Grid Code（允许用户粘贴带空格的展示形）
-  const compact = normalizeImportText(trimmed);
+  // 1) 先尝试去掉分隔符后的 Grid Code（允许用户粘贴带空格/短横的展示形）
+  const compact = stripImportSeparators(normalizeImportText(trimmed));
   if (compact.toUpperCase().startsWith(GRID_CODE_MAGIC)) {
     // 载荷大小写敏感：normalize 只去空白，不改字母大小写
     const grid = parseGridCode(compact);

@@ -345,6 +345,29 @@ function checkPoolsAndBaseLines() {
   assert.equal(parsed.params.manualBaseLines[0].count, 2);
 }
 
+/** 带分组符（短横/空格）粘贴也应能导入；游戏内短码则不应被误判为我们自己的码 */
+function checkSeparatorTolerance() {
+  const params = sampleParams({ targetPower: 5800, factoryRegion: "valley" });
+  const code = buildGridCode(params);
+  assert.ok(code);
+
+  const dashed = code.replace(/(.{5})/g, "$1-").replace(/-$/, "");
+  const fromDashed = parseImportInput(dashed);
+  assert.ok(fromDashed, "带短横的电网码应可导入");
+  assert.equal(fromDashed.params.targetPower, 5800);
+
+  const token = encodeShareParams(params);
+  assert.ok(token);
+  const tokenDashed = token.replace(/(.{5})/g, "$1 ").trim();
+  const fromTokenSpaced = parseImportInput(tokenDashed);
+  assert.ok(fromTokenSpaced, "带空格的 token 应可导入");
+  assert.equal(fromTokenSpaced.params.targetPower, 5800);
+
+  // 游戏内蓝图码（5-5-5 分组、长度远短于我们的 token）不应被解析成功
+  assert.equal(parseImportInput("SKW43ZA-FY5MP-Z7SNB"), null);
+  assert.equal(parseImportInput("SKW43ZAFY5MPZ7SNB"), null);
+}
+
 function main() {
   checkRoundtrip();
   checkImportShapes();
@@ -354,6 +377,7 @@ function main() {
   checkFuelWireOrderStability();
   checkWulingHighFuel();
   checkPoolsAndBaseLines();
+  checkSeparatorTolerance();
   console.log("selftest-grid-code: all passed");
 }
 

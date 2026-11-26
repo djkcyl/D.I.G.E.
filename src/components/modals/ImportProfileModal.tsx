@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import {
   type ImportParseResult,
+  normalizeImportText,
   parseImportInput,
+  stripImportSeparators,
   suggestImportProfileBaseName,
   suggestImportProfileBaseNameZh,
 } from "../../utils/gridCode";
@@ -56,8 +58,21 @@ export default function ImportProfileModal({
   useEffect(() => {
     setParsed(preview);
     if (!preview) {
-      if (raw.trim()) setError(t("importCodeInvalid"));
-      else setError("");
+      if (!raw.trim()) {
+        setError("");
+        return;
+      }
+      // 短码（如游戏内蓝图码 5-5-5 分组）单独提示，避免用户以为本工具能直接吃
+      const compact = stripImportSeparators(normalizeImportText(raw));
+      const looksLikeGameCode =
+        compact.length > 0 &&
+        compact.length <= 24 &&
+        /^[A-Z0-9]+$/.test(compact);
+      setError(
+        looksLikeGameCode
+          ? t("importCodeLooksLikeGameCode")
+          : t("importCodeInvalid"),
+      );
       return;
     }
     setError("");

@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../../i18n";
 import type { CalcParams, SolutionResult } from "../../../types/calc";
 import {
@@ -20,6 +20,7 @@ import {
   poolPowerForRate,
 } from "../../../utils/oscBudget";
 import { buildShareUrl, type ShareParams } from "../../../utils/shareParams";
+import ShareStatusToast from "../../overlays/ShareStatusToast";
 import Icon from "../../ui/Icon";
 import ImagePreviewModal from "../../ui/ImagePreview/ImagePreviewModal";
 import BlueprintBranch from "./BlueprintBranch";
@@ -51,6 +52,25 @@ export default function SolutionDiagram({
   useEffect(() => {
     setPoolMode(mode);
   }, [mode]);
+  const [exportToast, setExportToast] = useState("");
+  const [exportToastVisible, setExportToastVisible] = useState(false);
+  const exportToastTimer = useRef<{ hide?: number; clear?: number }>({});
+  const showExportToast = useCallback((message: string) => {
+    if (exportToastTimer.current.hide)
+      window.clearTimeout(exportToastTimer.current.hide);
+    if (exportToastTimer.current.clear)
+      window.clearTimeout(exportToastTimer.current.clear);
+    setExportToast(message);
+    setExportToastVisible(true);
+    exportToastTimer.current.hide = window.setTimeout(
+      () => setExportToastVisible(false),
+      1600,
+    );
+    exportToastTimer.current.clear = window.setTimeout(
+      () => setExportToast(""),
+      1900,
+    );
+  }, []);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [resumeExportModalOnPreviewClose, setResumeExportModalOnPreviewClose] =
@@ -383,11 +403,13 @@ export default function SolutionDiagram({
             branchIndex + 1
           }_1_${safeDenominator}_${powerToken}_blueprint.json`,
         });
+        showExportToast(t("blueprintExported"));
       } catch (error) {
         console.error("Blueprint export failed:", error);
+        showExportToast(t("shareFailed"));
       }
     },
-    [oscillating],
+    [oscillating, showExportToast, t],
   );
 
   const handleExportSingleBranchPng = useCallback(
@@ -417,11 +439,13 @@ export default function SolutionDiagram({
         });
         setResumeExportModalOnPreviewClose(true);
         setExportModalOpen(false);
+        showExportToast(t("blueprintExported"));
       } catch (error) {
         console.error("Blueprint PNG export failed:", error);
+        showExportToast(t("shareFailed"));
       }
     },
-    [openImagePreview, oscillating, t],
+    [openImagePreview, oscillating, t, showExportToast],
   );
 
   const handleExportAllBranchesZip = useCallback(async () => {
@@ -440,10 +464,12 @@ export default function SolutionDiagram({
         includePreciseChart: false,
       });
       setExportModalOpen(false);
+      showExportToast(t("blueprintExported"));
     } catch (error) {
       console.error("Blueprint zip export failed:", error);
+      showExportToast(t("shareFailed"));
     }
-  }, [oscillating]);
+  }, [oscillating, showExportToast, t]);
 
   const handleExportCompleteImage = useCallback(async () => {
     if (!Array.isArray(oscillating) || oscillating.length === 0) return;
@@ -535,10 +561,19 @@ export default function SolutionDiagram({
       setExportModalOpen(false);
     } catch (error) {
       console.error("Blueprint complete image export failed:", error);
+      showExportToast(t("shareFailed"));
     } finally {
       setPreparingCompleteImage(false);
     }
-  }, [locale, openImagePreview, oscillating, params, solution, t]);
+  }, [
+    locale,
+    openImagePreview,
+    oscillating,
+    params,
+    solution,
+    t,
+    showExportToast,
+  ]);
 
   if (!solution) {
     return (
@@ -891,6 +926,7 @@ export default function SolutionDiagram({
                             downloadEndfieldBlueprint(branch, {
                               filename: `dige_pool_${row.id}_1_${branch.denominator}.json`,
                             });
+                            showExportToast(t("blueprintExported"));
                           } catch (error) {
                             console.error(
                               "Pool blueprint export failed:",
@@ -976,6 +1012,8 @@ export default function SolutionDiagram({
         fileName={imagePreviewFileName}
         title={imagePreviewTitle}
       />
+
+      <ShareStatusToast message={exportToast} visible={exportToastVisible} />
     </div>
   );
 }
