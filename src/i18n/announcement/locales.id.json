@@ -12,29 +12,6 @@
         "text": "Pembaruan pengembangan: kami terus menyempurnakan algoritma inti dan mengoptimalkan perencanaan. Pembaruan terkait akan dirilis secara bertahap."
       },
       {
-        "type": "paragraph",
-        "className": "mb-3 text-endfield-yellow/90",
-        "segments": [
-          {
-            "text": "Ini adalah versi yang dikelola komunitas dari "
-          },
-          {
-            "link": "upstream",
-            "text": "djkcyl/D.I.G.E."
-          },
-          {
-            "text": ", diperbarui untuk game 1.7. Pengembang asli sudah berhenti — laporkan masalah dan saran di "
-          },
-          {
-            "link": "issues",
-            "text": "Issues repositori ini"
-          },
-          {
-            "text": "."
-          }
-        ]
-      },
-      {
         "type": "heading",
         "text": "Fitur"
       },

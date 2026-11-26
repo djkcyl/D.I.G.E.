@@ -12,29 +12,6 @@
         "text": "Entwicklungsstand: Wir arbeiten weiterhin an Kernalgorithmen und der Optimierung der Pläne. Entsprechende Updates werden schrittweise veröffentlicht."
       },
       {
-        "type": "paragraph",
-        "className": "mb-3 text-endfield-yellow/90",
-        "segments": [
-          {
-            "text": "Dies ist eine von der Community gepflegte Version von "
-          },
-          {
-            "link": "upstream",
-            "text": "djkcyl/D.I.G.E."
-          },
-          {
-            "text": ", aktualisiert für Spiel 1.7. Die ursprünglichen Entwickler haben die Arbeit eingestellt — Fehler und Wünsche bitte in den "
-          },
-          {
-            "link": "issues",
-            "text": "Issues dieses Repos"
-          },
-          {
-            "text": " melden."
-          }
-        ]
-      },
-      {
         "type": "heading",
         "text": "Funktionen"
       },

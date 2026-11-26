@@ -12,29 +12,6 @@
         "text": "Development update: we are continuing to refine core algorithms and optimize plans. Related updates will be released gradually."
       },
       {
-        "type": "paragraph",
-        "className": "mb-3 text-endfield-yellow/90",
-        "segments": [
-          {
-            "text": "This is a community-maintained fork of "
-          },
-          {
-            "link": "upstream",
-            "text": "djkcyl/D.I.G.E."
-          },
-          {
-            "text": ", updated for game 1.7. The original maintainers have stopped working on it — please report issues and ideas in "
-          },
-          {
-            "link": "issues",
-            "text": "this repository's Issues"
-          },
-          {
-            "text": "."
-          }
-        ]
-      },
-      {
         "type": "heading",
         "text": "Features"
       },

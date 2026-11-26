@@ -12,29 +12,6 @@
         "text": "開発進捗：現在も基盤アルゴリズムの研究とプラン最適化を継続しています。関連アップデートは順次公開します。"
       },
       {
-        "type": "paragraph",
-        "className": "mb-3 text-endfield-yellow/90",
-        "segments": [
-          {
-            "text": "本プロジェクトは "
-          },
-          {
-            "link": "upstream",
-            "text": "djkcyl/D.I.G.E."
-          },
-          {
-            "text": " のコミュニティメンテナンス版で、ゲーム 1.7 に対応しています。原作者は開発を終了しているため、不具合や要望は "
-          },
-          {
-            "link": "issues",
-            "text": "本リポジトリの Issues"
-          },
-          {
-            "text": " までお願いします。"
-          }
-        ]
-      },
-      {
         "type": "heading",
         "text": "基本機能"
       },

@@ -12,29 +12,6 @@
         "text": "Avancement du développement : nous poursuivons la recherche sur les algorithmes de base et l’optimisation des plans. Les mises à jour concernées seront publiées progressivement."
       },
       {
-        "type": "paragraph",
-        "className": "mb-3 text-endfield-yellow/90",
-        "segments": [
-          {
-            "text": "Ceci est une version maintenue par la communauté de "
-          },
-          {
-            "link": "upstream",
-            "text": "djkcyl/D.I.G.E."
-          },
-          {
-            "text": ", mise à jour pour le jeu 1.7. Les auteurs originaux ont cessé le développement — merci de signaler les problèmes dans les "
-          },
-          {
-            "link": "issues",
-            "text": "Issues de ce dépôt"
-          },
-          {
-            "text": "."
-          }
-        ]
-      },
-      {
         "type": "heading",
         "text": "Fonctionnalités"
       },

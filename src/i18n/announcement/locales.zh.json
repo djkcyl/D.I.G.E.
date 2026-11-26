@@ -12,29 +12,6 @@
         "text": "开发进展：目前网站仍在持续研究底层算法并优化方案，相关更新将逐步上线。"
       },
       {
-        "type": "paragraph",
-        "className": "mb-3 text-endfield-yellow/90",
-        "segments": [
-          {
-            "text": "本项目为社区维护版，基于 "
-          },
-          {
-            "link": "upstream",
-            "text": "djkcyl/D.I.G.E."
-          },
-          {
-            "text": " 二次开发并适配游戏 1.7；原项目主创已停止维护，问题与建议请到 "
-          },
-          {
-            "link": "issues",
-            "text": "本仓库 Issues"
-          },
-          {
-            "text": "。"
-          }
-        ]
-      },
-      {
         "type": "heading",
         "text": "基本功能"
       },
