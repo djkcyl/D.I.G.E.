@@ -1,7 +1,7 @@
 {
-  "name": "factory-designer",
+  "name": "dige",
   "private": true,
-  "version": "1.11.1",
+  "version": "1.12.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

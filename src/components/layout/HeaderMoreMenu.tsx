@@ -1,4 +1,5 @@
 import type { KeyboardEventHandler, RefObject } from "react";
+import { SITE_CONFIG } from "../../config/site";
 import { useI18n } from "../../i18n";
 import Icon from "../ui/Icon";
 
@@ -69,7 +70,7 @@ export default function HeaderMoreMenu({
       </div>
       <div role="none">
         <a
-          href="https://github.com/djkcyl/D.I.G.E."
+          href={SITE_CONFIG.repoUrl}
           target="_blank"
           rel="noopener noreferrer"
           onClick={onClose}

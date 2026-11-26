@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { SITE_CONFIG } from "../../config/site";
 import { useI18n } from "../../i18n";
 import { useTheme } from "../../utils/useTheme";
 import { hasUnreadAnnouncementOrChangelog } from "../modals/Announcement";
@@ -18,7 +19,7 @@ import HeaderMoreMenu from "./HeaderMoreMenu";
 const BTN_ICON =
   "h-9 w-9 sm:h-10 sm:w-10 bg-endfield-gray border border-endfield-gray-light hover:border-endfield-yellow transition-colors flex items-center justify-center text-endfield-text-light hover:text-endfield-yellow";
 
-const QQ_GROUP_URL = "https://qm.qq.com/q/zL6wp3emTQ";
+const QQ_GROUP_URL = SITE_CONFIG.qqGroupUrl;
 const QQ_GROUP_NUMBER = "1084531249";
 const MENU_ITEM_SELECTOR = '[role="menuitem"],[role="menuitemradio"]';
 const LISTBOX_OPTION_SELECTOR = '[role="option"]';
@@ -36,7 +37,7 @@ export interface HeaderProps {
 
 function focusTrigger(
   triggerRef: RefObject<HTMLButtonElement | null>,
-  useRaf: boolean = true
+  useRaf: boolean = true,
 ) {
   if (!triggerRef.current) return;
   if (
@@ -76,7 +77,7 @@ export default function Header({
   const moreMenuListRef = useRef<HTMLDivElement | null>(null);
   const qrTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const langMenuOpenFocusRef = useRef<"selected" | "first" | "last">(
-    "selected"
+    "selected",
   );
   const moreMenuOpenFocusRef = useRef<"first" | "last">("first");
 
@@ -91,23 +92,23 @@ export default function Header({
     (container: HTMLElement | null, selector: string) => {
       if (!container) return [];
       return Array.from(
-        container.querySelectorAll<HTMLElement>(selector)
+        container.querySelectorAll<HTMLElement>(selector),
       ).filter(
         (item) =>
           !item.hasAttribute("disabled") &&
           (item.offsetWidth > 0 ||
             item.offsetHeight > 0 ||
-            item.getClientRects().length > 0)
+            item.getClientRects().length > 0),
       );
     },
-    []
+    [],
   );
 
   const moveFocus = useCallback(
     (
       items: HTMLElement[],
       direction: "next" | "prev" | "first" | "last",
-      activeElement: HTMLElement | null
+      activeElement: HTMLElement | null,
     ) => {
       if (items.length === 0) return;
 
@@ -127,7 +128,7 @@ export default function Header({
 
       items[nextIndex]?.focus();
     },
-    []
+    [],
   );
 
   const closeLangMenu = useCallback((restoreFocus = false) => {
@@ -167,7 +168,7 @@ export default function Header({
     () => () => {
       if (qrTimerRef.current) clearTimeout(qrTimerRef.current);
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -207,7 +208,7 @@ export default function Header({
 
     const options = getMenuItems(
       langMenuListRef.current,
-      LISTBOX_OPTION_SELECTOR
+      LISTBOX_OPTION_SELECTOR,
     );
     if (options.length === 0) return;
 
@@ -217,7 +218,7 @@ export default function Header({
     } else if (langMenuOpenFocusRef.current === "selected") {
       target =
         options.find(
-          (option) => option.getAttribute("aria-selected") === "true"
+          (option) => option.getAttribute("aria-selected") === "true",
         ) || options[0];
     }
     target.focus();
@@ -270,7 +271,7 @@ export default function Header({
           break;
       }
     },
-    [getMenuItems, moveFocus, closeMoreMenu]
+    [getMenuItems, moveFocus, closeMoreMenu],
   );
 
   const handleMoreMenuButtonKeyDown = useCallback(
@@ -294,14 +295,14 @@ export default function Header({
         closeMoreMenu(true);
       }
     },
-    [showMoreMenu, closeMoreMenu]
+    [showMoreMenu, closeMoreMenu],
   );
 
   const handleLangMenuKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       const options = getMenuItems(
         langMenuListRef.current,
-        LISTBOX_OPTION_SELECTOR
+        LISTBOX_OPTION_SELECTOR,
       );
       const active = document.activeElement as HTMLElement | null;
 
@@ -338,7 +339,7 @@ export default function Header({
           break;
       }
     },
-    [getMenuItems, moveFocus, closeLangMenu]
+    [getMenuItems, moveFocus, closeLangMenu],
   );
 
   const handleLangMenuButtonKeyDown = useCallback(
@@ -362,7 +363,7 @@ export default function Header({
         closeLangMenu(true);
       }
     },
-    [showLangMenu, closeLangMenu]
+    [showLangMenu, closeLangMenu],
   );
 
   return (
@@ -410,7 +411,7 @@ export default function Header({
         <div className="flex flex-col justify-center">
           <div className="flex items-center gap-2">
             <a
-              href="https://github.com/djkcyl/D.I.G.E."
+              href={SITE_CONFIG.repoUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="group"
@@ -536,7 +537,7 @@ export default function Header({
         )}
 
         <a
-          href="https://github.com/djkcyl/D.I.G.E."
+          href={SITE_CONFIG.repoUrl}
           target="_blank"
           rel="noopener noreferrer"
           className={`hidden lg:flex ${BTN_ICON}`}
@@ -614,7 +615,7 @@ export default function Header({
             aria-controls={showLangMenu ? langMenuId : undefined}
             aria-label={t("currentLanguageAriaLabel").replace(
               "{language}",
-              currentLang ? currentLang.nativeName : ""
+              currentLang ? currentLang.nativeName : "",
             )}
           >
             <Icon name="language" />

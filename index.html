@@ -4,28 +4,30 @@
     <meta name="theme-color" content="#0a0a0a" />
     <meta name="msapplication-TileColor" content="#0a0a0a" />
     <script>
-      (function () {
+      (() => {
         try {
-          var saved = localStorage.getItem("dige_theme");
-          var theme;
+          const saved = localStorage.getItem("dige_theme");
+          let theme;
           if (saved === "light" || saved === "dark") {
             theme = saved;
           } else {
             // 无手动覆盖: 6:00 ~ 18:00 工业白，其余极夜暗黑
-            var hour = new Date().getHours();
+            const hour = new Date().getHours();
             theme = hour >= 6 && hour < 18 ? "light" : "dark";
           }
           document.documentElement.classList.remove("dark", "light");
           document.documentElement.classList.add(theme);
           document.documentElement.style.colorScheme = theme;
-          var themeColor = theme === "light" ? "#ebecef" : "#0a0a0a";
-          var meta = document.querySelector('meta[name="theme-color"]');
+          const themeColor = theme === "light" ? "#ebecef" : "#0a0a0a";
+          const meta = document.querySelector('meta[name="theme-color"]');
           if (meta) meta.setAttribute("content", themeColor);
-          var tile = document.querySelector(
+          const tile = document.querySelector(
             'meta[name="msapplication-TileColor"]'
           );
           if (tile) tile.setAttribute("content", themeColor);
-        } catch (e) {}
+        } catch {
+          /* localStorage 不可用（隐私模式）时保持默认主题 */
+        }
       })();
     </script>
     <meta charset="UTF-8" />
@@ -62,7 +64,7 @@
     <meta http-equiv="Expires" content="0" />
 
     <!-- Canonical URL -->
-    <link rel="canonical" href="https://dige.aunly.cn" />
+    <link rel="canonical" href="https://dige-2st.pages.dev" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/favicon.png" />
@@ -73,7 +75,7 @@
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://dige.aunly.cn/" />
+    <meta property="og:url" content="https://dige-2st.pages.dev/" />
     <meta
       property="og:title"
       content="D.I.G.E. - 帝江号严选精细化集成工业系统能源生产及存储管理系统设计器"
@@ -82,7 +84,7 @@
       property="og:description"
       content="专为明日方舟：终末地设计的热能池优化计算器。自动计算最优发电方案，支持多种燃料配置、震荡发电策略。"
     />
-    <meta property="og:image" content="https://dige.aunly.cn/favicon.png" />
+    <meta property="og:image" content="https://dige-2st.pages.dev/favicon.png" />
     <meta property="og:site_name" content="D.I.G.E." />
     <meta property="og:locale" content="zh_CN" />
     <meta property="og:locale:alternate" content="en_US" />
@@ -91,7 +93,7 @@
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://dige.aunly.cn/" />
+    <meta name="twitter:url" content="https://dige-2st.pages.dev/" />
     <meta
       name="twitter:title"
       content="D.I.G.E. - 帝江号严选精细化集成工业系统能源生产及存储管理系统设计器"
@@ -100,18 +102,18 @@
       name="twitter:description"
       content="专为明日方舟：终末地设计的热能池优化计算器。自动计算最优发电方案，支持多种燃料配置、震荡发电策略。"
     />
-    <meta name="twitter:image" content="https://dige.aunly.cn/favicon.png" />
+    <meta name="twitter:image" content="https://dige-2st.pages.dev/favicon.png" />
 
     <!-- Multi-language Support -->
     <link
       rel="alternate"
       hreflang="zh-CN"
-      href="https://dige.aunly.cn/?lang=zh"
+      href="https://dige-2st.pages.dev/?lang=zh"
     />
-    <link rel="alternate" hreflang="en" href="https://dige.aunly.cn/?lang=en" />
-    <link rel="alternate" hreflang="ja" href="https://dige.aunly.cn/?lang=ja" />
-    <link rel="alternate" hreflang="ko" href="https://dige.aunly.cn/?lang=ko" />
-    <link rel="alternate" hreflang="x-default" href="https://dige.aunly.cn/" />
+    <link rel="alternate" hreflang="en" href="https://dige-2st.pages.dev/?lang=en" />
+    <link rel="alternate" hreflang="ja" href="https://dige-2st.pages.dev/?lang=ja" />
+    <link rel="alternate" hreflang="ko" href="https://dige-2st.pages.dev/?lang=ko" />
+    <link rel="alternate" hreflang="x-default" href="https://dige-2st.pages.dev/" />
 
     <!-- Structured Data (JSON-LD) -->
     <script type="application/ld+json">
@@ -124,7 +126,7 @@
           "帝江号严选精细化集成工业系统能源生产及存储管理系统设计器"
         ],
         "description": "专为明日方舟：终末地设计的热能池优化计算器，自动计算最优发电方案",
-        "url": "https://dige.aunly.cn",
+        "url": "https://dige-2st.pages.dev",
         "applicationCategory": "GameApplication",
         "operatingSystem": "Web Browser",
         "offers": {

@@ -1,36 +1,37 @@
-import { useEffect, useState } from 'react';
-import { useI18n } from '../../../i18n';
-import { announcementLocales } from '../../../i18n/announcement/locales';
+import { useEffect, useState } from "react";
+import { SITE_CONFIG } from "../../../config/site";
+import { useI18n } from "../../../i18n";
+import { announcementLocales } from "../../../i18n/announcement/locales";
 import {
   ANNOUNCEMENT_DISMISSED_KEY,
   ANNOUNCEMENT_ID,
   ANNOUNCEMENT_VIEWED_KEY,
   CHANGELOG_ID,
   CHANGELOG_VIEWED_KEY,
-} from '../../../utils/announcement';
-import Button from '../../ui/Button';
-import Icon from '../../ui/Icon';
-import Modal from '../../ui/Modal';
-import ModalHeader from '../../ui/ModalHeader';
-import UnreadDot from '../../ui/UnreadDot';
-import AnnouncementBody from './AnnouncementBody';
-import ChangelogBody from './ChangelogBody';
+} from "../../../utils/announcement";
+import Button from "../../ui/Button";
+import Icon from "../../ui/Icon";
+import Modal from "../../ui/Modal";
+import ModalHeader from "../../ui/ModalHeader";
+import UnreadDot from "../../ui/UnreadDot";
+import AnnouncementBody from "./AnnouncementBody";
+import ChangelogBody from "./ChangelogBody";
 
-const QQ_GROUP_URL = 'https://qm.qq.com/q/zL6wp3emTQ';
+const QQ_GROUP_URL = SITE_CONFIG.qqGroupUrl;
 
 export function shouldShowAnnouncement(): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === "undefined") return false;
   const dismissedId = localStorage.getItem(ANNOUNCEMENT_DISMISSED_KEY);
   return dismissedId !== ANNOUNCEMENT_ID;
 }
 
 export function hasUnreadAnnouncement(): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === "undefined") return false;
   return localStorage.getItem(ANNOUNCEMENT_VIEWED_KEY) !== ANNOUNCEMENT_ID;
 }
 
 export function hasUnreadChangelog(): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === "undefined") return false;
   return localStorage.getItem(CHANGELOG_VIEWED_KEY) !== CHANGELOG_ID;
 }
 
@@ -47,7 +48,7 @@ export interface AnnouncementProps {
 
 export default function Announcement({
   show,
-  initialTab = 'announcement',
+  initialTab = "announcement",
   onClose,
   closeOnBackdrop = false,
 }: AnnouncementProps) {
@@ -55,11 +56,11 @@ export default function Announcement({
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [activeTab, setActiveTab] = useState(initialTab);
   const [announcementUnread, setAnnouncementUnread] = useState(() => {
-    if (typeof window === 'undefined') return false;
+    if (typeof window === "undefined") return false;
     return localStorage.getItem(ANNOUNCEMENT_VIEWED_KEY) !== ANNOUNCEMENT_ID;
   });
   const [changelogUnread, setChangelogUnread] = useState(() => {
-    if (typeof window === 'undefined') return false;
+    if (typeof window === "undefined") return false;
     return localStorage.getItem(CHANGELOG_VIEWED_KEY) !== CHANGELOG_ID;
   });
 
@@ -71,7 +72,7 @@ export default function Announcement({
 
   useEffect(() => {
     if (!show) return;
-    if (announcementUnread && initialTab === 'announcement') {
+    if (announcementUnread && initialTab === "announcement") {
       setAnnouncementUnread(false);
       localStorage.setItem(ANNOUNCEMENT_VIEWED_KEY, ANNOUNCEMENT_ID);
     }
@@ -79,7 +80,7 @@ export default function Announcement({
 
   useEffect(() => {
     if (!show) return;
-    if (changelogUnread && initialTab === 'changelog') {
+    if (changelogUnread && initialTab === "changelog") {
       setChangelogUnread(false);
       localStorage.setItem(CHANGELOG_VIEWED_KEY, CHANGELOG_ID);
     }
@@ -98,7 +99,7 @@ export default function Announcement({
   const localeContent = announcementLocales[locale] || announcementLocales.en;
   const announcementBlocks = localeContent?.announcement?.blocks || [];
   const changelogSections = localeContent?.changelog?.sections || [];
-  const isAnnouncement = activeTab === 'announcement';
+  const isAnnouncement = activeTab === "announcement";
 
   return (
     <Modal
@@ -110,8 +111,8 @@ export default function Announcement({
     >
       <ModalHeader
         id="announcement-modal-title"
-        icon={isAnnouncement ? 'campaign' : 'history'}
-        title={isAnnouncement ? t('announcement') : t('changelog')}
+        icon={isAnnouncement ? "campaign" : "history"}
+        title={isAnnouncement ? t("announcement") : t("changelog")}
         className="mb-4"
       />
 
@@ -119,7 +120,7 @@ export default function Announcement({
         <button
           type="button"
           onClick={() => {
-            setActiveTab('announcement');
+            setActiveTab("announcement");
             if (announcementUnread) {
               setAnnouncementUnread(false);
               localStorage.setItem(ANNOUNCEMENT_VIEWED_KEY, ANNOUNCEMENT_ID);
@@ -127,17 +128,17 @@ export default function Announcement({
           }}
           className={`relative h-9 border text-sm tracking-wider transition-colors ${
             isAnnouncement
-              ? 'text-endfield-yellow border-endfield-yellow bg-endfield-yellow/10'
-              : 'text-endfield-text-light border-endfield-gray-light hover:border-endfield-text'
+              ? "text-endfield-yellow border-endfield-yellow bg-endfield-yellow/10"
+              : "text-endfield-text-light border-endfield-gray-light hover:border-endfield-text"
           }`}
         >
-          {t('announcement')}
+          {t("announcement")}
           {announcementUnread && <UnreadDot />}
         </button>
         <button
           type="button"
           onClick={() => {
-            setActiveTab('changelog');
+            setActiveTab("changelog");
             if (changelogUnread) {
               setChangelogUnread(false);
               localStorage.setItem(CHANGELOG_VIEWED_KEY, CHANGELOG_ID);
@@ -145,11 +146,11 @@ export default function Announcement({
           }}
           className={`relative h-9 border text-sm tracking-wider transition-colors ${
             !isAnnouncement
-              ? 'text-endfield-yellow border-endfield-yellow bg-endfield-yellow/10'
-              : 'text-endfield-text-light border-endfield-gray-light hover:border-endfield-text'
+              ? "text-endfield-yellow border-endfield-yellow bg-endfield-yellow/10"
+              : "text-endfield-text-light border-endfield-gray-light hover:border-endfield-text"
           }`}
         >
-          {t('changelog')}
+          {t("changelog")}
           {changelogUnread && <UnreadDot />}
         </button>
       </div>
@@ -170,14 +171,16 @@ export default function Announcement({
             onChange={(e) => setDontShowAgain(e.target.checked)}
             className="absolute inset-0 opacity-0 cursor-pointer"
           />
-          {dontShowAgain && <Icon name="check" className="text-endfield-yellow" />}
+          {dontShowAgain && (
+            <Icon name="check" className="text-endfield-yellow" />
+          )}
         </div>
         <span className="text-sm text-endfield-text group-hover:text-endfield-text-light transition-colors">
-          {t('dontShowAgain')}
+          {t("dontShowAgain")}
         </span>
       </label>
 
-      {locale === 'zh' && (
+      {locale === "zh" && (
         <a
           href={QQ_GROUP_URL}
           target="_blank"
@@ -185,12 +188,12 @@ export default function Announcement({
           className="mb-4 flex w-full items-center justify-center gap-2 h-10 bg-endfield-gray/60 border border-endfield-yellow/30 hover:border-endfield-yellow transition-colors text-endfield-yellow text-sm"
         >
           <Icon name="group" />
-          <span>{t('joinQQGroup')}</span>
+          <span>{t("joinQQGroup")}</span>
         </a>
       )}
 
       <Button type="button" onClick={handleClose} variant="primary" fullWidth>
-        {t('understood')}
+        {t("understood")}
       </Button>
     </Modal>
   );

@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
-import { useI18n } from '../../../i18n';
-import { hasUnreadAnnouncementOrChangelog } from '../../modals/Announcement';
-import Button from '../../ui/Button';
-import Icon from '../../ui/Icon';
-import UnreadDot from '../../ui/UnreadDot';
+import { useEffect, useRef, useState } from "react";
+import { SITE_CONFIG } from "../../../config/site";
+import { useI18n } from "../../../i18n";
+import { hasUnreadAnnouncementOrChangelog } from "../../modals/Announcement";
+import Button from "../../ui/Button";
+import Icon from "../../ui/Icon";
+import UnreadDot from "../../ui/UnreadDot";
 
 export interface SidebarFooterProps {
   collapsed: boolean;
@@ -37,12 +38,15 @@ export default function SidebarFooter({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) {
+      if (
+        langMenuRef.current &&
+        !langMenuRef.current.contains(event.target as Node)
+      ) {
         setShowLangMenu(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -51,7 +55,7 @@ export default function SidebarFooter({
     if (!button || !container) return;
     const observer = new IntersectionObserver(
       ([entry]) => setCalcButtonVisible(entry.isIntersecting),
-      { root: container, threshold: 0.5 }
+      { root: container, threshold: 0.5 },
     );
     observer.observe(button);
     return () => observer.disconnect();
@@ -61,7 +65,9 @@ export default function SidebarFooter({
   useEffect(() => {
     if (shouldShowHint) {
       setScrollHintMounted(true);
-      requestAnimationFrame(() => requestAnimationFrame(() => setScrollHintVisible(true)));
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => setScrollHintVisible(true)),
+      );
     } else {
       setScrollHintVisible(false);
       const timer = setTimeout(() => setScrollHintMounted(false), 300);
@@ -73,7 +79,7 @@ export default function SidebarFooter({
     if (scrollContainerRef?.current) {
       scrollContainerRef.current.scrollTo({
         top: scrollContainerRef.current.scrollHeight,
-        behavior: 'smooth',
+        behavior: "smooth",
       });
     }
   };
@@ -90,7 +96,7 @@ export default function SidebarFooter({
         className="hidden md:flex mt-4 hover:-translate-y-0.5 uppercase glow-yellow shrink-0"
       >
         <Icon name="calculate" />
-        {t('calculate')}
+        {t("calculate")}
       </Button>
 
       <div className="md:hidden mt-4 pt-4 border-t border-endfield-gray-light space-y-3">
@@ -103,7 +109,7 @@ export default function SidebarFooter({
           className="w-full h-10 bg-endfield-gray border border-endfield-gray-light hover:border-endfield-yellow transition-colors flex items-center justify-center gap-2 text-endfield-text-light hover:text-endfield-yellow"
         >
           <Icon name="help_center" />
-          <span className="text-sm">{t('qa')}</span>
+          <span className="text-sm">{t("qa")}</span>
         </button>
         <button
           type="button"
@@ -114,33 +120,33 @@ export default function SidebarFooter({
           className="w-full h-10 bg-endfield-gray border border-endfield-gray-light hover:border-endfield-yellow transition-colors flex items-center justify-center gap-2 text-endfield-text-light hover:text-endfield-yellow"
         >
           <Icon name="policy" />
-          <span className="text-sm">{t('privacyPolicyDetails')}</span>
+          <span className="text-sm">{t("privacyPolicyDetails")}</span>
         </button>
         <button
           type="button"
           onClick={() => {
-            onOpenAnnouncement?.('announcement');
+            onOpenAnnouncement?.("announcement");
             onClose?.();
           }}
           className="relative w-full h-10 bg-endfield-gray border border-endfield-gray-light hover:border-endfield-yellow transition-colors flex items-center justify-center gap-2 text-endfield-text-light hover:text-endfield-yellow"
         >
           <Icon name="campaign" />
-          <span className="text-sm">{t('announcement')}</span>
+          <span className="text-sm">{t("announcement")}</span>
           {hasUnreadAnnouncementOrChangelog() && <UnreadDot />}
         </button>
-        {locale === 'zh' && (
+        {locale === "zh" && (
           <a
-            href="https://qm.qq.com/q/zL6wp3emTQ"
+            href={SITE_CONFIG.qqGroupUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full h-10 bg-endfield-gray border border-endfield-gray-light hover:border-endfield-yellow transition-colors flex items-center justify-center gap-2 text-endfield-text-light hover:text-endfield-yellow"
           >
             <Icon name="group" />
-            <span className="text-sm">{t('joinQQGroup')}</span>
+            <span className="text-sm">{t("joinQQGroup")}</span>
           </a>
         )}
         <a
-          href="https://github.com/djkcyl/D.I.G.E."
+          href={SITE_CONFIG.repoUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="w-full h-10 bg-endfield-gray border border-endfield-gray-light hover:border-endfield-yellow transition-colors flex items-center justify-center gap-2 text-endfield-text-light hover:text-endfield-yellow"
@@ -155,7 +161,7 @@ export default function SidebarFooter({
             className="w-full h-10 bg-endfield-gray border border-endfield-gray-light hover:border-endfield-yellow transition-colors flex items-center justify-center gap-2 text-sm text-endfield-text-light"
           >
             <Icon name="language" />
-            <span>{currentLang?.nativeName || ''}</span>
+            <span>{currentLang?.nativeName || ""}</span>
           </button>
           {showLangMenu && (
             <div className="absolute left-0 right-0 bottom-full mb-1 bg-endfield-gray border border-endfield-gray-light z-50">
@@ -168,7 +174,9 @@ export default function SidebarFooter({
                     setShowLangMenu(false);
                   }}
                   className={`w-full px-3 py-2 text-left text-sm hover:bg-endfield-gray-light transition-colors ${
-                    locale === lang.code ? 'text-endfield-yellow' : 'text-endfield-text-light'
+                    locale === lang.code
+                      ? "text-endfield-yellow"
+                      : "text-endfield-text-light"
                   }`}
                 >
                   {lang.nativeName}
@@ -182,7 +190,9 @@ export default function SidebarFooter({
       {scrollHintMounted && (
         <div
           className={`hidden md:flex absolute bottom-0 left-0 right-0 h-20 bg-linear-to-t from-endfield-dark from-40% to-transparent items-end justify-center pb-3 pointer-events-none transition-all duration-300 ease-out ${
-            scrollHintVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            scrollHintVisible
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-4"
           }`}
         >
           <button
@@ -191,7 +201,7 @@ export default function SidebarFooter({
             className="pointer-events-auto px-4 py-1.5 bg-endfield-yellow/15 border border-endfield-yellow/40 hover:bg-endfield-yellow/25 transition-colors flex items-center gap-1.5 text-xs text-endfield-yellow tracking-wider"
           >
             <Icon name="keyboard_double_arrow_down" />
-            {t('scrollToCalculate')}
+            {t("scrollToCalculate")}
           </button>
         </div>
       )}
