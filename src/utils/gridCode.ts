@@ -34,13 +34,14 @@ export const FUEL_TO_CODE: Record<string, string> = {
   valleyHigh: "VH",
   wulingLow: "WL",
   wulingMid: "WM",
+  wulingHigh: "WH",
   customPrimary: "CP",
   customSecondary: "CS",
   none: "NO",
 };
 
 export const CODE_TO_FUEL: Record<string, string> = Object.fromEntries(
-  Object.entries(FUEL_TO_CODE).map(([id, code]) => [code, id])
+  Object.entries(FUEL_TO_CODE).map(([id, code]) => [code, id]),
 );
 
 /** 多燃料模式 1 字母 */
@@ -142,10 +143,7 @@ export function buildGridCodeHead(params: ShareParams): string | null {
   const power = clampPowerForHead(params.targetPower);
   const region = resolveRegionCode(params);
   const primary = resolveFuelCode(params.primaryFuelId, "WM");
-  const secondary = resolveFuelCode(
-    params.secondaryFuelId ?? "none",
-    "NO"
-  );
+  const secondary = resolveFuelCode(params.secondaryFuelId ?? "none", "NO");
   const mode = resolveModeCode(params);
   return `${GRID_CODE_MAGIC}${region}${power}${primary}${secondary}${mode}`;
 }
@@ -171,8 +169,15 @@ export function parseGridCode(raw: string): GridCodeParseResult | null {
   const m = GRID_CODE_RE.exec(s);
   if (!m) return null;
 
-  const [, regionCode, powerStr, primaryCode, secondaryCode, modeCode, payload] =
-    m;
+  const [
+    ,
+    regionCode,
+    powerStr,
+    primaryCode,
+    secondaryCode,
+    modeCode,
+    payload,
+  ] = m;
 
   const params = decodeShareParams(payload);
   if (!params) return null;
@@ -182,7 +187,8 @@ export function parseGridCode(raw: string): GridCodeParseResult | null {
   const prefixMismatch = Boolean(expectedHead && expectedHead !== declaredHead);
 
   const actualPower =
-    typeof params.targetPower === "number" && Number.isFinite(params.targetPower)
+    typeof params.targetPower === "number" &&
+    Number.isFinite(params.targetPower)
       ? params.targetPower
       : undefined;
   const declaredPower = Number(powerStr);
@@ -201,7 +207,11 @@ function tryExtractTokenFromUrl(text: string): string | null {
   const s = text.trim();
   try {
     // 绝对 URL
-    if (/^https?:\/\//i.test(s) || s.includes("?") || s.includes(`${SHARE_PARAM_KEY}=`)) {
+    if (
+      /^https?:\/\//i.test(s) ||
+      s.includes("?") ||
+      s.includes(`${SHARE_PARAM_KEY}=`)
+    ) {
       let url: URL | null = null;
       try {
         url = new URL(s);
@@ -250,7 +260,10 @@ export function parseImportInput(raw: string): ImportParseResult | null {
   // 3) 裸 token（仅字母）
   const tokenCandidate = compact.replace(/[^A-Za-z]/g, "");
   // 若整段就是 Base52
-  if (/^[A-Za-z]+$/.test(compact) && !compact.toUpperCase().startsWith(GRID_CODE_MAGIC)) {
+  if (
+    /^[A-Za-z]+$/.test(compact) &&
+    !compact.toUpperCase().startsWith(GRID_CODE_MAGIC)
+  ) {
     const params = decodeShareParams(compact);
     if (params) {
       return { kind: "token", params, prefixMismatch: false, code: compact };
@@ -258,7 +271,12 @@ export function parseImportInput(raw: string): ImportParseResult | null {
   } else if (tokenCandidate && tokenCandidate !== compact) {
     const params = decodeShareParams(tokenCandidate);
     if (params) {
-      return { kind: "token", params, prefixMismatch: false, code: tokenCandidate };
+      return {
+        kind: "token",
+        params,
+        prefixMismatch: false,
+        code: tokenCandidate,
+      };
     }
   }
 

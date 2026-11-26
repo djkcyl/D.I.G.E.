@@ -140,12 +140,30 @@ export const FUELS: Record<string, Fuel> = {
     id: "customSecondary",
     ...CUSTOM_FUEL_BASE,
   },
+  // ⚠️ 只能在末尾追加：shareParams 用「数组下标」编码燃料（5 bit）。
+  // 插到中间会让老分享码静默解成别的燃料；UI 顺序见下方 FUEL_DISPLAY_ORDER。
+  wulingHigh: {
+    id: "wulingHigh",
+    name: {
+      en: "HC Wuling Battery",
+      zh: "高容武陵电池",
+      ja: "大容量武陵バッテリー",
+      ko: "대용량무릉배터리",
+      ru: "Батарея ВЕ Улина",
+      fr: "Batterie Wuling (haute)",
+      de: "HK Wuling-Batterie",
+      id: "Baterai KT Wuling",
+    },
+    power: 6400,
+    burnTime: 40,
+    image: "/fuels/wulingHigh.webp",
+  },
 };
 
 // 根据覆盖值解析燃料
 export function resolveFuel(
   fuelId: string,
-  overrides?: Record<string, { power?: number; burnTime?: number }>
+  overrides?: Record<string, { power?: number; burnTime?: number }>,
 ): Fuel | undefined {
   const base = FUELS[fuelId];
   if (!base) return undefined;
@@ -164,7 +182,7 @@ export function isCustomFuel(fuelId: string): boolean {
 
 // 燃料选项列表（用于下拉菜单）
 export const FUEL_OPTIONS = Object.values(FUELS).filter(
-  (f) => f.id !== "customSecondary"
+  (f) => f.id !== "customSecondary",
 );
 
 // 副燃料选项（包含"无"）
@@ -197,9 +215,54 @@ export const SECONDARY_FUEL_OPTIONS: Array<
   ...Object.values(FUELS).filter((f) => f.id !== "customPrimary"),
 ];
 
+/**
+ * 燃料下拉显示顺序（仅 UI 用）。
+ *
+ * 与 FUELS 定义顺序刻意解耦：
+ * - FUELS 顺序 = 分享码/电网码的编码下标，只允许末尾追加；
+ * - 本数组顺序 = 人看到的档位顺序（源矿 → 谷地低中高 → 武陵低中高 → 自定义）。
+ *
+ * 新增燃料：先在 FUELS 末尾追加，再插到本数组想要的位置。
+ */
+export const FUEL_DISPLAY_ORDER: readonly string[] = [
+  "none",
+  "ore",
+  "valleyLow",
+  "valleyMid",
+  "valleyHigh",
+  "wulingLow",
+  "wulingMid",
+  "wulingHigh",
+  "customPrimary",
+  "customSecondary",
+];
+
+/** 按 FUEL_DISPLAY_ORDER 排序；未登记的燃料排最后，保持原有先后 */
+function applyFuelDisplayOrder<T extends { id: string }>(options: T[]): T[] {
+  const rank = new Map(FUEL_DISPLAY_ORDER.map((id, index) => [id, index]));
+  return options
+    .map((option, index) => ({ option, index }))
+    .sort((a, b) => {
+      const rankA = rank.get(a.option.id) ?? Number.MAX_SAFE_INTEGER;
+      const rankB = rank.get(b.option.id) ?? Number.MAX_SAFE_INTEGER;
+      if (rankA !== rankB) return rankA - rankB;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.option);
+}
+
+/** 主燃料下拉显示序列（编码仍以 FUEL_OPTIONS 为准） */
+export const FUEL_OPTIONS_DISPLAY = applyFuelDisplayOrder(FUEL_OPTIONS);
+
+/** 主/副燃料下拉显示序列（含"无"） */
+export const SECONDARY_FUEL_OPTIONS_DISPLAY = applyFuelDisplayOrder(
+  SECONDARY_FUEL_OPTIONS,
+);
+
 // 参数范围限制（用于 UI 滑块、分享编码等）
 export const PARAM_LIMITS = {
-  MAX_TARGET_POWER: 32767,
+  /** 目标功率上限；旧分享码 15 bit 槽上限 32767，超出的值走尾部扩展字段 */
+  MAX_TARGET_POWER: 65535,
   MAX_BURN_TIME: 511,
   MAX_MAX_WASTE: 4095,
   MAX_BATTERY_PERCENT: 100,
@@ -230,7 +293,7 @@ export function getFullBeltPower(fuel: Fuel): number {
 export function getOscillatingPower(
   fuel: Fuel,
   denominator: number,
-  baseInterval: number = CONSTANTS.BELT_INTERVAL
+  baseInterval: number = CONSTANTS.BELT_INTERVAL,
 ): number {
   const inputInterval = baseInterval * denominator;
   if (inputInterval <= fuel.burnTime) {
@@ -245,7 +308,7 @@ export function getOscillatingPower(
 // 发电机数量 = 传送带速率 / 消耗速率 = BELT_SPEED * 燃烧时间
 export function getGeneratorsPerBelt(
   fuel: Fuel,
-  inputSpeed: number = CONSTANTS.BELT_SPEED
+  inputSpeed: number = CONSTANTS.BELT_SPEED,
 ): number {
   return inputSpeed * fuel.burnTime;
 }

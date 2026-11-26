@@ -16,7 +16,7 @@ const VALLEY_LIMITER_FUELS = new Set([
   "valleyHigh",
 ]);
 
-const WULING_BATTERY_FUELS = new Set(["wulingLow", "wulingMid"]);
+const WULING_BATTERY_FUELS = new Set(["wulingLow", "wulingMid", "wulingHigh"]);
 
 /**
  * 将未知输入规范为有效建设地区。
@@ -42,7 +42,7 @@ export function normalizeFactoryRegion(value: unknown): FactoryRegion {
  */
 export function isFuelLimiterSupported(
   fuelId: string,
-  region: FactoryRegion | string = DEFAULT_FACTORY_REGION
+  region: FactoryRegion | string = DEFAULT_FACTORY_REGION,
 ): boolean {
   const resolvedRegion = normalizeFactoryRegion(region);
   if (resolvedRegion === "free" || resolvedRegion === "wuling") {
@@ -66,7 +66,7 @@ export function isFuelLimiterSupported(
  */
 export function shouldShowWulingCrossRegionLimiterHint(
   fuelId: string,
-  region: FactoryRegion | string = DEFAULT_FACTORY_REGION
+  region: FactoryRegion | string = DEFAULT_FACTORY_REGION,
 ): boolean {
   if (!fuelId || fuelId === "none") {
     return false;
