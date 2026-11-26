@@ -1,6 +1,6 @@
-import ExpandableCard from '../../ui/ExpandableCard';
+import ExpandableCard from "../../ui/ExpandableCard";
 
-const ListStyle = 'list-disc list-inside space-y-1 text-endfield-text';
+const ListStyle = "list-disc list-inside space-y-1 text-endfield-text";
 
 interface ChangelogSection {
   version?: string;

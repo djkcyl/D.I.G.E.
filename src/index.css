@@ -135,7 +135,8 @@ button {
 
 /* Main canvas yellow wash — opacity follows --ef-radial-opacity */
 .dige-main-field {
-  background-image: radial-gradient(
+  background-image:
+    radial-gradient(
       circle at 85% 20%,
       rgba(255, 250, 0, var(--ef-radial-opacity)),
       transparent 40%
@@ -169,7 +170,9 @@ button {
 
 /* Yellow glow effect */
 .glow-yellow {
-  box-shadow: 0 0 20px rgba(255, 250, 0, 0.3), 0 0 40px rgba(255, 250, 0, 0.1);
+  box-shadow:
+    0 0 20px rgba(255, 250, 0, 0.3),
+    0 0 40px rgba(255, 250, 0, 0.1);
 }
 
 /* Input styling */

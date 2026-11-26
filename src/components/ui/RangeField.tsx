@@ -23,7 +23,7 @@ export default function RangeField({
   ariaLabel,
   rightSlot = null,
   ticks,
-  className = 'space-y-2',
+  className = "space-y-2",
 }: RangeFieldProps) {
   return (
     <div className={className}>

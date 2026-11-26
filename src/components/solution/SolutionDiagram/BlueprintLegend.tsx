@@ -1,4 +1,4 @@
-import LegendItem from './LegendItem';
+import LegendItem from "./LegendItem";
 
 function BlueprintSpriteMarker({ src }: { src: string }) {
   return (
@@ -8,7 +8,7 @@ function BlueprintSpriteMarker({ src }: { src: string }) {
         alt=""
         draggable={false}
         className="w-full h-full object-contain pointer-events-none"
-        style={{ transform: 'rotate(-90deg)' }}
+        style={{ transform: "rotate(-90deg)" }}
       />
     </div>
   );
@@ -30,16 +30,29 @@ export default function BlueprintLegend({ t }: BlueprintLegendProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-endfield-text-light">
       <LegendItem
-        marker={<BlueprintSpriteMarker src="/svg/bg_logistic_log_splitter.png" />}
-        label={t('legendBlueprintS')}
+        marker={
+          <BlueprintSpriteMarker src="/svg/bg_logistic_log_splitter.png" />
+        }
+        label={t("legendBlueprintS")}
       />
       <LegendItem
-        marker={<BlueprintSpriteMarker src="/svg/bg_logistic_log_converger.png" />}
-        label={t('legendBlueprintM')}
+        marker={
+          <BlueprintSpriteMarker src="/svg/bg_logistic_log_converger.png" />
+        }
+        label={t("legendBlueprintM")}
       />
-      <LegendItem marker={<BlueprintLetterMarker value="I" />} label={t('legendBlueprintI')} />
-      <LegendItem marker={<BlueprintLetterMarker value="R" />} label={t('legendBlueprintR')} />
-      <LegendItem marker={<BlueprintLetterMarker value="T" />} label={t('legendBlueprintT')} />
+      <LegendItem
+        marker={<BlueprintLetterMarker value="I" />}
+        label={t("legendBlueprintI")}
+      />
+      <LegendItem
+        marker={<BlueprintLetterMarker value="R" />}
+        label={t("legendBlueprintR")}
+      />
+      <LegendItem
+        marker={<BlueprintLetterMarker value="T" />}
+        label={t("legendBlueprintT")}
+      />
     </div>
   );
 }

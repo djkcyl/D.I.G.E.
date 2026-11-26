@@ -1,4 +1,4 @@
-import { registerSW } from 'virtual:pwa-register';
+import { registerSW } from "virtual:pwa-register";
 
 const UPDATE_CHECK_INTERVAL = 60 * 60 * 1000; // check every 1 hour
 
