@@ -26,8 +26,8 @@ export default function ErrorState({
             {t("diagSuggestionsHeader")}
           </p>
           <ul className="list-disc pl-5 space-y-1">
-            {diagnosis.secondaryHints.map((hint, i) => (
-              <li key={i}>{hint}</li>
+            {diagnosis.secondaryHints.map((hint) => (
+              <li key={hint}>{hint}</li>
             ))}
           </ul>
         </div>

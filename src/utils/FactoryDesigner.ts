@@ -12,24 +12,23 @@ import {
   SEARCH_MAX_WASTE,
   type SudokuDecisionMatrix,
 } from "../types/matrix";
-import { buildSudokuDecisionMatrix } from "./decisionMatrix";
 import type { Fuel } from "./constants";
 import {
-  buildBranchLimiterOptions,
-  getBeltThroughput,
-  getEffectiveInput,
-  type BranchLimiterPlan,
-} from "./inputRate";
-import {
-  analyzeSplitterComplexity,
   CONSTANTS,
   DEFAULT_INPUT_SOURCE_ID,
   generateValidDenominators,
-  getOscillatingPower,
   INPUT_SOURCES,
   PARAM_LIMITS,
   resolveFuel,
 } from "./constants";
+import { buildSudokuDecisionMatrix } from "./decisionMatrix";
+import {
+  type BranchLimiterPlan,
+  buildBranchLimiterOptions,
+  getBeltThroughput,
+  getEffectiveInput,
+} from "./inputRate";
+import { DEFAULT_DEVICE_LIMIT, poolPowerForRate } from "./oscBudget";
 import {
   isFuelLimiterSupported,
   normalizeFactoryRegion,
@@ -45,9 +44,6 @@ const WARMUP_CYCLES = 2;
  * when sparse high-power fuels yield enormous multi-branch LCMs (EDGE-01).
  */
 const MAX_SIMULATION_DURATION = 1200;
-
-/** @deprecated alias — keep name for any external references */
-const MAX_SIMULATION_PERIOD = MAX_SIMULATION_DURATION;
 
 /**
  * Theory-stage prune: single-branch feed interval above this (seconds) cannot
@@ -74,7 +70,7 @@ const PART_FUNCTION = {
 function createPart(
   partId: string,
   face: string | null,
-  partFunction: string | null = null
+  partFunction: string | null = null,
 ): Record<string, unknown> {
   if (partFunction) {
     const part: Record<string, unknown> = { partId, function: partFunction };
@@ -84,14 +80,14 @@ function createPart(
   return { partId, face };
 }
 
-function buildBranchBlueprint(
+export function buildBranchBlueprint(
   threeWay: number,
   twoWay: number,
-  excludeBelt: boolean = false
+  excludeBelt: boolean = false,
 ): (Record<string, unknown> | null)[][] {
   const totalColumns = 1 + threeWay + twoWay + 1;
   const grid = Array.from({ length: 5 }, () =>
-    Array(totalColumns).fill(null)
+    Array(totalColumns).fill(null),
   ) as (Record<string, unknown> | null)[][];
 
   // Row 3: Input -> splitters -> thermal bank
@@ -217,19 +213,34 @@ function buildUnifiedBOM(
     denominator?: number;
   }> | null,
   /** 母带间隔，用于 branchInterval fallback */
-  inputIntervalForBom: number = 2
+  inputIntervalForBom: number = 2,
+  /** 自定义震荡热能池：按燃料汇总的满速带与余量震荡 */
+  poolStats?: Map<
+    string,
+    {
+      bandCount: number;
+      bandWatt: number;
+      oscRatePerMin: number;
+      oscWatt: number;
+    }
+  >,
 ): UnifiedFuelBOMItem[] {
   const fuelIdSet = new Set<string>();
   fuelIdSet.add(primaryFuel.id);
   if (secondaryFuel && secondaryFuel.id !== "none") {
     fuelIdSet.add(secondaryFuel.id);
   }
-  baseDetails.manualLines.forEach((l) => fuelIdSet.add(l.fuel.id));
+  for (const line of baseDetails.manualLines) {
+    fuelIdSet.add(line.fuel.id);
+  }
   if (oscFuel) fuelIdSet.add(oscFuel.id);
   if (oscBranches) {
     for (const b of oscBranches) {
       if (b.fuelId) fuelIdSet.add(b.fuelId);
     }
+  }
+  if (poolStats) {
+    for (const fuelId of poolStats.keys()) fuelIdSet.add(fuelId);
   }
 
   // 按燃料聚合震荡速率与功率
@@ -249,7 +260,7 @@ function buildUnifiedBOM(
       oscRateByFuel.set(fid, (oscRateByFuel.get(fid) || 0) + ratePerSec);
       oscPowerByFuel.set(
         fid,
-        (oscPowerByFuel.get(fid) || 0) + (branch.power ?? 0)
+        (oscPowerByFuel.get(fid) || 0) + (branch.power ?? 0),
       );
     }
   } else if (oscFuel && oscRatePerSec > 0) {
@@ -291,16 +302,37 @@ function buildUnifiedBOM(
       }
     }
 
-    const totalRatePerMin = baseRatePerMin + oscRatePerMin;
+    // 自定义震荡热能池：满速带按满载计入产能（不省料），余量震荡按震荡计入
+    const pool = poolStats?.get(fuelId);
+    const poolBandCount = pool?.bandCount ?? 0;
+    const poolOscRatePerMin = pool?.oscRatePerMin ?? 0;
+    let poolOscGenCount = 0;
+    if (poolOscRatePerMin > 0 && fuel.power > 0) {
+      const poolOscPower = pool?.oscWatt ?? 0;
+      poolOscGenCount = Math.max(
+        1,
+        Math.ceil(
+          (poolOscPower > 0 ? poolOscPower : poolOscRatePerMin * fuel.power) /
+            fuel.power,
+        ),
+      );
+    }
+
+    const totalRatePerMin =
+      baseRatePerMin +
+      oscRatePerMin +
+      poolBandCount * fullLoadRatePerMin +
+      poolOscRatePerMin;
     const totalRatePerHour = totalRatePerMin * 60;
     const totalRatePerDay = totalRatePerMin * 1440;
 
     // 对照：常驻满载 + 震荡若改为同台数满载供料
     const maxCapacityRatePerMin =
-      (baseCount + oscGenCount) * fullLoadRatePerMin;
+      (baseCount + oscGenCount + poolBandCount + poolOscGenCount) *
+      fullLoadRatePerMin;
     const savedRatePerMin = Math.max(
       0,
-      maxCapacityRatePerMin - totalRatePerMin
+      maxCapacityRatePerMin - totalRatePerMin,
     );
     const savedRatePerDay = savedRatePerMin * 1440;
     const savedPercent =
@@ -308,13 +340,22 @@ function buildUnifiedBOM(
         ? (savedRatePerMin / maxCapacityRatePerMin) * 100
         : 0;
 
-    if (baseCount === 0 && oscRatePerMin <= 0) continue;
+    if (
+      baseCount === 0 &&
+      oscRatePerMin <= 0 &&
+      poolBandCount === 0 &&
+      poolOscRatePerMin <= 0
+    ) {
+      continue;
+    }
 
     bomList.push({
       fuelId: fuel.id,
       fuelName: fuel.name,
       basePoolCount: baseCount,
       baseRatePerMin,
+      poolBandCount,
+      poolOscRatePerMin,
       oscGeneratorCount: oscGenCount,
       oscRatePerMin,
       totalRatePerMin,
@@ -461,7 +502,7 @@ function normalizePhaseOffsetCells(value: unknown): number {
   const rounded = Math.round(numeric);
   return Math.min(
     PARAM_LIMITS.MAX_PHASE_OFFSET_CELLS,
-    Math.max(PARAM_LIMITS.MIN_PHASE_OFFSET_CELLS, rounded)
+    Math.max(PARAM_LIMITS.MIN_PHASE_OFFSET_CELLS, rounded),
   );
 }
 
@@ -599,10 +640,10 @@ class PowerCycleSimulator {
       baseInterval?: number;
       fuel?: Fuel;
     }>,
-    fuel: Fuel
+    fuel: Fuel,
   ): SimulateCycleResult {
     const branchIntervals = oscillatingBranches.map((b) =>
-      this._resolveBranchInterval(b)
+      this._resolveBranchInterval(b),
     );
     // Early prune: any branch with absurd feed interval → battery physics fail
     for (const iv of branchIntervals) {
@@ -628,7 +669,7 @@ class PowerCycleSimulator {
     }, 0);
     const warmupDuration = Math.max(
       period * warmupCycles,
-      maxPhaseOffset + period
+      maxPhaseOffset + period,
     );
     const totalDuration = warmupDuration + period;
     const timelineSize = Math.ceil(totalDuration);
@@ -643,7 +684,7 @@ class PowerCycleSimulator {
 
     const powerTimeline = new Array(timelineSize).fill(0);
     const branchBurnTimeline = oscillatingBranches.map(() =>
-      new Array(timelineSize).fill(0)
+      new Array(timelineSize).fill(0),
     );
 
     for (const [branchIndex, branch] of oscillatingBranches.entries()) {
@@ -652,7 +693,7 @@ class PowerCycleSimulator {
         continue;
       }
       const phaseOffsetCells = normalizePhaseOffsetCells(
-        branch.phaseOffsetCells
+        branch.phaseOffsetCells,
       );
       const branchStartTime = phaseOffsetCells * CONSTANTS.BELT_INTERVAL;
       let lastBurnEnd = 0;
@@ -744,7 +785,7 @@ class PowerCycleSimulator {
       cyclePower.reduce(
         (sum: number, p: number) =>
           sum + (p - (avgPower - baseConfig.totalPower)) ** 2,
-        0
+        0,
       ) / cyclePower.length;
     const waste = avgPower - this.targetPower;
 
@@ -805,6 +846,29 @@ export class FactoryDesigner {
   /** 建设地区：影响准入口限速与燃料兼容性 */
   factoryRegion: FactoryRegion;
   fuelOverrides?: Record<string, { power?: number; burnTime?: number }>;
+  /** 自定义震荡热能池折算出的恒定功率（W），会从目标功率里扣掉 */
+  poolPower: number;
+  /** 自定义震荡热能池占用的设备容量 */
+  poolDeviceCost: number;
+  /** 扣掉池占用后，留给系统震荡分支的设备预算 */
+  deviceBudget: number;
+  /** 自定义震荡热能池的分段功率（供曲线还原方波） */
+  poolSegments: Array<{
+    constant: number;
+    remainderWatt: number;
+    cycle: number;
+    onDuration: number;
+  }>;
+  /** 自定义震荡热能池：按燃料汇总（满速带 / 余量震荡），供燃料 BOM 计算 */
+  poolFuelStats: Map<
+    string,
+    {
+      bandCount: number;
+      bandWatt: number;
+      oscRatePerMin: number;
+      oscWatt: number;
+    }
+  >;
   validDenominators: number[];
   simulator: PowerCycleSimulator;
 
@@ -815,7 +879,7 @@ export class FactoryDesigner {
     this.maxWaste = SEARCH_MAX_WASTE;
     const resolvedPrimary = resolveFuel(
       params.primaryFuelId,
-      params.fuelOverrides
+      params.fuelOverrides,
     );
     if (!resolvedPrimary) {
       throw new Error(`Unknown primary fuel: ${params.primaryFuelId}`);
@@ -854,7 +918,7 @@ export class FactoryDesigner {
         const val = params[key];
         const num = Number(val);
         return normalizePhaseOffsetCells(Number.isFinite(num) ? num : 0);
-      }
+      },
     );
     this.excludeBelt = Boolean(params.excludeBelt ?? true);
     // false/缺省=启用限速求解；true=排除限速（满速）
@@ -865,7 +929,7 @@ export class FactoryDesigner {
             l &&
             typeof l.fuelId === "string" &&
             Number.isFinite(l.count) &&
-            l.count > 0
+            l.count > 0,
         )
       : [];
     // null/undefined → 缺省（旧 floor）；仅显式 true/false 生效
@@ -877,7 +941,50 @@ export class FactoryDesigner {
     this.multiFuelMode = params.multiFuelMode;
     this.factoryRegion = normalizeFactoryRegion(params.factoryRegion);
     this.fuelOverrides = params.fuelOverrides;
-
+    // 自定义震荡热能池：投料量上限 → 满速带 + 余量震荡，功率从目标缺口里扣除
+    this.poolPower = 0;
+    this.poolDeviceCost = 0;
+    this.poolSegments = [];
+    this.poolFuelStats = new Map();
+    for (const poolCfg of params.oscPools ?? []) {
+      if (!poolCfg || poolCfg.enabled === false) continue;
+      if (!poolCfg.fuelId || poolCfg.fuelId === "none") continue;
+      const poolFuel = resolveFuel(poolCfg.fuelId, params.fuelOverrides);
+      if (!poolFuel) continue;
+      const perMin = Number(poolCfg.maxPerMin) || 0;
+      if (!(perMin > 0)) continue;
+      const rated = poolPowerForRate(poolFuel, perMin, {
+        deviceLimit:
+          Math.max(1, Number(poolCfg.deviceLimit) || 0) || DEFAULT_DEVICE_LIMIT,
+      });
+      this.poolPower += rated.watt;
+      this.poolDeviceCost += rated.deviceCost;
+      const cycle =
+        rated.remainderDenominator != null ? 2 * rated.remainderDenominator : 0;
+      this.poolSegments.push({
+        constant: rated.bands.watt,
+        remainderWatt: rated.remainderWatt,
+        cycle,
+        onDuration: cycle > 0 ? Math.min(poolFuel.burnTime, cycle) : 0,
+      });
+      const stat = this.poolFuelStats.get(poolFuel.id) ?? {
+        bandCount: 0,
+        bandWatt: 0,
+        oscRatePerMin: 0,
+        oscWatt: 0,
+      };
+      stat.bandCount += rated.bands.generators;
+      stat.bandWatt += rated.bands.watt;
+      stat.oscRatePerMin += rated.remainderPerMin;
+      stat.oscWatt += rated.remainderWatt;
+      this.poolFuelStats.set(poolFuel.id, stat);
+    }
+    this.poolPower = Math.min(this.poolPower, Number(params.targetPower) || 0);
+    this.deviceBudget = Math.max(0, DEFAULT_DEVICE_LIMIT - this.poolDeviceCost);
+    this.targetPower = Math.max(
+      0,
+      (Number(params.targetPower) || 0) - this.poolPower,
+    );
     this.validDenominators = generateValidDenominators();
     this.simulator = new PowerCycleSimulator({
       targetPower: this.targetPower,
@@ -919,15 +1026,15 @@ export class FactoryDesigner {
     const coveringGenerators = Math.max(
       0,
       Math.ceil(
-        (this.targetPower - CONSTANTS.BASE_POWER) / this.primaryFuel.power
-      )
+        (this.targetPower - CONSTANTS.BASE_POWER) / this.primaryFuel.power,
+      ),
     );
     const windowMaxGenerators = Math.max(
       0,
       Math.floor(
         (this.targetPower + this.maxWaste - CONSTANTS.BASE_POWER) /
-          this.primaryFuel.power
-      )
+          this.primaryFuel.power,
+      ),
     );
     const maxGenerators = Math.max(coveringGenerators, windowMaxGenerators);
     const minGenerators = coveringGenerators;
@@ -1006,7 +1113,7 @@ export class FactoryDesigner {
       manualGenerators += count;
       generatorsByFuelId.set(
         fuel.id,
-        (generatorsByFuelId.get(fuel.id) || 0) + count
+        (generatorsByFuelId.get(fuel.id) || 0) + count,
       );
       if (fuel.burnTime > 0) {
         manualFuelPerSec += count / fuel.burnTime;
@@ -1033,7 +1140,7 @@ export class FactoryDesigner {
         }
         generatorsByFuelId.set(
           this.primaryFuel.id,
-          (generatorsByFuelId.get(this.primaryFuel.id) || 0) + autoBaseCount
+          (generatorsByFuelId.get(this.primaryFuel.id) || 0) + autoBaseCount,
         );
       }
     }
@@ -1083,7 +1190,7 @@ export class FactoryDesigner {
     arr.forEach((v, i) => {
       const subs = this._getCombinationsWithRepetition(
         arr.slice(i),
-        length - 1
+        length - 1,
       );
       subs.forEach((sub) => {
         combinations.push([v, ...sub]);
@@ -1095,7 +1202,7 @@ export class FactoryDesigner {
   calculateOscillatingPlans(
     fuel: Fuel,
     baseConfig: { totalPower: number },
-    isPrimary: boolean
+    isPrimary: boolean,
   ): OscillatingSolutionInput[] {
     if (this._isZeroInputRate()) {
       return [];
@@ -1115,7 +1222,7 @@ export class FactoryDesigner {
       fuel,
       this.inputSource.id,
       this.validDenominators,
-      effectiveExcludeLimiter
+      effectiveExcludeLimiter,
     );
     // 剪枝：单支功率不超过 gap+容差；按硬件成本优先保留，避免组合爆炸
     const maxSinglePower = gap + this.maxWaste + 10;
@@ -1126,9 +1233,11 @@ export class FactoryDesigner {
           o.power <= maxSinglePower &&
           Number.isFinite(o.branchInterval) &&
           o.branchInterval > 0 &&
-          o.branchInterval <= MAX_BRANCH_INTERVAL
+          o.branchInterval <= MAX_BRANCH_INTERVAL &&
+          o.deviceCost <= this.deviceBudget,
       )
       .sort((a, b) => {
+        if (a.deviceCost !== b.deviceCost) return a.deviceCost - b.deviceCost;
         if (a.hardwareCost !== b.hardwareCost)
           return a.hardwareCost - b.hardwareCost;
         return a.power - b.power;
@@ -1150,7 +1259,7 @@ export class FactoryDesigner {
       const optionIndexList = branchOptions.map((_, i) => i);
       const combinations = this._getCombinationsWithRepetition(
         optionIndexList,
-        r
+        r,
       );
 
       for (const comboIdx of combinations) {
@@ -1161,7 +1270,6 @@ export class FactoryDesigner {
         if (theoryWaste < 0 || theoryWaste > this.maxWaste + 10) {
           continue;
         }
-
         const branchConfigs = combo.map((opt, i) => ({
           denominator: opt.denominator,
           localDenominator: opt.localDenominator,
@@ -1184,7 +1292,7 @@ export class FactoryDesigner {
         const result = this.simulator.simulateCycle(
           baseConfig,
           branchConfigs,
-          fuel
+          fuel,
         );
 
         if (
@@ -1195,7 +1303,7 @@ export class FactoryDesigner {
         ) {
           const totalSplitters = combo.reduce(
             (sum, opt) => sum + opt.splitterCount.total,
-            0
+            0,
           );
 
           solutions.push({
@@ -1218,7 +1326,7 @@ export class FactoryDesigner {
               blueprint: buildBranchBlueprint(
                 branchConfig.complexity.threeWay,
                 branchConfig.complexity.twoWay,
-                this.excludeBelt
+                this.excludeBelt,
               ),
             })),
             branchCount: combo.length,
@@ -1247,7 +1355,7 @@ export class FactoryDesigner {
   getPrunedBranchOptions(
     fuel: Fuel,
     gap: number,
-    K: number
+    K: number,
   ): BranchLimiterPlan[] {
     const effectiveExcludeLimiter =
       this.excludeItemGateLimiter ||
@@ -1256,7 +1364,7 @@ export class FactoryDesigner {
       fuel,
       this.inputSource.id,
       this.validDenominators,
-      effectiveExcludeLimiter
+      effectiveExcludeLimiter,
     );
     const maxSinglePower = gap + this.maxWaste + 10;
     const pruned = allBranchOptions
@@ -1266,7 +1374,7 @@ export class FactoryDesigner {
           o.power <= maxSinglePower &&
           Number.isFinite(o.branchInterval) &&
           o.branchInterval > 0 &&
-          o.branchInterval <= MAX_BRANCH_INTERVAL
+          o.branchInterval <= MAX_BRANCH_INTERVAL,
       )
       .sort((a, b) => {
         if (a.hardwareCost !== b.hardwareCost)
@@ -1279,7 +1387,7 @@ export class FactoryDesigner {
   private _optToBranchConfig(
     opt: BranchLimiterPlan,
     index: number,
-    fuel: Fuel
+    fuel: Fuel,
   ) {
     return {
       denominator: opt.denominator,
@@ -1317,11 +1425,11 @@ export class FactoryDesigner {
       complexity?: { total: number; twoWay: number; threeWay: number };
     }>,
     result: SimulateCycleSuccess,
-    primaryFuel: Fuel
+    primaryFuel: Fuel,
   ): OscillatingSolutionInput {
     const totalSplitters = branchConfigs.reduce(
       (sum, b) => sum + (b.splitterCount?.total ?? 0),
-      0
+      0,
     );
     return {
       fuel: primaryFuel,
@@ -1343,7 +1451,7 @@ export class FactoryDesigner {
         blueprint: buildBranchBlueprint(
           branchConfig.complexity?.threeWay ?? 0,
           branchConfig.complexity?.twoWay ?? 0,
-          this.excludeBelt
+          this.excludeBelt,
         ),
       })),
       branchCount: branchConfigs.length,
@@ -1386,13 +1494,13 @@ export class FactoryDesigner {
       if (theoryWaste < 0 || theoryWaste > this.maxWaste + 10) return false;
 
       const branchConfigs = opts.map((opt, i) =>
-        this._optToBranchConfig(opt, i, fuels[i])
+        this._optToBranchConfig(opt, i, fuels[i]),
       );
       simCount += 1;
       const result = this.simulator.simulateCycle(
         baseConfig,
         branchConfigs,
-        primary // fallback; per-branch fuel used inside
+        primary, // fallback; per-branch fuel used inside
       );
       if (
         result.success &&
@@ -1401,7 +1509,7 @@ export class FactoryDesigner {
         result.waste <= this.maxWaste
       ) {
         solutions.push(
-          this.buildMixedSolutionOutput(branchConfigs, result, primary)
+          this.buildMixedSolutionOutput(branchConfigs, result, primary),
         );
       }
       return simCount >= MAX_SIM_CALLS;
@@ -1443,7 +1551,7 @@ export class FactoryDesigner {
               if (
                 tryCombo(
                   [po, sOpts[i], sOpts[j]],
-                  [primary, secondary, secondary]
+                  [primary, secondary, secondary],
                 )
               )
                 break outer3b;
@@ -1466,7 +1574,7 @@ export class FactoryDesigner {
               if (
                 tryCombo(
                   [pOpts[i], pOpts[j], pOpts[k], so],
-                  [primary, primary, primary, secondary]
+                  [primary, primary, primary, secondary],
                 )
               )
                 break outer4a;
@@ -1484,7 +1592,7 @@ export class FactoryDesigner {
                 if (
                   tryCombo(
                     [pOpts[i], pOpts[j], sOpts[a], sOpts[b]],
-                    [primary, primary, secondary, secondary]
+                    [primary, primary, secondary, secondary],
                   )
                 )
                   break outer4b;
@@ -1503,7 +1611,7 @@ export class FactoryDesigner {
                 if (
                   tryCombo(
                     [po, sOpts[i], sOpts[j], sOpts[k]],
-                    [primary, secondary, secondary, secondary]
+                    [primary, secondary, secondary, secondary],
                   )
                 )
                   break outer4c;
@@ -1531,7 +1639,7 @@ export class FactoryDesigner {
           b.limiterSpeed == null || !Number.isFinite(b.limiterSpeed)
             ? "n"
             : String(b.limiterSpeed);
-        return fid + ":" + d + ":" + lim;
+        return `${fid}:${d}:${lim}`;
       })
       .join(",");
 
@@ -1571,7 +1679,11 @@ export class FactoryDesigner {
             0,
             this.primaryFuel,
             this.secondaryFuel,
-            this.fuelOverrides
+            this.fuelOverrides,
+            0,
+            null,
+            this.inputInterval,
+            this.poolFuelStats,
           );
           return [
             buildSolutionOutput({
@@ -1612,7 +1724,11 @@ export class FactoryDesigner {
             0,
             this.primaryFuel,
             this.secondaryFuel,
-            this.fuelOverrides
+            this.fuelOverrides,
+            0,
+            null,
+            this.inputInterval,
+            this.poolFuelStats,
           );
           return buildSolutionOutput({
             baseConfig: directBaseConfig,
@@ -1635,50 +1751,37 @@ export class FactoryDesigner {
     const allOscillatingSolutions: OscillatingSolutionInput[] = [];
     if (baseConfig.totalPower < this.targetPower) {
       const mode = this.multiFuelMode ?? "auto";
-      const hasSecondary = Boolean(this.secondaryFuel);
-
-      if (mode === "primaryOnly" || !hasSecondary) {
+      const secondary = this.secondaryFuel;
+      if (mode === "primaryOnly" || !secondary) {
         allOscillatingSolutions.push(
-          ...this.calculateOscillatingPlans(this.primaryFuel, baseConfig, true)
+          ...this.calculateOscillatingPlans(this.primaryFuel, baseConfig, true),
         );
       } else if (mode === "secondaryOnly") {
         allOscillatingSolutions.push(
-          ...this.calculateOscillatingPlans(
-            this.secondaryFuel!,
-            baseConfig,
-            false
-          )
+          ...this.calculateOscillatingPlans(secondary, baseConfig, false),
         );
       } else if (mode === "mixed") {
         allOscillatingSolutions.push(
-          ...this.calculateMixedOscillatingPlans(baseConfig)
+          ...this.calculateMixedOscillatingPlans(baseConfig),
         );
       } else if (mode === "legacy") {
         // 主+副各自单燃料全枚举，不跑混合
         allOscillatingSolutions.push(
-          ...this.calculateOscillatingPlans(this.primaryFuel, baseConfig, true)
+          ...this.calculateOscillatingPlans(this.primaryFuel, baseConfig, true),
         );
         allOscillatingSolutions.push(
-          ...this.calculateOscillatingPlans(
-            this.secondaryFuel!,
-            baseConfig,
-            false
-          )
+          ...this.calculateOscillatingPlans(secondary, baseConfig, false),
         );
       } else {
         // auto（默认）：主 + 副 + 混合联合竞争
         allOscillatingSolutions.push(
-          ...this.calculateOscillatingPlans(this.primaryFuel, baseConfig, true)
+          ...this.calculateOscillatingPlans(this.primaryFuel, baseConfig, true),
         );
         allOscillatingSolutions.push(
-          ...this.calculateOscillatingPlans(
-            this.secondaryFuel!,
-            baseConfig,
-            false
-          )
+          ...this.calculateOscillatingPlans(secondary, baseConfig, false),
         );
         allOscillatingSolutions.push(
-          ...this.calculateMixedOscillatingPlans(baseConfig)
+          ...this.calculateMixedOscillatingPlans(baseConfig),
         );
       }
     }
@@ -1704,7 +1807,7 @@ export class FactoryDesigner {
                 denominator: number;
                 branchInterval?: number;
                 localDenominator?: number;
-              }
+              },
             ) =>
               (() => {
                 const branchInterval =
@@ -1723,7 +1826,7 @@ export class FactoryDesigner {
                 }
                 return sum + 1 / branchInterval;
               })(),
-            0
+            0,
           )
         : 0;
 
@@ -1731,11 +1834,11 @@ export class FactoryDesigner {
         .map((b) => b.limiterSpeed)
         .filter((v): v is number => v != null && Number.isFinite(v));
       const anyLimited = (solution.branches || []).some(
-        (b) => b.requiresLimiter
+        (b) => b.requiresLimiter,
       );
       const oscAvgPower = (solution.branches || []).reduce(
         (sum, branch) => sum + (branch.power ?? 0),
-        0
+        0,
       );
       const fuelBOM = buildUnifiedBOM(
         layeredBaseDetails,
@@ -1746,7 +1849,8 @@ export class FactoryDesigner {
         this.fuelOverrides,
         oscAvgPower,
         solution.branches,
-        this.inputInterval
+        this.inputInterval,
+        this.poolFuelStats,
       );
       outputs.push(
         buildSolutionOutput({
@@ -1759,8 +1863,8 @@ export class FactoryDesigner {
             branchLimits.length === 1
               ? branchLimits[0]
               : anyLimited
-              ? branchLimits[0] ?? null
-              : null,
+                ? (branchLimits[0] ?? null)
+                : null,
           isRateLimited: anyLimited,
           excludeBelt: this.excludeBelt,
           batteryCapacity: this.batteryCapacity,
@@ -1769,11 +1873,26 @@ export class FactoryDesigner {
           oscillatingFuelPerSec,
           baseDetails: layeredBaseDetails,
           fuelBOM,
-        })
+        }),
       );
     }
 
     return outputs;
+  }
+
+  /** 自定义震荡热能池的合并周期（各段周期的最小公倍数，封顶 600s） */
+  private _poolCyclePeriod(): number {
+    const cycles = this.poolSegments
+      .map((seg) => seg.cycle)
+      .filter((c) => Number.isFinite(c) && c > 1);
+    if (cycles.length === 0) return 0;
+    const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+    let lcm = cycles[0];
+    for (let i = 1; i < cycles.length; i += 1) {
+      lcm = (lcm * cycles[i]) / gcd(lcm, cycles[i]);
+      if (lcm > 600) return 600;
+    }
+    return Math.round(lcm);
   }
 
   private _buildOutputSignature(solution: SolutionResult): string {
@@ -1789,7 +1908,7 @@ export class FactoryDesigner {
           b.limiterSpeed == null || !Number.isFinite(b.limiterSpeed)
             ? "n"
             : String(b.limiterSpeed);
-        return fid + ":" + b.denominator + ":" + lim;
+        return `${fid}:${b.denominator}:${lim}`;
       })
       .join(",");
     return [
@@ -1818,6 +1937,71 @@ export class FactoryDesigner {
       if (seenSignatures.has(signature)) continue;
       seenSignatures.add(signature);
       merged.push(sol);
+    }
+
+    // 自定义震荡热能池的功率已在目标里扣除，这里加回展示值，waste 口径保持不变
+    if (this.poolPower > 0) {
+      const poolAt = (seconds: number): number =>
+        this.poolSegments.reduce((sum, seg) => {
+          const on =
+            seg.cycle > 0 && seconds % seg.cycle < seg.onDuration
+              ? seg.remainderWatt
+              : 0;
+          return sum + seg.constant + on;
+        }, 0);
+      const cyclePeriod = this._poolCyclePeriod();
+      // 原始目标（未扣池功率），用于合成纯常驻 + 池方案的曲线
+      const originalTarget = this.targetPower + this.poolPower;
+
+      for (const sol of merged) {
+        sol.avgPower += this.poolPower;
+        const isPureBase = !sol.oscillating || sol.oscillating.length === 0;
+
+        if (isPureBase && cyclePeriod > 1) {
+          // 纯常驻方案本身没有周期，用池的周期展开一条真实曲线
+          const len = cyclePeriod + 1;
+          const basePower = sol.baseConfig.totalPower;
+          const poolSeries: number[] = [];
+          const powerSeries: number[] = [];
+          const batterySeries: number[] = [];
+          let battery = this.batteryCapacity;
+          let minBattery = battery;
+          for (let t = 0; t < len; t += 1) {
+            const poolWatt = poolAt(t);
+            const supply = basePower + poolWatt;
+            poolSeries.push(poolWatt);
+            powerSeries.push(supply);
+            if (t > 0) {
+              battery += supply - originalTarget;
+              if (battery > this.batteryCapacity)
+                battery = this.batteryCapacity;
+              if (battery < 0) battery = 0;
+              if (battery < minBattery) minBattery = battery;
+            }
+            batterySeries.push(battery);
+          }
+          sol.powerLog = powerSeries;
+          sol.poolPowerLog = poolSeries;
+          sol.batteryLog = batterySeries;
+          sol.precisePowerLog = [...powerSeries];
+          sol.preciseBatteryLog = [...batterySeries];
+          sol.period = cyclePeriod;
+          sol.minBattery = minBattery;
+          sol.minBatteryPercent = (minBattery / this.batteryCapacity) * 100;
+          continue;
+        }
+
+        if (Array.isArray(sol.powerLog)) {
+          const poolSeries = sol.powerLog.map((_, i) => poolAt(i));
+          sol.poolPowerLog = poolSeries;
+          sol.powerLog = sol.powerLog.map((v, i) => v + poolSeries[i]);
+        }
+        if (Array.isArray(sol.precisePowerLog)) {
+          sol.precisePowerLog = sol.precisePowerLog.map(
+            (v, i) => v + poolAt(i),
+          );
+        }
+      }
     }
 
     return buildSudokuDecisionMatrix(merged, this.secondaryFuel?.id);

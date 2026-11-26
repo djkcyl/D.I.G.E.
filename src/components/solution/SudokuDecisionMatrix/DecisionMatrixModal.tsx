@@ -52,16 +52,20 @@ export default function DecisionMatrixModal({
 
   const node = (
     <div
-      className="fixed inset-0 z-[60] bg-[var(--ef-scrim)] backdrop-blur-[2px] flex items-center justify-center p-3"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-3"
       role="dialog"
       aria-modal="true"
-      onClick={onClose}
     >
+      <button
+        type="button"
+        aria-label={t("close")}
+        className="absolute inset-0 bg-[var(--ef-scrim)] backdrop-blur-[2px] cursor-default"
+        onClick={onClose}
+      />
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="w-full max-w-[22rem] bg-endfield-gray/90 backdrop-blur-md border border-endfield-yellow/45 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
-        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-[22rem] bg-endfield-gray/90 backdrop-blur-md border border-endfield-yellow/45 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
       >
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="text-sm font-bold text-endfield-text uppercase tracking-widest">

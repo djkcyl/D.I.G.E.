@@ -12,6 +12,29 @@
         "text": "Avancement du développement : nous poursuivons la recherche sur les algorithmes de base et l’optimisation des plans. Les mises à jour concernées seront publiées progressivement."
       },
       {
+        "type": "paragraph",
+        "className": "mb-3 text-endfield-yellow/90",
+        "segments": [
+          {
+            "text": "Ceci est une version maintenue par la communauté de "
+          },
+          {
+            "link": "upstream",
+            "text": "djkcyl/D.I.G.E."
+          },
+          {
+            "text": ", mise à jour pour le jeu 1.7. Les auteurs originaux ont cessé le développement — merci de signaler les problèmes dans les "
+          },
+          {
+            "link": "issues",
+            "text": "Issues de ce dépôt"
+          },
+          {
+            "text": "."
+          }
+        ]
+      },
+      {
         "type": "heading",
         "text": "Fonctionnalités"
       },
@@ -79,9 +102,20 @@
   "changelog": {
     "sections": [
       {
+        "version": "v1.12.0",
+        "title": "Nouveautés v1.12.0",
+        "defaultOpen": true,
+        "items": [
+          "Prise en charge du jeu 1.7 : ajout de la batterie Wuling haute capacité (6400 W / 40 s), utilisable en carburant principal ou secondaire.",
+          "Le projet passe en maintenance communautaire : dépôt, suivi des problèmes et journal des modifications pointent vers le nouveau site, avec une comparaison explicite avec l'original.",
+          "Les liens de partage et les métadonnées du site utilisent le nouveau domaine ; les anciens codes de partage restent valides.",
+          "Ajout des pools thermiques permanents et d'oscillation personnalisés : placez vos générateurs permanents par carburant, ou choisissez une batterie avec un plafond d'objets par minute pour générer l'oscillation ; puissance et consommation sont intégrées aux statistiques."
+        ]
+      },
+      {
         "version": "v1.11.1",
         "title": "v1.11.1 Mises à jour",
-        "defaultOpen": true,
+        "defaultOpen": false,
         "items": [
           "Jeu 1.5 : le solveur cherche automatiquement 1–4 ports de ramassage avec une fenêtre de 1000W et un plancher batterie de 5% — plus besoin de deviner maxWaste / maxBranches / minBattery.",
           "Un seul calcul lance deux pistes : complément auto de base et oscillation pure / base manuelle, puis seaux Pareto à cinq niveaux.",

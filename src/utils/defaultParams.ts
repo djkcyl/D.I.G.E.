@@ -22,4 +22,6 @@ export const DEFAULT_PARAMS: CalcParams = {
   factoryRegion: "free",
   multiFuelMode: "auto",
   autoPlanBasePools: true,
+  /** 自定义震荡池：默认一个空槽，用户按需增删 */
+  oscPools: [{ id: "pool_1", fuelId: "none", enabled: true, deviceLimit: 48 }],
 };

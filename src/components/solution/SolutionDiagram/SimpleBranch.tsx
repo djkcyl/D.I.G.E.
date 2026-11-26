@@ -141,11 +141,11 @@ export default function SimpleBranch({
       const delta = event.clientX - dragState.startClientX;
       const maxScrollLeft = Math.max(
         0,
-        container.scrollWidth - container.clientWidth
+        container.scrollWidth - container.clientWidth,
       );
       const nextScrollLeft = Math.max(
         0,
-        Math.min(maxScrollLeft, dragState.startScrollLeft - delta)
+        Math.min(maxScrollLeft, dragState.startScrollLeft - delta),
       );
       container.scrollLeft = nextScrollLeft;
     };

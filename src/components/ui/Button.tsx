@@ -31,7 +31,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
     children,
     ...props
   },
-  ref
+  ref,
 ) {
   const variantClass =
     VARIANT_CLASS_MAP[variant] || VARIANT_CLASS_MAP.secondary;

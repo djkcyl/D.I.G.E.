@@ -12,6 +12,29 @@
         "text": "Development update: we are continuing to refine core algorithms and optimize plans. Related updates will be released gradually."
       },
       {
+        "type": "paragraph",
+        "className": "mb-3 text-endfield-yellow/90",
+        "segments": [
+          {
+            "text": "This is a community-maintained fork of "
+          },
+          {
+            "link": "upstream",
+            "text": "djkcyl/D.I.G.E."
+          },
+          {
+            "text": ", updated for game 1.7. The original maintainers have stopped working on it — please report issues and ideas in "
+          },
+          {
+            "link": "issues",
+            "text": "this repository's Issues"
+          },
+          {
+            "text": "."
+          }
+        ]
+      },
+      {
         "type": "heading",
         "text": "Features"
       },
@@ -79,9 +102,20 @@
   "changelog": {
     "sections": [
       {
+        "version": "v1.12.0",
+        "title": "What's new in v1.12.0",
+        "defaultOpen": true,
+        "items": [
+          "Game 1.7 support: added the HC Wuling Battery (6400W / 40s) as a selectable primary or secondary fuel.",
+          "The project is now community-maintained: repository, issue tracker and changelog point to the new site, with an explicit comparison against upstream.",
+          "Share links and site metadata moved to the new host; existing share codes keep working.",
+          "Added custom base and custom oscillation thermal pools: arrange base generators per fuel, or pick one battery with an items-per-minute cap and let the tool build the oscillation plan; power and fuel usage are included in the stats."
+        ]
+      },
+      {
         "version": "v1.11.1",
         "title": "v1.11.1 Updates",
-        "defaultOpen": true,
+        "defaultOpen": false,
         "items": [
           "Game 1.5 ready: the solver now auto-searches 1–4 pickup ports with a 1000W waste window and 5% battery floor — no more guessing maxWaste / maxBranches / minBattery.",
           "A single calculate pass runs two tracks: auto base-fill and pure oscillating/manual, then buckets results with five-level Pareto ranking.",

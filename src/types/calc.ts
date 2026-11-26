@@ -19,6 +19,10 @@ export interface UnifiedFuelBOMItem {
   fuelName: FuelName;
   basePoolCount: number;
   baseRatePerMin: number;
+  /** 自定义震荡热能池的满速带台数（满速，不产生节省） */
+  poolBandCount?: number;
+  /** 自定义震荡热能池的余量震荡投料（个/分） */
+  poolOscRatePerMin?: number;
   /** 震荡侧等效满载发生器估算台数（展示用） */
   oscGeneratorCount: number;
   oscRatePerMin: number;
@@ -60,6 +64,22 @@ export type MultiFuelMode =
  */
 export type FactoryRegion = "free" | "valley" | "wuling";
 
+/** 自定义震荡池（单燃料 + 设备预算），可定义多条 */
+export interface OscPoolConfig {
+  /** 唯一 id（用于子标签与拖动排序） */
+  id: string;
+  /** 震荡池电池；none = 空槽（开关关闭时保留配置） */
+  fuelId: string;
+  /** 开关：关闭只是不参与计算，不清空配置 */
+  enabled?: boolean;
+  /** 该池可用的设备容量上限（二分器 3、三分器 5、取货口 1、存货口 1~2、热能池 1） */
+  deviceLimit: number;
+  /** 投料量上限（个/分钟）；满速带 + 余量由程序折算 */
+  maxPerMin?: number;
+  /** 兼容旧字段：期望瓦数（会被折算成投料量上限） */
+  targetWatt?: number;
+}
+
 /** 侧边栏/计算器使用的完整参数 */
 export interface CalcParams {
   targetPower: number;
@@ -90,6 +110,8 @@ export interface CalcParams {
   fuelOverrides?: Record<string, { power?: number; burnTime?: number }>;
   /** 用户手动配置的多燃料常驻行（本阶段不进分享 URL） */
   manualBaseLines?: ManualBaseLine[];
+  /** 自定义震荡池（单燃料 + 设备预算） */
+  oscPools?: OscPoolConfig[];
   /**
    * 是否启用自动整除补齐常驻。
    * - undefined 且无 manualBaseLines：旧默认 floor 逻辑（向后兼容）
@@ -156,6 +178,8 @@ export interface SolutionResult {
   powerLog: number[];
   burnStateLog: number[][];
   preciseBatteryLog: number[];
+  /** 自定义震荡热能池的逐秒功率（与 powerLog 等长） */
+  poolPowerLog?: number[];
   precisePowerLog: number[];
   preciseBurnStateLog: number[][];
   fuelConsumption: {

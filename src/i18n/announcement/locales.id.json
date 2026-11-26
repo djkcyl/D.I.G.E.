@@ -12,6 +12,29 @@
         "text": "Pembaruan pengembangan: kami terus menyempurnakan algoritma inti dan mengoptimalkan perencanaan. Pembaruan terkait akan dirilis secara bertahap."
       },
       {
+        "type": "paragraph",
+        "className": "mb-3 text-endfield-yellow/90",
+        "segments": [
+          {
+            "text": "Ini adalah versi yang dikelola komunitas dari "
+          },
+          {
+            "link": "upstream",
+            "text": "djkcyl/D.I.G.E."
+          },
+          {
+            "text": ", diperbarui untuk game 1.7. Pengembang asli sudah berhenti — laporkan masalah dan saran di "
+          },
+          {
+            "link": "issues",
+            "text": "Issues repositori ini"
+          },
+          {
+            "text": "."
+          }
+        ]
+      },
+      {
         "type": "heading",
         "text": "Fitur"
       },
@@ -79,9 +102,20 @@
   "changelog": {
     "sections": [
       {
+        "version": "v1.12.0",
+        "title": "Yang baru di v1.12.0",
+        "defaultOpen": true,
+        "items": [
+          "Dukungan game 1.7: menambahkan Baterai KT Wuling (6400W / 40s) sebagai bahan bakar utama atau sekunder.",
+          "Proyek kini dikelola komunitas: repositori, pelacak masalah, dan changelog mengarah ke situs baru, dengan perbandingan eksplisit terhadap versi asli.",
+          "Tautan berbagi dan metadata situs pindah ke domain baru; kode berbagi lama tetap berfungsi.",
+          "Menambahkan kumpulan termal dasar dan osilasi kustom: atur generator dasar per bahan bakar, atau pilih satu baterai dengan batas item per menit untuk menyusun osilasi; daya dan konsumsi bahan bakar ikut dihitung."
+        ]
+      },
+      {
         "version": "v1.11.1",
         "title": "Pembaruan v1.11.1",
-        "defaultOpen": true,
+        "defaultOpen": false,
         "items": [
           "Siap game 1.5: solver mencari 1–4 port pengambilan dengan jendela 1000W dan lantai baterai 5% — tidak perlu menebak maxWaste / maxBranches / minBattery.",
           "Satu kalkulasi menjalankan dua jalur: isi otomatis basis dan osilasi murni/manual, lalu ember Pareto lima tingkat.",

@@ -47,7 +47,7 @@ export default function ShareModal({
       selectLinkText(gridCodeRef.current);
     });
     return () => window.cancelAnimationFrame(handle);
-  }, [show, selectLinkText, gridCode]);
+  }, [show, selectLinkText]);
 
   if (!show) return null;
 
@@ -127,7 +127,9 @@ export default function ShareModal({
           </Button>
         </div>
         {!canShare && (
-          <p className="text-xs text-endfield-text/60">{t("shareUnavailable")}</p>
+          <p className="text-xs text-endfield-text/60">
+            {t("shareUnavailable")}
+          </p>
         )}
       </div>
 

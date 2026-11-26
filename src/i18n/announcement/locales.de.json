@@ -12,6 +12,29 @@
         "text": "Entwicklungsstand: Wir arbeiten weiterhin an Kernalgorithmen und der Optimierung der Pläne. Entsprechende Updates werden schrittweise veröffentlicht."
       },
       {
+        "type": "paragraph",
+        "className": "mb-3 text-endfield-yellow/90",
+        "segments": [
+          {
+            "text": "Dies ist eine von der Community gepflegte Version von "
+          },
+          {
+            "link": "upstream",
+            "text": "djkcyl/D.I.G.E."
+          },
+          {
+            "text": ", aktualisiert für Spiel 1.7. Die ursprünglichen Entwickler haben die Arbeit eingestellt — Fehler und Wünsche bitte in den "
+          },
+          {
+            "link": "issues",
+            "text": "Issues dieses Repos"
+          },
+          {
+            "text": " melden."
+          }
+        ]
+      },
+      {
         "type": "heading",
         "text": "Funktionen"
       },
@@ -79,9 +102,20 @@
   "changelog": {
     "sections": [
       {
+        "version": "v1.12.0",
+        "title": "Neuerungen in v1.12.0",
+        "defaultOpen": true,
+        "items": [
+          "Spiel-1.7-Unterstützung: HK Wuling-Batterie (6400 W / 40 s) als Haupt- oder Zweitbrennstoff hinzugefügt.",
+          "Das Projekt wird jetzt von der Community gepflegt: Repository, Issue-Tracker und Changelog zeigen auf die neue Seite, inklusive Vergleich mit dem Original.",
+          "Teilen-Links und Seiten-Metadaten nutzen die neue Domain; bestehende Freigabecodes funktionieren weiter.",
+          "Benutzerdefinierte Grundlast- und Schwingungs-Thermalpools hinzugefügt: Grundlast-Generatoren je Brennstoff frei anordnen oder eine Batterie mit Zufuhr-Obergrenze pro Minute wählen; Leistung und Brennstoffverbrauch werden mitgezählt."
+        ]
+      },
+      {
         "version": "v1.11.1",
         "title": "v1.11.1 Updates",
-        "defaultOpen": true,
+        "defaultOpen": false,
         "items": [
           "Spiel 1.5: Der Solver sucht intern 1–4 Abholpunkte mit 1000W Verlustfenster und 5% Batterie-Untergrenze — maxWaste / maxBranches / minBattery müssen nicht mehr geraten werden.",
           "Ein Berechnungsdurchlauf fährt zwei Spuren: Auto-Basisauffüllung und reine Oszillation/manuelle Basis, danach Fünf-Stufen-Pareto-Buckets.",

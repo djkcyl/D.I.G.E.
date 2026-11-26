@@ -11,7 +11,7 @@ export interface DiagnosisResult {
 
 type TranslateFn = (
   key: string,
-  vars?: Record<string, string | number>
+  vars?: Record<string, string | number>,
 ) => string;
 
 /** 估算当前常驻功率（对齐 M1 calculateBasePower 语义，不含震荡） */
@@ -66,7 +66,7 @@ function hasManualBase(params: CalcParams): boolean {
   return (
     Array.isArray(params.manualBaseLines) &&
     params.manualBaseLines.some(
-      (l) => l && Math.max(0, Math.floor(Number(l.count) || 0)) > 0
+      (l) => l && Math.max(0, Math.floor(Number(l.count) || 0)) > 0,
     )
   );
 }
@@ -92,7 +92,7 @@ function uniqueHints(hints: string[]): string[] {
  */
 export function diagnoseNoSolution(
   params: CalcParams,
-  t: TranslateFn
+  t: TranslateFn,
 ): DiagnosisResult {
   const maxBranches = 4;
   const basePower = estimateBasePower(params);

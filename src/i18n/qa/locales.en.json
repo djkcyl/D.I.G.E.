@@ -51,6 +51,10 @@
     {
       "question": "Why does power go out after I go offline?",
       "answer": "Based on player feedback and testing, the game server may simplify conveyor and conveyor-related device (e.g. logistics bridge, item inlet) calculations when players go offline, causing conveyor-based split routes to stall or stop. We cannot confirm this. We added the \"Exclude conveyors\" option to remove conveyors and related devices from blueprint design. If you experience blackouts or overflow when offline despite normal operation online, try this option."
+    },
+    {
+      "question": "The decision-matrix window was dragged somewhere invisible. What now?",
+      "answer": "Double-click the \"current N branches…\" button at the top to bring the window back to the centre of the screen, or double-click the window's own title bar. Then drag the title bar to reposition it — the position is remembered automatically."
     }
   ]
 }

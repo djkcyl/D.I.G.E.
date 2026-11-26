@@ -1,11 +1,11 @@
-import {
+﻿import {
   Chart as ChartJS,
   type ChartOptions,
-  type Plugin,
   Filler,
   Legend,
   LinearScale,
   LineElement,
+  type Plugin,
   PointElement,
   Title,
   Tooltip,
@@ -50,13 +50,26 @@ ChartJS.register(
   Tooltip,
   Legend,
   Filler,
-  chartBackgroundPlugin
+  chartBackgroundPlugin,
 );
 
 const fontFamily = "Frex Sans GB VF";
 const TARGET_SECONDS_PER_POINT = 4;
 const MAX_CHART_POINTS = 1000;
 const MIN_VISIBLE_SECONDS = TARGET_SECONDS_PER_POINT * 20;
+
+export interface PoolSegment {
+  /** 满速带恒定功率 */
+  constant: number;
+  /** 余量震荡支路功率（燃烧时） */
+  remainderWatt: number;
+  /** 震荡周期（秒） */
+  cycle: number;
+  /** 每个周期内的燃烧时长（秒） */
+  onDuration: number;
+}
+
+export type PoolSegments = PoolSegment[];
 
 export interface SolutionChartProps {
   solution?: {
@@ -66,6 +79,7 @@ export interface SolutionChartProps {
     preciseBatteryLog?: number[];
     precisePowerLog?: number[];
     preciseBurnStateLog?: number[][];
+    poolPowerLog?: number[];
     period?: number;
   };
   targetPower: number;
@@ -73,6 +87,8 @@ export interface SolutionChartProps {
   batteryCapacity?: number;
   hideHoverDetails?: boolean;
   preciseValues?: boolean;
+  /** 自定义震荡热能池的分段功率：常驻部分恒定，震荡部分按周期起伏 */
+  poolSegments?: PoolSegments;
 }
 
 export default function SolutionChart({
@@ -82,6 +98,7 @@ export default function SolutionChart({
   batteryCapacity,
   hideHoverDetails = false,
   preciseValues = false,
+  poolSegments,
 }: SolutionChartProps) {
   const { t } = useI18n();
   const { isLight } = useTheme();
@@ -100,6 +117,7 @@ export default function SolutionChart({
   const {
     batteryData,
     powerData,
+    poolData,
     burnStateData,
     xValues,
     secondsPerPoint,
@@ -118,6 +136,9 @@ export default function SolutionChart({
 
     let batteryData = sourceBatteryLog ? [...sourceBatteryLog] : [];
     let powerData = sourcePowerLog ? [...sourcePowerLog] : [];
+    let poolData = Array.isArray(solution?.poolPowerLog)
+      ? [...(solution?.poolPowerLog as number[])]
+      : [];
     let burnStateData = sourceBurnStateLog
       ? sourceBurnStateLog.map((series) => [...series])
       : [];
@@ -127,6 +148,8 @@ export default function SolutionChart({
     if (batteryData.length === 1) {
       const batteryValue = batteryData[0] ?? 0;
       const powerValue = powerData[0] ?? 0;
+      const poolValue = poolData[0] ?? 0;
+      if (poolData.length === 1) poolData = [poolValue, poolValue];
       batteryData = [batteryValue, batteryValue];
       powerData = [powerValue, powerValue];
       burnStateData = burnStateData.map((series) => {
@@ -145,8 +168,8 @@ export default function SolutionChart({
     const rawSecondsPerPoint = usingPreciseSource
       ? 1
       : rawPeriod > 0 && rawPointCount > 1
-      ? rawPeriod / (rawPointCount - 1)
-      : 1;
+        ? rawPeriod / (rawPointCount - 1)
+        : 1;
 
     let secondsPerPoint = rawSecondsPerPoint;
 
@@ -178,12 +201,21 @@ export default function SolutionChart({
         return rawPowerData[i] ?? 0;
       });
 
+      if (poolData.length > 0) {
+        const rawPoolData = poolData;
+        poolData = Array.from({ length: sampleCount }, (_, sampleIdx) => {
+          const tSec = sampleIdx * TARGET_SECONDS_PER_POINT;
+          const i = getNearestRawIndex(tSec);
+          return rawPoolData[i] ?? 0;
+        });
+      }
+
       burnStateData = rawBurnStateData.map((series) =>
         Array.from({ length: sampleCount }, (_, sampleIdx) => {
           const tSec = sampleIdx * TARGET_SECONDS_PER_POINT;
           const i = getNearestRawIndex(tSec);
           return series[i] ?? 0;
-        })
+        }),
       );
 
       secondsPerPoint = TARGET_SECONDS_PER_POINT;
@@ -196,6 +228,7 @@ export default function SolutionChart({
         i % compactStep === 0 || i === lastIndex;
       batteryData = batteryData.filter(keepCompact);
       powerData = powerData.filter(keepCompact);
+      if (poolData.length > 0) poolData = poolData.filter(keepCompact);
       burnStateData = burnStateData.map((series) => series.filter(keepCompact));
       secondsPerPoint *= compactStep;
     }
@@ -205,7 +238,7 @@ export default function SolutionChart({
     const maxVisibleSeconds = Math.max(0, maxX * secondsPerPoint);
     const minVisibleSeconds = Math.min(
       MIN_VISIBLE_SECONDS,
-      maxVisibleSeconds || MIN_VISIBLE_SECONDS
+      maxVisibleSeconds || MIN_VISIBLE_SECONDS,
     );
     const minVisibleSpanPoints =
       secondsPerPoint > 0
@@ -216,6 +249,7 @@ export default function SolutionChart({
     return {
       batteryData,
       powerData,
+      poolData,
       burnStateData,
       xValues,
       secondsPerPoint,
@@ -227,11 +261,11 @@ export default function SolutionChart({
   const hasData = !!(solution && batteryData.length > 0);
   const toSeconds = useCallback(
     (value: number) => value * secondsPerPoint,
-    [secondsPerPoint]
+    [secondsPerPoint],
   );
   const toIndex = useCallback(
     (value: number) => (secondsPerPoint > 0 ? value / secondsPerPoint : 0),
-    [secondsPerPoint]
+    [secondsPerPoint],
   );
   const clampRange = useCallback(
     (min: number, max: number, minSpanOverride: number | null = null) => {
@@ -268,28 +302,28 @@ export default function SolutionChart({
         max: Math.min(fullMax, nextMax),
       };
     },
-    [maxX, minVisibleSpanPoints]
+    [maxX, minVisibleSpanPoints],
   );
   const isFullRange = useCallback(
     (range: { min: number; max: number }) =>
       Math.abs(range.min) < 1e-3 && Math.abs(range.max - maxX) < 1e-3,
-    [maxX]
+    [maxX],
   );
   const storedSpanPoints = zoomRangeRef.current.isCustom
     ? Math.max(
         0,
-        toIndex(zoomRangeRef.current.max) - toIndex(zoomRangeRef.current.min)
+        toIndex(zoomRangeRef.current.max) - toIndex(zoomRangeRef.current.min),
       )
     : null;
   const renderRange = zoomRangeRef.current.isCustom
     ? clampRange(
         toIndex(zoomRangeRef.current.min),
         toIndex(zoomRangeRef.current.max),
-        storedSpanPoints
+        storedSpanPoints,
       )
     : { min: 0, max: maxX };
   const batteryPercent = batteryData.map((v) =>
-    Math.min(100, Math.max(0, (v / (batteryCapacity || 100000)) * 100))
+    Math.min(100, Math.max(0, (v / (batteryCapacity || 100000)) * 100)),
   );
   const powerPoints = xValues.map((x, i) => ({ x, y: powerData[i] ?? null }));
   const targetPoints = xValues.map((x) => ({ x, y: targetPower }));
@@ -305,7 +339,26 @@ export default function SolutionChart({
     minBatteryThresholdValue === null
       ? t("minBatteryPercent")
       : `${t("minBatteryPercent")} (${minBatteryThresholdValue.toFixed(0)}%)`;
+  const poolTotalWatt =
+    poolSegments?.reduce(
+      (sum, seg) => sum + seg.constant + seg.remainderWatt,
+      0,
+    ) ?? 0;
+  const poolWattAt = useCallback(
+    (seconds: number) => {
+      if (!poolSegments || poolSegments.length === 0) return 0;
+      return poolSegments.reduce((sum, seg) => {
+        const on =
+          seg.cycle > 0 && seconds % seg.cycle < seg.onDuration
+            ? seg.remainderWatt
+            : 0;
+        return sum + seg.constant + on;
+      }, 0);
+    },
+    [poolSegments],
+  );
   const powerLineColor = isLight ? "#D97706" : "#d4ff00";
+  const poolLineColor = isLight ? "#B45309" : "#ffd60a";
   const batteryLineColor = isLight ? "#0891B2" : "#4ecdc4";
   const targetLineColor = isLight ? "#DC2626" : "#ff6b6b";
   const chartCanvasBg = isLight ? CHART_CANVAS_BG_LIGHT : CHART_CANVAS_BG_DARK;
@@ -347,6 +400,24 @@ export default function SolutionChart({
           tension: 0.1,
           yAxisID: "y",
         },
+        ...(poolTotalWatt > 0
+          ? [
+              {
+                label: t("oscPoolPowerLine"),
+                data: xValues.map((x, i) => ({
+                  x,
+                  y: poolData[i] ?? poolWattAt(i * secondsPerPoint),
+                })),
+                borderColor: poolLineColor,
+                borderWidth: 1.2,
+                borderDash: [2, 3],
+                pointRadius: 0,
+                fill: false,
+                stepped: true,
+                yAxisID: "y",
+              },
+            ]
+          : []),
         {
           label: t("targetPowerLine"),
           data: targetPoints,
@@ -396,11 +467,17 @@ export default function SolutionChart({
       burnStateDatasets,
       powerLineColor,
       powerFillColor,
+      poolTotalWatt,
+      poolWattAt,
+      poolData,
+      secondsPerPoint,
+      poolLineColor,
+      xValues,
       targetLineColor,
       batteryLineColor,
       batteryFillColor,
       minBatteryLineColor,
-    ]
+    ],
   );
 
   const options = useMemo(() => {
@@ -568,6 +645,7 @@ export default function SolutionChart({
     chart.update("none");
   }, [maxX, clampRange, isFullRange, toIndex, toSeconds]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Chart.js 是命令式实例，依赖只用于触发主题/数据变更后的重绘
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
@@ -615,7 +693,7 @@ export default function SolutionChart({
       const span = Math.max(1, max - min);
       const nextSpan = Math.max(
         Math.min(minVisibleSpanPoints, maxX || 1),
-        span * factor
+        span * factor,
       );
       const ratio = (centerValue - min) / span;
       const nextMin = centerValue - ratio * nextSpan;
@@ -666,7 +744,7 @@ export default function SolutionChart({
         interactionRef.current.dragging = false;
         interactionRef.current.pinchDistance = Math.hypot(
           a.clientX - b.clientX,
-          a.clientY - b.clientY
+          a.clientY - b.clientY,
         );
       }
     };
@@ -686,7 +764,7 @@ export default function SolutionChart({
         const [a, b] = event.touches;
         const distance = Math.hypot(
           a.clientX - b.clientX,
-          a.clientY - b.clientY
+          a.clientY - b.clientY,
         );
         const centerX = (a.clientX + b.clientX) / 2;
 

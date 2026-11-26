@@ -120,12 +120,12 @@ export function I18nProvider({
       let text = locales[locale]?.[key] || locales.en[key] || key;
       if (vars) {
         for (const [name, value] of Object.entries(vars)) {
-          text = text.split("{{" + name + "}}").join(String(value));
+          text = text.split(`{{${name}}}`).join(String(value));
         }
       }
       return text;
     },
-    [locale]
+    [locale],
   );
 
   const changeLocale = useCallback((newLocale: string) => {

@@ -84,7 +84,7 @@ export default function ProfileToolbar({
           <span className="truncate">
             {isUrlSession
               ? t("profileUrlSession")
-              : active?.name ?? t("noSolutionsTitle")}
+              : (active?.name ?? t("noSolutionsTitle"))}
           </span>
         </span>
         <Icon name={open ? "expand_less" : "expand_more"} />

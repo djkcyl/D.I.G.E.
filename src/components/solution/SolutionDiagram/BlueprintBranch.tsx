@@ -54,7 +54,7 @@ export default function BlueprintBranch({
     if (!el) return;
     const check = () => {
       setCanScroll(
-        el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight
+        el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight,
       );
     };
     check();
@@ -140,7 +140,7 @@ export default function BlueprintBranch({
       handlePanStart(e.clientX, e.clientY);
       e.preventDefault();
     },
-    [handlePanStart]
+    [handlePanStart],
   );
 
   const onTouchMove = useCallback(
@@ -152,7 +152,7 @@ export default function BlueprintBranch({
       if (e.touches.length === 1)
         handlePanMove(e.touches[0].clientX, e.touches[0].clientY);
     },
-    [handlePanMove, handlePanEnd]
+    [handlePanMove, handlePanEnd],
   );
 
   const blueprintRows = blueprint ?? [];
@@ -228,13 +228,13 @@ export default function BlueprintBranch({
                   row.map((part, colIndex) => (
                     <BlueprintCell
                       key={`${rowIndex}-${colIndex}-${String(
-                        part?.partId ?? ""
+                        part?.partId ?? "",
                       )}-${String(part?.face ?? "")}`}
                       part={part}
                       rowIndex={rowIndex}
                       colIndex={colIndex}
                     />
-                  ))
+                  )),
                 )}
               </div>
             </div>

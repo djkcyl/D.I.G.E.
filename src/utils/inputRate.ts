@@ -1,10 +1,11 @@
 import {
   analyzeSplitterComplexity,
   DEFAULT_INPUT_SOURCE_ID,
+  type Fuel,
   getOscillatingPower,
   INPUT_SOURCES,
-  type Fuel,
 } from "./constants";
+import { deviceCostOfDenominator } from "./oscBudget";
 
 /** 游戏物品准入口限速档位（个/分钟） */
 export const GAME_LIMIT_STEPS = [0, 6, 12, 18, 24, 30] as const;
@@ -50,6 +51,10 @@ export interface BranchLimiterPlan {
   splitterCount: { split2: number; split3: number; total: number };
   /** 硬件成本：分流器数 +（限速器 ? 1 : 0） */
   hardwareCost: number;
+  /** 设备容量占用（取货口/存货口/热能池/分流器，按游戏实体计） */
+  deviceCost: number;
+  /** 每 30 分钟吞 1 个物品造成的相对损耗（0~1） */
+  lossFraction: number;
   description: string;
 }
 
@@ -61,7 +66,7 @@ export interface BranchLimiterPlan {
  */
 export function getEffectiveInput(
   sourceId: string = DEFAULT_INPUT_SOURCE_ID,
-  limitPerMin?: number | null
+  limitPerMin?: number | null,
 ): EffectiveInput {
   const src = INPUT_SOURCES[sourceId] ?? INPUT_SOURCES[DEFAULT_INPUT_SOURCE_ID];
   const maxPerMin = src.speed * 60;
@@ -106,7 +111,7 @@ function buildDescription(
   limiterSpeed: number | null,
   limiterK: number,
   split2: number,
-  split3: number
+  split3: number,
 ): string {
   const parts: string[] = [];
   if (requiresLimiter && limiterSpeed != null) {
@@ -142,7 +147,7 @@ export function formatDenominator(d: number): string {
  * 返回 limitPerMin：null 表示源满速不限；其余为 k*6 且严格小于源上限。
  */
 export function getSolverLimitCandidates(
-  sourceId: string = DEFAULT_INPUT_SOURCE_ID
+  sourceId: string = DEFAULT_INPUT_SOURCE_ID,
 ): Array<{ k: number; limitPerMin: number | null }> {
   const src = INPUT_SOURCES[sourceId] ?? INPUT_SOURCES[DEFAULT_INPUT_SOURCE_ID];
   const maxPerMin = src.speed * 60;
@@ -179,7 +184,7 @@ export function buildBranchLimiterOptions(
    * false（默认关）= 启用限速求解（k/5 枚举）；
    * true（开）= 忽略限速，仅源满速普通分流。
    */
-  excludeItemGateLimiter: boolean = false
+  excludeItemGateLimiter: boolean = false,
 ): BranchLimiterPlan[] {
   const src = INPUT_SOURCES[sourceId] ?? INPUT_SOURCES[DEFAULT_INPUT_SOURCE_ID];
   const sourceMaxPerMin = src.speed * 60;
@@ -219,6 +224,13 @@ export function buildBranchLimiterOptions(
       // （浮点允许误差）
 
       const hardwareCost = c.total + (requiresLimiter ? 1 : 0);
+      const deviceCost =
+        deviceCostOfDenominator(localD, requiresLimiter)?.total ?? hardwareCost;
+      // 每 30 分钟丢 1 个：相对损耗 = branchInterval / 1800（分支间隔越长损耗越大）
+      const lossFraction =
+        Number.isFinite(branchInterval) && branchInterval > 0
+          ? branchInterval / 1800
+          : 1;
 
       raw.push({
         limiterSpeed,
@@ -230,12 +242,14 @@ export function buildBranchLimiterOptions(
         power,
         splitterCount: { split2: c.twoWay, split3: c.threeWay, total: c.total },
         hardwareCost,
+        deviceCost,
+        lossFraction,
         description: buildDescription(
           requiresLimiter,
           limiterSpeed,
           limiterK,
           c.twoWay,
-          c.threeWay
+          c.threeWay,
         ),
         sortKey: power.toFixed(4),
       });

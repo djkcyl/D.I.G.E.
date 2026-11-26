@@ -1,5 +1,5 @@
-import type { RefObject } from 'react';
-import Modal from '../Modal';
+import type { RefObject } from "react";
+import Modal from "../Modal";
 
 export interface ImagePreviewZoomModalProps {
   show: boolean;
@@ -74,8 +74,8 @@ export default function ImagePreviewZoomModal({
               type="button"
               onClick={onZoomOut}
               className="h-8 min-w-8 px-2 border border-endfield-gray-light bg-endfield-gray text-endfield-text-light hover:text-endfield-yellow hover:border-endfield-yellow transition-colors text-sm"
-              aria-label={t('zoomOut')}
-              title={t('zoomOut')}
+              aria-label={t("zoomOut")}
+              title={t("zoomOut")}
             >
               -
             </button>
@@ -83,8 +83,8 @@ export default function ImagePreviewZoomModal({
               type="button"
               onClick={onResetZoom}
               className="h-8 min-w-14 px-2 border border-endfield-gray-light bg-endfield-gray text-endfield-text-light hover:text-endfield-yellow hover:border-endfield-yellow transition-colors text-xs"
-              aria-label={t('resetZoom')}
-              title={t('resetZoom')}
+              aria-label={t("resetZoom")}
+              title={t("resetZoom")}
             >
               {Math.round(zoomScale * 100)}%
             </button>
@@ -92,8 +92,8 @@ export default function ImagePreviewZoomModal({
               type="button"
               onClick={onZoomIn}
               className="h-8 min-w-8 px-2 border border-endfield-gray-light bg-endfield-gray text-endfield-text-light hover:text-endfield-yellow hover:border-endfield-yellow transition-colors text-sm"
-              aria-label={t('zoomIn')}
-              title={t('zoomIn')}
+              aria-label={t("zoomIn")}
+              title={t("zoomIn")}
             >
               +
             </button>
@@ -101,10 +101,14 @@ export default function ImagePreviewZoomModal({
         </div>
 
         <fieldset
-          aria-label={t('imageZoomView')}
+          aria-label={t("imageZoomView")}
           ref={viewportRef}
           className={`relative flex-1 min-h-0 overflow-hidden touch-none select-none border-0 p-0 m-0 ${
-            canPan ? (zoomDragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default'
+            canPan
+              ? zoomDragging
+                ? "cursor-grabbing"
+                : "cursor-grab"
+              : "cursor-default"
           }`}
           onWheel={onWheel}
           onMouseDown={onMouseDown}
@@ -126,24 +130,26 @@ export default function ImagePreviewZoomModal({
               className="absolute left-1/2 top-1/2 max-w-full max-h-full"
               style={{
                 transform: `translate(calc(-50% + ${zoomOffset.x}px), calc(-50% + ${zoomOffset.y}px)) scale(${zoomScale})`,
-                transformOrigin: 'center center',
+                transformOrigin: "center center",
               }}
             />
           ) : (
             <div className="h-full flex items-center justify-center text-sm text-endfield-text/70">
-              {t('noSolutionData')}
+              {t("noSolutionData")}
             </div>
           )}
         </fieldset>
 
         <div className="shrink-0 px-3 py-2 border-t border-endfield-gray-light/80 bg-endfield-dark/90 flex items-center justify-between gap-2">
-          <div className="text-xs text-endfield-text/70">{Math.round(zoomScale * 100)}%</div>
+          <div className="text-xs text-endfield-text/70">
+            {Math.round(zoomScale * 100)}%
+          </div>
           <button
             type="button"
             onClick={onClose}
             className="h-9 min-w-20 px-3 border border-endfield-gray-light bg-endfield-gray text-endfield-text-light hover:text-endfield-yellow hover:border-endfield-yellow transition-colors text-sm font-bold tracking-wider"
           >
-            {t('close')}
+            {t("close")}
           </button>
         </div>
       </div>

@@ -6,9 +6,9 @@ import Announcement, {
   shouldShowAnnouncement,
 } from "./components/modals/Announcement";
 import ErrorState from "./components/modals/ErrorState";
+import ImportProfileModal from "./components/modals/ImportProfileModal";
 import PrivacyPolicyModal from "./components/modals/PrivacyPolicyModal";
 import QAModal from "./components/modals/QAModal";
-import ImportProfileModal from "./components/modals/ImportProfileModal";
 import SaveProfileModal from "./components/modals/SaveProfileModal";
 import ShareModal from "./components/modals/ShareModal";
 import DirtyOverlay from "./components/overlays/DirtyOverlay";
@@ -23,16 +23,16 @@ import type { ProfileModalMode, ProfilesStorageState } from "./types/profile";
 import { DEFAULT_PARAMS } from "./utils/defaultParams";
 import type { WorkerResponse } from "./utils/factoryDesigner.worker";
 import {
-  diagnoseNoSolution,
   type DiagnosisResult,
+  diagnoseNoSolution,
 } from "./utils/failureDiagnose";
+import { buildGridCode } from "./utils/gridCode";
 import {
   createProfileId,
   getActiveProfile,
   loadProfilesStorage,
   saveProfilesStorage,
 } from "./utils/profileStorage";
-import { buildGridCode } from "./utils/gridCode";
 import {
   buildShareUrl,
   getShareParamsFromUrl,
@@ -97,10 +97,10 @@ function AppContent({
 
   const [params, setParams] = useState<CalcParams>(() => bootstrap.params);
   const [profileState, setProfileState] = useState<ProfilesStorageState>(
-    () => bootstrap.profileState
+    () => bootstrap.profileState,
   );
   const [isUrlSession, setIsUrlSession] = useState(
-    () => bootstrap.isUrlSession
+    () => bootstrap.isUrlSession,
   );
   const [shareStatusMessage, setShareStatusMessage] = useState("");
   const [shareStatusVisible, setShareStatusVisible] = useState(false);
@@ -122,7 +122,7 @@ function AppContent({
   const [isLoading, setIsLoading] = useState(false);
   const [showError, setShowError] = useState(false);
   const [lastDiagnosis, setLastDiagnosis] = useState<DiagnosisResult | null>(
-    null
+    null,
   );
   const [showPrivacyFooter, setShowPrivacyFooter] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -154,7 +154,7 @@ function AppContent({
       setParamsDirty(true);
       setDirtyDismissed(false);
     },
-    []
+    [],
   );
 
   const runCalculation = useCallback(
@@ -170,7 +170,7 @@ function AppContent({
         new URL("./utils/factoryDesigner.worker.ts", import.meta.url),
         {
           type: "module",
-        }
+        },
       );
       workerRef.current = worker;
 
@@ -214,7 +214,7 @@ function AppContent({
               ]
             : null;
         const defaultIdx = defaultSol
-          ? payload.solutions.findIndex((s) => s === defaultSol)
+          ? payload.solutions.indexOf(defaultSol)
           : 0;
         setSelectedIndex(defaultIdx >= 0 ? defaultIdx : 0);
         setParamsDirty(false);
@@ -236,7 +236,7 @@ function AppContent({
         }
       }
     },
-    [params, t]
+    [params, t],
   );
 
   useEffect(() => {
@@ -280,7 +280,7 @@ function AppContent({
       typeof window.requestAnimationFrame === "function"
     ) {
       shareStatusTimer.current.frame = window.requestAnimationFrame(() =>
-        setShareStatusVisible(true)
+        setShareStatusVisible(true),
       );
     } else {
       setShareStatusVisible(true);
@@ -288,11 +288,11 @@ function AppContent({
 
     shareStatusTimer.current.hide = setTimeout(
       () => setShareStatusVisible(false),
-      SHARE_STATUS_VISIBLE_MS
+      SHARE_STATUS_VISIBLE_MS,
     );
     shareStatusTimer.current.clear = setTimeout(
       () => setShareStatusMessage(""),
-      SHARE_STATUS_VISIBLE_MS + SHARE_STATUS_FADE_MS
+      SHARE_STATUS_VISIBLE_MS + SHARE_STATUS_FADE_MS,
     );
   }, []);
 
@@ -304,7 +304,7 @@ function AppContent({
       if (name === "NotFoundError") return t("copyFailedReasonUnavailable");
       return t("copyFailedReasonUnknown");
     },
-    [t]
+    [t],
   );
 
   const handleOpenShareModal = useCallback(() => {
@@ -349,7 +349,7 @@ function AppContent({
         showShareStatus(`${t("copyFailed")}: ${reason}`);
       }
     },
-    [showShareStatus, t, getCopyErrorReason]
+    [showShareStatus, t, getCopyErrorReason],
   );
 
   const handleCopyShareUrl = useCallback(async () => {
@@ -392,7 +392,7 @@ function AppContent({
           profiles: prev.profiles.map((p) =>
             p.id === prev.activeProfileId
               ? { ...p, params: { ...params }, updatedAt: Date.now() }
-              : p
+              : p,
           ),
         };
         saveProfilesStorage(next);
@@ -412,7 +412,7 @@ function AppContent({
           window.history.replaceState(
             {},
             "",
-            url.pathname + url.search + url.hash
+            url.pathname + url.search + url.hash,
           );
         }
       } catch {
@@ -439,7 +439,7 @@ function AppContent({
       clearUrlSessionFlag();
       runCalculation(nextParams);
     },
-    [profileState, commitProfileState, clearUrlSessionFlag, runCalculation]
+    [profileState, commitProfileState, clearUrlSessionFlag, runCalculation],
   );
 
   const openSaveAsModal = useCallback(() => {
@@ -459,7 +459,7 @@ function AppContent({
       setProfileModalInitialName(target.name);
       setProfileModalOpen(true);
     },
-    [profileState]
+    [profileState],
   );
 
   const handleProfileModalConfirm = useCallback(
@@ -469,7 +469,7 @@ function AppContent({
         const next: ProfilesStorageState = {
           ...profileState,
           profiles: profileState.profiles.map((p) =>
-            p.id === renameTargetId ? { ...p, name, updatedAt: now } : p
+            p.id === renameTargetId ? { ...p, name, updatedAt: now } : p,
           ),
         };
         commitProfileState(next);
@@ -501,7 +501,7 @@ function AppContent({
       params,
       commitProfileState,
       clearUrlSessionFlag,
-    ]
+    ],
   );
 
   const handleDeleteProfile = useCallback(
@@ -534,7 +534,7 @@ function AppContent({
         runCalculation(nextParams);
       }
     },
-    [profileState, commitProfileState, clearUrlSessionFlag, runCalculation]
+    [profileState, commitProfileState, clearUrlSessionFlag, runCalculation],
   );
 
   const handleSaveUrlSessionToLocal = useCallback(() => {
@@ -590,7 +590,7 @@ function AppContent({
             ? String(Math.round(actualPower))
             : String(nextParams.targetPower ?? "");
         showShareStatus(
-          t("importCodePrefixMismatch").replace("{power}", powerLabel)
+          t("importCodePrefixMismatch").replace("{power}", powerLabel),
         );
       } else {
         showShareStatus(t("importCodeSuccess"));
@@ -603,7 +603,7 @@ function AppContent({
       runCalculation,
       showShareStatus,
       t,
-    ]
+    ],
   );
 
   useEffect(() => {
@@ -746,7 +746,7 @@ function AppContent({
 
 function App() {
   const [showAnnouncement, setShowAnnouncement] = useState(() =>
-    shouldShowAnnouncement()
+    shouldShowAnnouncement(),
   );
   const [announcementInitialTab, setAnnouncementInitialTab] =
     useState("announcement");

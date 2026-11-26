@@ -1,12 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
 import type { CalcParams, SolutionResult } from "../../types/calc";
 import type { DecisionMatrixGrid, MatrixSelection } from "../../types/matrix";
 import { MIN_BATTERY_CUTOFF } from "../../types/matrix";
-import { findSelectionForSolution } from "../../utils/decisionMatrix";
 import type { PowerGridProfile } from "../../types/profile";
+import { resolveFuel } from "../../utils/constants";
+import { findSelectionForSolution } from "../../utils/decisionMatrix";
 import type { DiagnosisResult } from "../../utils/failureDiagnose";
+import { poolPowerForRate } from "../../utils/oscBudget";
 import CollapsibleSection from "../ui/CollapsibleSection";
+import FloatingPanel from "../ui/FloatingPanel";
 import Icon from "../ui/Icon";
 import SolutionDiagram from "./SolutionDiagram";
 import ChartSection from "./SolutionList/ChartSection";
@@ -50,12 +53,14 @@ function StickyHud({
   selection,
   isMobile,
   onOpenPicker,
+  onOpenPickerCentered,
   profile,
 }: {
   selectedSolution?: SolutionResult;
   selection: MatrixSelection | null;
   isMobile: boolean;
   onOpenPicker: () => void;
+  onOpenPickerCentered?: () => void;
   profile?: SolutionListProfileProps | null;
 }) {
   const { t } = useI18n();
@@ -78,6 +83,7 @@ function StickyHud({
       <button
         type="button"
         onClick={onOpenPicker}
+        onDoubleClick={onOpenPickerCentered}
         className="shrink-0 h-7 px-2 text-xs border border-endfield-yellow/60 text-endfield-yellow bg-endfield-yellow/10 hover:bg-endfield-yellow/20 whitespace-nowrap"
       >
         {triggerLabel} ▾
@@ -125,6 +131,7 @@ export default function SolutionList({
   const [isMobile, setIsMobile] = useState(false);
   const [hudPinned, setHudPinned] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerRecenter, setPickerRecenter] = useState(0);
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -144,6 +151,7 @@ export default function SolutionList({
     return () => mql.removeEventListener("change", handler);
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 只在候选方案/矩阵变化时重建观察器，body 内不再引用这些值
   useEffect(() => {
     const root = scrollRootRef.current;
     const sentinel = sentinelRef.current;
@@ -153,7 +161,7 @@ export default function SolutionList({
       ([entry]) => {
         setHudPinned(!entry.isIntersecting);
       },
-      { root, threshold: 0 }
+      { root, threshold: 0 },
     );
     io.observe(sentinel);
     return () => io.disconnect();
@@ -171,14 +179,49 @@ export default function SolutionList({
       ? findSelectionForSolution(matrix, selectedSolution)
       : null) ?? defaultSelection;
 
+  const openPicker = (centered: boolean) => {
+    setPickerOpen(true);
+    // 双击：把悬浮窗拉回屏幕居中；单击：沿用上次拖动的位置
+    if (centered) setPickerRecenter((n) => n + 1);
+  };
+
+  /** 自定义震荡热能池：满速带恒功率 + 余量震荡方波，供图表画折线 */
+  const poolSegments = useMemo(() => {
+    const segments: Array<{
+      constant: number;
+      remainderWatt: number;
+      cycle: number;
+      onDuration: number;
+    }> = [];
+    for (const pool of params.oscPools ?? []) {
+      if (!pool || pool.enabled === false) continue;
+      if (!pool.fuelId || pool.fuelId === "none") continue;
+      const fuel = resolveFuel(pool.fuelId);
+      const perMin = Number(pool.maxPerMin) || 0;
+      if (!fuel || !(perMin > 0)) continue;
+      const rated = poolPowerForRate(fuel, perMin, {
+        deviceLimit: pool.deviceLimit,
+      });
+      const cycle =
+        rated.remainderDenominator != null ? 2 * rated.remainderDenominator : 0;
+      segments.push({
+        constant: rated.bands.watt,
+        remainderWatt: rated.remainderWatt,
+        cycle,
+        onDuration: cycle > 0 ? Math.min(fuel.burnTime, cycle) : 0,
+      });
+    }
+    return segments;
+  }, [params.oscPools]);
+
   const handleSelectCell = (
     _row: number,
     _col: number,
-    sol: SolutionResult
+    sol: SolutionResult,
   ) => {
-    const idx = solutions.findIndex((s) => s === sol);
+    const idx = solutions.indexOf(sol);
     if (idx >= 0) onSelectSolution(idx);
-    setPickerOpen(false);
+    // PC 悬浮窗常驻，切换策略后不自动关闭；移动端弹层在外部处理
   };
 
   const matrixCard = (
@@ -209,8 +252,8 @@ export default function SolutionList({
                 {t("diagSuggestionsHeader")}
               </p>
               <ul className="list-disc pl-5 space-y-1 text-sm text-endfield-text-light">
-                {diagnosis.secondaryHints.map((hint, i) => (
-                  <li key={i}>{hint}</li>
+                {diagnosis.secondaryHints.map((hint) => (
+                  <li key={hint}>{hint}</li>
                 ))}
               </ul>
             </div>
@@ -247,7 +290,8 @@ export default function SolutionList({
             selectedSolution={selectedSolution}
             selection={selection}
             isMobile
-            onOpenPicker={() => setPickerOpen(true)}
+            onOpenPicker={() => openPicker(false)}
+            onOpenPickerCentered={() => openPicker(true)}
             profile={profile}
           />
         ) : (
@@ -276,7 +320,8 @@ export default function SolutionList({
                   selectedSolution={selectedSolution}
                   selection={selection}
                   isMobile={false}
-                  onOpenPicker={() => setPickerOpen(true)}
+                  onOpenPicker={() => openPicker(false)}
+                  onOpenPickerCentered={() => openPicker(true)}
                   profile={profile}
                 />
               </div>
@@ -317,6 +362,7 @@ export default function SolutionList({
                   setPreciseValues={setPreciseValues}
                   hideHoverDetails={hideHoverDetails}
                   setHideHoverDetails={setHideHoverDetails}
+                  poolSegments={poolSegments}
                 />
               </CollapsibleSection>
             </div>
@@ -376,17 +422,15 @@ export default function SolutionList({
           {matrixCard}
         </DecisionMatrixModal>
       ) : pickerOpen ? (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setPickerOpen(false)}
+        <FloatingPanel
+          title={t("decisionMatrixTitle")}
+          onClose={() => setPickerOpen(false)}
+          storageKey="dige_matrix_panel_pos"
+          closeLabel={t("close")}
+          recenterSignal={pickerRecenter}
         >
-          <div
-            className="absolute top-12 right-4 left-4 md:left-auto md:w-[380px] bg-endfield-gray border border-endfield-yellow/40 p-3 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {matrixCard}
-          </div>
-        </div>
+          {matrixCard}
+        </FloatingPanel>
       ) : null}
     </div>
   );

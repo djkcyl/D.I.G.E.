@@ -11,6 +11,7 @@ import CloseButton from "../../ui/CloseButton";
 import AdvancedSettingsField from "./AdvancedSettingsField";
 import BasePowerBuilder from "./BasePowerBuilder";
 import FuelConfigField from "./FuelConfigField";
+import OscillationPoolField from "./OscillationPoolField";
 import OtherSettingsField from "./OtherSettingsField";
 import SidebarFooter from "./SidebarFooter";
 import TargetPowerField from "./TargetPowerField";
@@ -71,7 +72,7 @@ export default function Sidebar({
         [key]: clampNumber(
           value,
           PARAM_LIMITS.MIN_BRANCHES,
-          PARAM_LIMITS.MAX_BRANCHES
+          PARAM_LIMITS.MAX_BRANCHES,
         ),
       }));
       return;
@@ -82,7 +83,7 @@ export default function Sidebar({
         [key]: clampNumber(
           value,
           PARAM_LIMITS.MIN_PHASE_OFFSET_CELLS,
-          PARAM_LIMITS.MAX_PHASE_OFFSET_CELLS
+          PARAM_LIMITS.MAX_PHASE_OFFSET_CELLS,
         ),
       }));
       return;
@@ -154,6 +155,14 @@ export default function Sidebar({
           <div className="w-full shrink-0 border-t border-endfield-gray-light/90" />
 
           <FuelConfigField
+            params={params}
+            onChange={handleChange}
+            locale={locale}
+          />
+
+          <div className="w-full shrink-0 border-t border-endfield-gray-light/90" />
+
+          <OscillationPoolField
             params={params}
             onChange={handleChange}
             locale={locale}

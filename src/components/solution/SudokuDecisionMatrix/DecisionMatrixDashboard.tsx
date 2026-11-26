@@ -2,8 +2,8 @@ import { useI18n } from "../../../i18n";
 import type { CalcParams, SolutionResult } from "../../../types/calc";
 import type { MatrixSelection } from "../../../types/matrix";
 import { formatTime } from "../../../utils/constants";
-import ProfileToolbar from "../SolutionList/ProfileToolbar";
 import type { ProfileToolbarProps } from "../SolutionList/ProfileToolbar";
+import ProfileToolbar from "../SolutionList/ProfileToolbar";
 
 export interface DecisionMatrixDashboardProps {
   solution?: SolutionResult;
@@ -46,7 +46,7 @@ export default function DecisionMatrixDashboard({
   const manualCount =
     solution.baseDetails?.manualLines.reduce(
       (sum, line) => sum + line.count,
-      0
+      0,
     ) ?? 0;
   const rate = solution.rateLimitPerMin;
   const limiterLabel =

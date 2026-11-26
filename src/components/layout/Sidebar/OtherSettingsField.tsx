@@ -30,7 +30,7 @@ export default function OtherSettingsField({
   const excludeItemGateLimiter = Boolean(params.excludeItemGateLimiter);
   const excludeBelt = params.excludeBelt !== false;
   const factoryRegion: FactoryRegion = normalizeFactoryRegion(
-    params.factoryRegion
+    params.factoryRegion,
   );
 
   return (

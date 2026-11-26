@@ -151,7 +151,7 @@ export function createProfileId(): string {
 }
 
 export function getActiveProfile(
-  state: ProfilesStorageState
+  state: ProfilesStorageState,
 ): PowerGridProfile | undefined {
   return (
     state.profiles.find((p) => p.id === state.activeProfileId) ??

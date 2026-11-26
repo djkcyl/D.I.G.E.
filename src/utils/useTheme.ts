@@ -8,7 +8,9 @@ type ThemeListener = (theme: ThemeMode) => void;
 const listeners = new Set<ThemeListener>();
 
 function notifyTheme(theme: ThemeMode) {
-  listeners.forEach((listener) => listener(theme));
+  listeners.forEach((listener) => {
+    listener(theme);
+  });
 }
 
 /**

@@ -22,7 +22,7 @@ const WASTE_TOLERANCE = 5;
 export function compareSolutions(
   a: SolutionResult,
   b: SolutionResult,
-  secondaryId?: string | null
+  secondaryId?: string | null,
 ): number {
   const wasteDiff = a.waste - b.waste;
   if (Math.abs(wasteDiff) > WASTE_TOLERANCE) return wasteDiff;
@@ -62,14 +62,14 @@ function toRowIndex(branchCount: number): BranchRowIndex | null {
 
 export function buildSudokuDecisionMatrix(
   solutions: SolutionResult[],
-  secondaryId?: string | null
+  secondaryId?: string | null,
 ): SudokuDecisionMatrix {
   const matrix: DecisionMatrixGrid = Array.from({ length: MATRIX_ROWS }, () =>
-    Array(MATRIX_COLS).fill(null)
+    Array(MATRIX_COLS).fill(null),
   ) as DecisionMatrixGrid;
 
   const sorted = [...solutions].sort((a, b) =>
-    compareSolutions(a, b, secondaryId)
+    compareSolutions(a, b, secondaryId),
   );
 
   for (const sol of sorted) {
@@ -90,7 +90,7 @@ export function buildSudokuDecisionMatrix(
   const PORT1_ROW = 0 as BranchRowIndex;
   if (!isDeadCorner(PORT1_ROW, KW_COL)) {
     const privileged = sorted.find(
-      (sol) => isPureBase(sol) && getWasteColumnIndex(sol.waste) === KW_COL
+      (sol) => isPureBase(sol) && getWasteColumnIndex(sol.waste) === KW_COL,
     );
     if (privileged) {
       matrix[PORT1_ROW][KW_COL] = privileged;
@@ -131,7 +131,7 @@ export function buildSudokuDecisionMatrix(
 
 export function findSelectionForSolution(
   matrix: DecisionMatrixGrid,
-  solution: SolutionResult | undefined
+  solution: SolutionResult | undefined,
 ): MatrixSelection | null {
   if (!solution) return null;
   for (let r = 0; r < MATRIX_ROWS; r += 1) {

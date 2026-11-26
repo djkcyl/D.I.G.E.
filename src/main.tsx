@@ -1,10 +1,10 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import './index.css';
-import * as Sentry from '@sentry/react';
-import { clarity } from 'react-microsoft-clarity';
-import { initPWA } from './pwa';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+import "./index.css";
+import * as Sentry from "@sentry/react";
+import { clarity } from "react-microsoft-clarity";
+import { initPWA } from "./pwa";
 
 const clarityId = import.meta.env.VITE_CLARITY_ID;
 if (clarityId) {
@@ -33,9 +33,9 @@ if (sentryDsn) {
 
 initPWA();
 
-const rootElement = document.getElementById('root');
+const rootElement = document.getElementById("root");
 if (!rootElement) {
-  throw new Error('Root element #root was not found.');
+  throw new Error("Root element #root was not found.");
 }
 
 ReactDOM.createRoot(rootElement).render(
@@ -43,5 +43,5 @@ ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
       <App />
     </React.StrictMode>
-  </Sentry.ErrorBoundary>
+  </Sentry.ErrorBoundary>,
 );

@@ -83,6 +83,7 @@ export default function DecisionMatrixCard({
         </thead>
         <tbody>
           {rows.map((row, r) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 3×3 固定网格，行号即业务坐标
             <tr key={r}>
               <th className="border border-endfield-gray-light px-0.5 py-1 text-xs text-endfield-text-light whitespace-nowrap">
                 {t("branchCountShort", { count: r + 1 })}
@@ -90,11 +91,12 @@ export default function DecisionMatrixCard({
               {row.map((cell, c) => {
                 const selected = selection?.row === r && selection?.col === c;
                 const isPreferred = Boolean(
-                  cell && preferred && cell === preferred
+                  cell && preferred && cell === preferred,
                 );
                 const dead = !cell;
                 return (
                   <td
+                    // biome-ignore lint/suspicious/noArrayIndexKey: 3×3 固定网格，列号即业务坐标
                     key={c}
                     className={`border border-endfield-gray-light p-0 relative ${
                       dead ? "bg-endfield-black/40" : "bg-endfield-dark/40"
@@ -102,6 +104,7 @@ export default function DecisionMatrixCard({
                   >
                     {dead ? (
                       <div
+                        role="img"
                         className={`${cellH} w-full relative cursor-not-allowed opacity-55`}
                         title={t("noSolutionCell")}
                         aria-label={t("noSolutionCell")}

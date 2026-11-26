@@ -51,6 +51,10 @@
     {
       "question": "Warum fällt der Strom aus, nachdem ich offline gehe?",
       "answer": "Laut Spielerberichten und Tests kann der Server die Berechnung von Förderbändern und zugehörigen Geräten (Logistikbrücke, Objekteingang) offline vereinfachen, was zu Stopps bei Förderbandrouten führt. Wir können das nicht bestätigen. Die Option « Förderbänder ausschließen » wurde hinzugefügt, um Förderbänder und zugehörige Geräte aus dem Blueprint zu entfernen. Bei Stromausfällen oder Überlauf offline trotz normalem Betrieb online probieren Sie diese Option."
+    },
+    {
+      "question": "Das Entscheidungsfenster ist aus dem Bild verschwunden. Was nun?",
+      "answer": "Doppelklicke oben auf die Schaltfläche „aktuell N Zweige…“, um das Fenster wieder in die Bildschirmmitte zu holen — oder doppelklicke auf die Titelleiste des Fensters selbst. Danach kannst du es an der Titelleiste verschieben (die Position wird automatisch gemerkt)."
     }
   ]
 }

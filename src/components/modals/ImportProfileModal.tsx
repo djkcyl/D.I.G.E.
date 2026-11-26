@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import {
+  type ImportParseResult,
   parseImportInput,
   suggestImportProfileBaseName,
   suggestImportProfileBaseNameZh,
-  type ImportParseResult,
 } from "../../utils/gridCode";
 import type { ShareParams } from "../../utils/shareParams";
 import Button from "../ui/Button";
@@ -114,6 +114,7 @@ export default function ImportProfileModal({
           placeholder={t("importCodePlaceholder")}
           className={TEXTAREA_CLASS}
           spellCheck={false}
+          // biome-ignore lint/a11y/noAutofocus: 弹层打开后让用户直接粘贴电网码
           autoFocus
         />
         {error ? (
@@ -132,8 +133,8 @@ export default function ImportProfileModal({
                   String(
                     parsed.kind === "grid" && parsed.actualPower != null
                       ? Math.round(parsed.actualPower)
-                      : parsed.params.targetPower ?? "—"
-                  )
+                      : (parsed.params.targetPower ?? "—"),
+                  ),
                 )}
               </span>
             ) : null}

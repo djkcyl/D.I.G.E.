@@ -3,10 +3,10 @@ import { useI18n } from "../../../i18n";
 import type { CalcParams } from "../../../types/calc";
 import type { Fuel } from "../../../utils/constants";
 import {
-  FUEL_OPTIONS,
+  FUEL_OPTIONS_DISPLAY,
   isCustomFuel,
   resolveFuel,
-  SECONDARY_FUEL_OPTIONS,
+  SECONDARY_FUEL_OPTIONS_DISPLAY,
 } from "../../../utils/constants";
 import { shouldShowWulingCrossRegionLimiterHint } from "../../../utils/regionLimiter";
 import CustomFuelModal from "../../modals/CustomFuelModal";
@@ -28,18 +28,18 @@ export default function FuelConfigField({
 }: FuelConfigFieldProps) {
   const { t } = useI18n();
   const [customModalTarget, setCustomModalTarget] = useState<string | null>(
-    null
+    null,
   );
 
   const getFuelName = (fuel: { name?: Fuel["name"] } | undefined) =>
     fuel?.name?.[locale] || fuel?.name?.en || "";
 
-  const primaryOptions = FUEL_OPTIONS.map((f) => ({
+  const primaryOptions = FUEL_OPTIONS_DISPLAY.map((f) => ({
     value: f.id,
     label: getFuelName(f),
     ...f,
   }));
-  const secondaryOptions = SECONDARY_FUEL_OPTIONS.map((f) => ({
+  const secondaryOptions = SECONDARY_FUEL_OPTIONS_DISPLAY.map((f) => ({
     value: f.id,
     label: getFuelName(f),
     ...f,
@@ -186,19 +186,16 @@ export default function FuelConfigField({
 
       {(shouldShowWulingCrossRegionLimiterHint(
         params.primaryFuelId ?? "",
-        params.factoryRegion
+        params.factoryRegion,
       ) ||
         shouldShowWulingCrossRegionLimiterHint(
           params.secondaryFuelId ?? "",
-          params.factoryRegion
+          params.factoryRegion,
         )) && (
-        <div
-          role="status"
-          className="p-2.5 bg-endfield-yellow/10 border border-endfield-yellow/40 text-xs text-endfield-yellow flex items-start gap-2"
-        >
+        <output className="p-2.5 bg-endfield-yellow/10 border border-endfield-yellow/40 text-xs text-endfield-yellow flex items-start gap-2">
           <Icon name="warning" className="!w-4 !h-4 shrink-0 mt-0.5" />
           <span>{t("crossRegionWulingLimiterHint")}</span>
-        </div>
+        </output>
       )}
 
       {customModalTarget && customModalValues && (

@@ -1,11 +1,11 @@
-import { useI18n } from "../../../i18n";
+﻿import { useI18n } from "../../../i18n";
 import type { SolutionResult, UnifiedFuelBOMItem } from "../../../types/calc";
 import type { Fuel } from "../../../utils/constants";
 import { FUELS } from "../../../utils/constants";
 
 function getOscillatingSavings(
   solution: SolutionResult,
-  _locale: string
+  _locale: string,
 ): { savedPerDay: number; savedPercent: number } | null {
   const oscillatingConsumption = solution?.fuelConsumption;
   const fuel = oscillatingConsumption?.oscillating?.fuel ?? undefined;
@@ -22,7 +22,7 @@ function getOscillatingSavings(
 
   const oscillatingPower = oscillatingBranches.reduce(
     (sum, branch) => sum + (branch.power ?? 0),
-    0
+    0,
   );
   const neededGens = Math.max(1, Math.ceil(oscillatingPower / fuel.power));
   const fullBeltPerDay = neededGens * (1 / fuel.burnTime) * 86400;
@@ -99,7 +99,7 @@ export default function FuelConsumptionTable({
                 parts.push(
                   `${t("basePowerShort")}${
                     item.basePoolCount > 0 ? `×${item.basePoolCount}` : ""
-                  }`
+                  }`,
                 );
               }
               if (item.oscRatePerMin > 0 || item.oscGeneratorCount > 0) {
@@ -108,6 +108,14 @@ export default function FuelConsumptionTable({
               // 优先使用 BOM 直接给出的每日节省量（相对震荡满载台数对照）
               const displaySavedDay = item.savedRatePerDay ?? 0;
               const displaySavedPct = item.savedPercent ?? 0;
+              const poolBandCount = item.poolBandCount ?? 0;
+              const poolOscRate = item.poolOscRatePerMin ?? 0;
+              if (poolBandCount > 0 || poolOscRate > 0) {
+                parts.push(t("oscPool"));
+              }
+              const perMinTotal = item.totalRatePerMin;
+              const perHourTotal = item.totalRatePerHour;
+              const perDayTotal = item.totalRatePerDay;
 
               return (
                 <tr
@@ -125,13 +133,13 @@ export default function FuelConsumptionTable({
                     )}
                   </td>
                   <td className="p-2 text-right text-endfield-text-light">
-                    {item.totalRatePerMin.toFixed(2)}
+                    {perMinTotal.toFixed(2)}
                   </td>
                   <td className="p-2 text-right text-endfield-text-light">
-                    {item.totalRatePerHour.toFixed(1)}
+                    {perHourTotal.toFixed(1)}
                   </td>
                   <td className="p-2 text-right text-endfield-yellow font-bold">
-                    {item.totalRatePerDay.toFixed(0)}
+                    {perDayTotal.toFixed(0)}
                   </td>
                   <td className="hidden md:table-cell p-2 text-right">
                     {displaySavedDay > 0.5 ? (
@@ -159,7 +167,8 @@ export default function FuelConsumptionTable({
 
   // Fallback: 旧 base/oscillating 两行
   const oscillatingSavings = getOscillatingSavings(solution, locale);
-  const fuelConsumption = solution.fuelConsumption!;
+  const fuelConsumption = solution.fuelConsumption;
+  if (!fuelConsumption) return null;
   const { base, oscillating } = fuelConsumption;
 
   return (

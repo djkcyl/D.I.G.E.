@@ -78,6 +78,7 @@ export default function SaveProfileModal({
           }}
           placeholder={t("profileNamePlaceholder")}
           className={INPUT_CLASS}
+          // biome-ignore lint/a11y/noAutofocus: 弹层打开后直接输入存档名
           autoFocus
         />
       </div>

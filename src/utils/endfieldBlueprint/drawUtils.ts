@@ -2,19 +2,19 @@
  * 绘图共享工具：Canvas 工具、常量、蓝图格子渲染
  */
 const BLUEPRINT_IMAGE_ASSET: Record<string, string> = Object.freeze({
-  belt: '/svg/icon_belt_grid.png',
-  left_turn_belt: '/svg/icon_belt_corner_1.png',
-  right_turn_belt: '/svg/icon_belt_corner_1.png',
-  conveyor_bridge: '/svg/bg_logistic_log_connector.png',
-  splitter: '/svg/bg_logistic_log_splitter.png',
-  converger: '/svg/bg_logistic_log_converger.png',
+  belt: "/svg/icon_belt_grid.png",
+  left_turn_belt: "/svg/icon_belt_corner_1.png",
+  right_turn_belt: "/svg/icon_belt_corner_1.png",
+  conveyor_bridge: "/svg/bg_logistic_log_connector.png",
+  splitter: "/svg/bg_logistic_log_splitter.png",
+  converger: "/svg/bg_logistic_log_converger.png",
 });
 
 const FACE_ARROW: Record<string, string> = Object.freeze({
-  UP: '^',
-  DOWN: 'v',
-  LEFT: '<',
-  RIGHT: '>',
+  UP: "^",
+  DOWN: "v",
+  LEFT: "<",
+  RIGHT: ">",
 });
 
 export const BRANCH_PNG_STYLE = Object.freeze({
@@ -24,21 +24,22 @@ export const BRANCH_PNG_STYLE = Object.freeze({
   gridPadding: 8,
   cellSize: 40,
   exportPixelRatio: 2,
-  fontFamilyFallback: '"Frex Sans GB VF", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+  fontFamilyFallback:
+    '"Frex Sans GB VF", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
 });
 
 export const PRECISE_CHART_STYLE = Object.freeze({
   width: 1600,
   height: 900,
-  background: '#0d1218',
-  legendColor: '#666666',
-  textColor: '#888888',
-  powerColor: '#d4ff00',
-  targetColor: '#ff6b6b',
-  batteryColor: '#4ecdc4',
-  minBatteryThresholdColor: '#ffd166',
-  burnColor: '#ff9f43',
-  gridColor: '#1a1a1a',
+  background: "#0d1218",
+  legendColor: "#666666",
+  textColor: "#888888",
+  powerColor: "#d4ff00",
+  targetColor: "#ff6b6b",
+  batteryColor: "#4ecdc4",
+  minBatteryThresholdColor: "#ffd166",
+  burnColor: "#ff9f43",
+  gridColor: "#1a1a1a",
 });
 
 export const COMPLETE_EXPORT_IMAGE_STYLE = Object.freeze({
@@ -47,13 +48,13 @@ export const COMPLETE_EXPORT_IMAGE_STYLE = Object.freeze({
   sectionGap: 24,
   cardPadding: 18,
   branchGap: 16,
-  background: '#0d1218',
-  panelBackground: 'rgba(20, 26, 34, 0.95)',
-  panelBorder: 'rgba(141, 149, 162, 0.8)',
-  titleColor: '#f2d378',
-  subtitleColor: '#98a5b7',
-  textColor: '#d7deea',
-  dimTextColor: '#9ba9bc',
+  background: "#0d1218",
+  panelBackground: "rgba(20, 26, 34, 0.95)",
+  panelBorder: "rgba(141, 149, 162, 0.8)",
+  titleColor: "#f2d378",
+  subtitleColor: "#98a5b7",
+  textColor: "#d7deea",
+  dimTextColor: "#9ba9bc",
 });
 
 const imageCache = new Map<string, Promise<HTMLImageElement>>();
@@ -87,12 +88,14 @@ function loadImageAsset(path: string): Promise<HTMLImageElement> {
 }
 
 export async function preloadBlueprintImages(
-  blueprint: (Record<string, unknown> | null)[][]
+  blueprint: (Record<string, unknown> | null)[][],
 ): Promise<Map<string, HTMLImageElement>> {
   const partIds = new Set<string>();
   blueprint.forEach((row) => {
     row.forEach((part) => {
-      const partId = (part as Record<string, unknown>)?.partId as string | undefined;
+      const partId = (part as Record<string, unknown>)?.partId as
+        | string
+        | undefined;
       if (partId && BLUEPRINT_IMAGE_ASSET[partId]) {
         partIds.add(partId);
       }
@@ -107,20 +110,22 @@ export async function preloadBlueprintImages(
       } catch (error) {
         console.warn(error);
       }
-    })
+    }),
   );
   return images;
 }
 
-export function getCanvasFontFamily(options: { fontFamily?: string } = {}): string {
-  if (typeof options.fontFamily === 'string' && options.fontFamily.trim()) {
+export function getCanvasFontFamily(
+  options: { fontFamily?: string } = {},
+): string {
+  if (typeof options.fontFamily === "string" && options.fontFamily.trim()) {
     return options.fontFamily.trim();
   }
-  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  if (typeof window !== "undefined" && typeof document !== "undefined") {
     const body = document.body;
     if (body) {
       const computedFont = window.getComputedStyle(body).fontFamily;
-      if (typeof computedFont === 'string' && computedFont.trim()) {
+      if (typeof computedFont === "string" && computedFont.trim()) {
         return computedFont.trim();
       }
     }
@@ -129,18 +134,18 @@ export function getCanvasFontFamily(options: { fontFamily?: string } = {}): stri
 }
 
 export async function ensureCanvasFontReady(fontFamily: string): Promise<void> {
-  if (typeof document === 'undefined' || !document.fonts?.ready) return;
+  if (typeof document === "undefined" || !document.fonts?.ready) return;
   try {
     await document.fonts.ready;
     await document.fonts.load(`700 13px ${fontFamily}`);
   } catch (error) {
-    console.warn('Canvas font preload failed:', error);
+    console.warn("Canvas font preload failed:", error);
   }
 }
 
 export async function canvasToBlob(
   canvas: HTMLCanvasElement,
-  type: string = 'image/png'
+  type: string = "image/png",
 ): Promise<Blob> {
   const blob = await new Promise<Blob | null>((resolve, reject) => {
     canvas.toBlob((result) => {
@@ -163,7 +168,7 @@ export async function blobToImage(blob: Blob): Promise<HTMLImageElement> {
     const image = await new Promise<HTMLImageElement>((resolve, reject) => {
       const node = new Image();
       node.onload = () => resolve(node);
-      node.onerror = () => reject(new Error('Failed to decode image blob.'));
+      node.onerror = () => reject(new Error("Failed to decode image blob."));
       node.src = url;
     });
     return image;
@@ -175,15 +180,15 @@ export async function blobToImage(blob: Blob): Promise<HTMLImageElement> {
 export function wrapTextLines(
   context: CanvasRenderingContext2D,
   text: string,
-  maxWidth: number
+  maxWidth: number,
 ): string[] {
-  const value = String(text ?? '');
-  if (!value) return [''];
+  const value = String(text ?? "");
+  if (!value) return [""];
   if (context.measureText(value).width <= maxWidth) return [value];
 
-  if (!value.includes(' ')) {
+  if (!value.includes(" ")) {
     const lines: string[] = [];
-    let current = '';
+    let current = "";
     for (const char of value) {
       const next = current + char;
       if (current && context.measureText(next).width > maxWidth) {
@@ -197,9 +202,9 @@ export function wrapTextLines(
     return lines;
   }
 
-  const words = value.split(' ');
+  const words = value.split(" ");
   const lines: string[] = [];
-  let current = '';
+  let current = "";
   words.forEach((word) => {
     const next = current ? `${current} ${word}` : word;
     if (current && context.measureText(next).width > maxWidth) {
@@ -213,13 +218,16 @@ export function wrapTextLines(
   return lines;
 }
 
-export function formatExportValue(value: unknown, fallback: string = '-'): string {
+export function formatExportValue(
+  value: unknown,
+  fallback: string = "-",
+): string {
   if (value == null) return fallback;
-  if (typeof value === 'number') {
+  if (typeof value === "number") {
     return Number.isFinite(value) ? String(value) : fallback;
   }
-  if (typeof value === 'boolean') {
-    return value ? 'true' : 'false';
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
   }
   const text = String(value).trim();
   return text || fallback;
@@ -230,7 +238,7 @@ export function drawPanel(
   x: number,
   y: number,
   width: number,
-  height: number
+  height: number,
 ): void {
   context.fillStyle = COMPLETE_EXPORT_IMAGE_STYLE.panelBackground;
   context.fillRect(x, y, width, height);
@@ -239,63 +247,65 @@ export function drawPanel(
   context.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
 }
 
-function getBlueprintImageRotation(part: Record<string, unknown> | null): number {
+function getBlueprintImageRotation(
+  part: Record<string, unknown> | null,
+): number {
   if (!part?.partId) return 0;
-  const face = (part.face as string) || 'RIGHT';
+  const face = (part.face as string) || "RIGHT";
 
   switch (part.partId) {
-    case 'belt':
+    case "belt":
       switch (face) {
-        case 'LEFT':
+        case "LEFT":
           return 0;
-        case 'RIGHT':
+        case "RIGHT":
           return 180;
-        case 'UP':
+        case "UP":
           return -90;
-        case 'DOWN':
+        case "DOWN":
           return 90;
         default:
           return 0;
       }
-    case 'left_turn_belt':
+    case "left_turn_belt":
       return 180;
-    case 'right_turn_belt':
+    case "right_turn_belt":
       return 0;
-    case 'conveyor_bridge':
+    case "conveyor_bridge":
       switch (face) {
-        case 'DOWN':
+        case "DOWN":
           return 0;
-        case 'UP':
+        case "UP":
           return 180;
-        case 'LEFT':
+        case "LEFT":
           return 90;
-        case 'RIGHT':
+        case "RIGHT":
           return -90;
         default:
           return 0;
       }
-    case 'splitter':
+    case "splitter":
       switch (face) {
-        case 'RIGHT':
+        case "RIGHT":
           return -90;
-        case 'LEFT':
+        case "LEFT":
           return 90;
-        case 'UP':
+        case "UP":
           return 180;
-        case 'DOWN':
+        case "DOWN":
           return 0;
         default:
           return -90;
       }
-    case 'converger':
+    case "converger":
       switch (face) {
-        case 'DOWN':
+        case "DOWN":
           return 0;
-        case 'UP':
+        case "UP":
           return 180;
-        case 'LEFT':
+        case "LEFT":
           return 90;
-        case 'RIGHT':
+        case "RIGHT":
           return -90;
         default:
           return 0;
@@ -305,21 +315,23 @@ function getBlueprintImageRotation(part: Record<string, unknown> | null): number
   }
 }
 
-function getBlueprintImageMirror(part: Record<string, unknown> | null): boolean {
-  return part?.partId === 'right_turn_belt';
+function getBlueprintImageMirror(
+  part: Record<string, unknown> | null,
+): boolean {
+  return part?.partId === "right_turn_belt";
 }
 
 function getCellFallbackToken(part: Record<string, unknown> | null): string {
-  if (!part?.partId) return '';
+  if (!part?.partId) return "";
   switch (part.partId) {
-    case 'input_source':
-      return 'I';
-    case 'thermal_bank':
-      return 'T';
-    case 'recycle_source':
-      return 'R';
+    case "input_source":
+      return "I";
+    case "thermal_bank":
+      return "T";
+    case "recycle_source":
+      return "R";
     default:
-      return FACE_ARROW[part?.face as string] || '>';
+      return FACE_ARROW[part?.face as string] || ">";
   }
 }
 
@@ -330,35 +342,35 @@ function getCellColors(part: Record<string, unknown> | null): {
 } {
   if (!part?.partId) {
     return {
-      border: 'rgba(138, 145, 156, 0.2)',
-      background: 'rgba(0, 0, 0, 0.12)',
-      text: 'rgba(255, 255, 255, 0)',
+      border: "rgba(138, 145, 156, 0.2)",
+      background: "rgba(0, 0, 0, 0.12)",
+      text: "rgba(255, 255, 255, 0)",
     };
   }
   switch (part.partId) {
-    case 'input_source':
+    case "input_source":
       return {
-        border: 'rgba(188, 197, 210, 0.78)',
-        background: 'rgba(58, 67, 79, 0.85)',
-        text: '#d8dee7',
+        border: "rgba(188, 197, 210, 0.78)",
+        background: "rgba(58, 67, 79, 0.85)",
+        text: "#d8dee7",
       };
-    case 'thermal_bank':
+    case "thermal_bank":
       return {
-        border: 'rgba(229, 196, 100, 0.9)',
-        background: 'rgba(197, 160, 70, 0.18)',
-        text: '#f1d173',
+        border: "rgba(229, 196, 100, 0.9)",
+        background: "rgba(197, 160, 70, 0.18)",
+        text: "#f1d173",
       };
-    case 'recycle_source':
+    case "recycle_source":
       return {
-        border: 'rgba(140, 148, 162, 0.75)',
-        background: 'rgba(58, 67, 79, 0.85)',
-        text: '#c2cad8',
+        border: "rgba(140, 148, 162, 0.75)",
+        background: "rgba(58, 67, 79, 0.85)",
+        text: "#c2cad8",
       };
     default:
       return {
-        border: 'rgba(141, 149, 162, 0.95)',
-        background: 'rgba(0, 0, 0, 0.7)',
-        text: '#d7deea',
+        border: "rgba(141, 149, 162, 0.95)",
+        background: "rgba(0, 0, 0, 0.7)",
+        text: "#d7deea",
       };
   }
 }
@@ -370,7 +382,7 @@ export function drawBlueprintCell(
   y: number,
   cellSize: number,
   fontFamily: string,
-  images: Map<string, HTMLImageElement>
+  images: Map<string, HTMLImageElement>,
 ): void {
   const colors = getCellColors(part);
 
@@ -397,7 +409,7 @@ export function drawBlueprintCell(
   if (!token) return;
   context.fillStyle = colors.text;
   context.font = `700 ${Math.max(11, Math.round(cellSize * 0.35))}px ${fontFamily}`;
-  context.textAlign = 'center';
-  context.textBaseline = 'middle';
+  context.textAlign = "center";
+  context.textBaseline = "middle";
   context.fillText(token, x + cellSize / 2, y + cellSize / 2);
 }

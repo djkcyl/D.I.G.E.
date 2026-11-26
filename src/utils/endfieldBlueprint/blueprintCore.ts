@@ -2,11 +2,11 @@
  * 蓝图核心：JSON 结构构建、节点解析
  */
 
-import type { CalcParams, SolutionResult } from '../../types/calc';
-import { PARAM_LIMITS } from '../constants';
+import type { CalcParams, SolutionResult } from "../../types/calc";
+import { PARAM_LIMITS } from "../constants";
 
 const DEFAULT_BLUEPRINT_ICON = Object.freeze({
-  icon: 'blueprint_default_icon',
+  icon: "blueprint_default_icon",
   baseColor: 101,
 });
 
@@ -14,28 +14,28 @@ const DEFAULT_BLUEPRINT_PARAM = Object.freeze({
   sourceType: 2,
   myBpUid: 0,
   hasMyBpUid: false,
-  sysBpKey: '',
+  sysBpKey: "",
   hasSysBpKey: false,
   giftBpKey: {
     bpUid: 4,
     targetRoleId: 1000041441,
     shareIdx: 1,
   },
-  presetBpKey: '',
+  presetBpKey: "",
   hasPresetBpKey: false,
   opPayloadCase: 13,
 });
 
 const DEFAULT_META = Object.freeze({
   creatorRoleId: 1000041441,
-  creatorUserId: '0000000000',
+  creatorUserId: "0000000000",
   reviewStatus: 2,
   useCount: 0,
   isNew: false,
   fetchTime: 0,
 });
 
-const BELT_TEMPLATE_ID = 'grid_belt_01';
+const BELT_TEMPLATE_ID = "grid_belt_01";
 
 interface BlueprintGiftBpKey {
   bpUid: number;
@@ -72,12 +72,16 @@ interface BlueprintParts {
   hasBottomRecycleSource: boolean;
 }
 
-function vec3(x: number, y: number, z: number): { x: number; y: number; z: number } {
+function vec3(
+  x: number,
+  y: number,
+  z: number,
+): { x: number; y: number; z: number } {
   return { x, y, z };
 }
 
 function cloneBpParam(
-  param: Partial<BlueprintParam> = DEFAULT_BLUEPRINT_PARAM as BlueprintParam
+  param: Partial<BlueprintParam> = DEFAULT_BLUEPRINT_PARAM as BlueprintParam,
 ): BlueprintParam {
   const giftBpKey = (param.giftBpKey ?? {}) as Partial<BlueprintGiftBpKey>;
 
@@ -89,11 +93,15 @@ function cloneBpParam(
     hasSysBpKey: param.hasSysBpKey ?? DEFAULT_BLUEPRINT_PARAM.hasSysBpKey,
     giftBpKey: {
       bpUid: giftBpKey.bpUid ?? DEFAULT_BLUEPRINT_PARAM.giftBpKey.bpUid,
-      targetRoleId: giftBpKey.targetRoleId ?? DEFAULT_BLUEPRINT_PARAM.giftBpKey.targetRoleId,
-      shareIdx: giftBpKey.shareIdx ?? DEFAULT_BLUEPRINT_PARAM.giftBpKey.shareIdx,
+      targetRoleId:
+        giftBpKey.targetRoleId ??
+        DEFAULT_BLUEPRINT_PARAM.giftBpKey.targetRoleId,
+      shareIdx:
+        giftBpKey.shareIdx ?? DEFAULT_BLUEPRINT_PARAM.giftBpKey.shareIdx,
     },
     presetBpKey: param.presetBpKey ?? DEFAULT_BLUEPRINT_PARAM.presetBpKey,
-    hasPresetBpKey: param.hasPresetBpKey ?? DEFAULT_BLUEPRINT_PARAM.hasPresetBpKey,
+    hasPresetBpKey:
+      param.hasPresetBpKey ?? DEFAULT_BLUEPRINT_PARAM.hasPresetBpKey,
     opPayloadCase: param.opPayloadCase ?? DEFAULT_BLUEPRINT_PARAM.opPayloadCase,
   };
 }
@@ -103,14 +111,16 @@ function createStructureNode(
   templateId: string,
   x: number,
   z: number,
-  rotationY: number
+  rotationY: number,
 ): Record<string, unknown> {
   const interactivePosition =
-    templateId === 'power_station_1' ? vec3(x, 0, z + 1) : vec3(x + 0.5, 0, z + 0.5);
+    templateId === "power_station_1"
+      ? vec3(x, 0, z + 1)
+      : vec3(x + 0.5, 0, z + 0.5);
 
   return {
     templateId,
-    productIcon: '',
+    productIcon: "",
     nodeId,
     transform: {
       position: vec3(x, 0, z),
@@ -132,12 +142,13 @@ function createBeltNode(
   nodeId: number,
   directionInY: number,
   directionOutY: number,
-  points: { x: number; z: number }[]
+  points: { x: number; z: number }[],
 ): Record<string, unknown> {
-  const normalizedPoints = points.length === 1 ? [points[0], points[0]] : points;
+  const normalizedPoints =
+    points.length === 1 ? [points[0], points[0]] : points;
   return {
     templateId: BELT_TEMPLATE_ID,
-    productIcon: '',
+    productIcon: "",
     nodeId,
     transform: {
       position: null,
@@ -156,7 +167,11 @@ export function getBlueprintHeight(blueprint: unknown[][] | unknown): number {
 }
 
 export function getBlueprintWidth(blueprint: unknown[][] | unknown): number {
-  if (!Array.isArray(blueprint) || blueprint.length === 0 || !Array.isArray(blueprint[0])) {
+  if (
+    !Array.isArray(blueprint) ||
+    blueprint.length === 0 ||
+    !Array.isArray(blueprint[0])
+  ) {
     return 0;
   }
   return blueprint[0].length;
@@ -178,15 +193,21 @@ export type ValidBranchBlueprint = BranchBlueprint & {
 };
 
 export function assertValidBranchBlueprint(
-  branch: BranchBlueprint | null | undefined
+  branch: BranchBlueprint | null | undefined,
 ): asserts branch is ValidBranchBlueprint {
   const blueprint = branch?.blueprint;
-  if (!Array.isArray(blueprint) || blueprint.length === 0 || !Array.isArray(blueprint[0])) {
-    throw new Error('Invalid branch blueprint data.');
+  if (
+    !Array.isArray(blueprint) ||
+    blueprint.length === 0 ||
+    !Array.isArray(blueprint[0])
+  ) {
+    throw new Error("Invalid branch blueprint data.");
   }
 }
 
-function collectBlueprintParts(blueprint: (Record<string, unknown> | null)[][]): BlueprintParts {
+function collectBlueprintParts(
+  blueprint: (Record<string, unknown> | null)[][],
+): BlueprintParts {
   const parts: BlueprintParts = {
     splitters: [],
     topConvergers: [],
@@ -215,32 +236,32 @@ function collectBlueprintParts(blueprint: (Record<string, unknown> | null)[][]):
       if (!part?.partId) continue;
 
       switch (part.partId) {
-        case 'splitter':
+        case "splitter":
           if (row === middleRow) parts.splitters.push(col);
           break;
-        case 'converger':
+        case "converger":
           if (row === 0) parts.topConvergers.push(col);
           if (row === height - 1) parts.bottomConvergers.push(col);
           if (row === topBeltRow) parts.topLaneConvergers.push(col);
           if (row === bottomBeltRow) parts.bottomLaneConvergers.push(col);
           break;
-        case 'belt':
+        case "belt":
           if (row === topBeltRow) parts.topBelts.push(col);
           if (row === bottomBeltRow) parts.bottomBelts.push(col);
           break;
-        case 'left_turn_belt':
+        case "left_turn_belt":
           if (row === 0) parts.topTurnCol = col;
           break;
-        case 'right_turn_belt':
+        case "right_turn_belt":
           if (row === height - 1) parts.bottomTurnCol = col;
           break;
-        case 'thermal_bank':
+        case "thermal_bank":
           if (row === middleRow) parts.thermalCol = col;
           break;
-        case 'input_source':
+        case "input_source":
           if (row === middleRow) parts.hasInputSource = true;
           break;
-        case 'recycle_source':
+        case "recycle_source":
           if (row === 0) parts.hasTopRecycleSource = true;
           if (row === height - 1) parts.hasBottomRecycleSource = true;
           break;
@@ -276,7 +297,7 @@ function buildNodesFromBranch(branch: BranchBlueprint): {
   const parts = collectBlueprintParts(blueprint);
 
   if (parts.thermalCol == null) {
-    throw new Error('Thermal bank is missing in branch blueprint.');
+    throw new Error("Thermal bank is missing in branch blueprint.");
   }
 
   const nodes: Record<string, unknown>[] = [];
@@ -285,41 +306,77 @@ function buildNodesFromBranch(branch: BranchBlueprint): {
   nodes.push(
     createStructureNode(
       nodeId++,
-      'power_station_1',
+      "power_station_1",
       parts.thermalCol + 1,
       toGameZ(middleRow, height),
-      270
-    )
+      270,
+    ),
   );
 
   for (const col of parts.splitters) {
-    nodes.push(createStructureNode(nodeId++, 'log_splitter', col, toGameZ(middleRow, height), 270));
+    nodes.push(
+      createStructureNode(
+        nodeId++,
+        "log_splitter",
+        col,
+        toGameZ(middleRow, height),
+        270,
+      ),
+    );
   }
 
   for (const col of parts.topConvergers) {
-    nodes.push(createStructureNode(nodeId++, 'log_converger', col, toGameZ(0, height), 90));
+    nodes.push(
+      createStructureNode(
+        nodeId++,
+        "log_converger",
+        col,
+        toGameZ(0, height),
+        90,
+      ),
+    );
   }
 
   for (const col of parts.bottomConvergers) {
     nodes.push(
-      createStructureNode(nodeId++, 'log_converger', col, toGameZ(height - 1, height), 90)
+      createStructureNode(
+        nodeId++,
+        "log_converger",
+        col,
+        toGameZ(height - 1, height),
+        90,
+      ),
     );
   }
 
   for (const col of parts.topLaneConvergers) {
     nodes.push(
-      createStructureNode(nodeId++, 'log_converger', col, toGameZ(topBeltRow, height), 180)
+      createStructureNode(
+        nodeId++,
+        "log_converger",
+        col,
+        toGameZ(topBeltRow, height),
+        180,
+      ),
     );
   }
 
   for (const col of parts.bottomLaneConvergers) {
     nodes.push(
-      createStructureNode(nodeId++, 'log_converger', col, toGameZ(bottomBeltRow, height), 0)
+      createStructureNode(
+        nodeId++,
+        "log_converger",
+        col,
+        toGameZ(bottomBeltRow, height),
+        0,
+      ),
     );
   }
 
   const mergeBottomSourceIntoTurn =
-    parts.hasBottomRecycleSource && parts.bottomTurnCol != null && parts.bottomBelts.length <= 1;
+    parts.hasBottomRecycleSource &&
+    parts.bottomTurnCol != null &&
+    parts.bottomBelts.length <= 1;
 
   if (parts.bottomTurnCol != null) {
     const points = [
@@ -333,15 +390,25 @@ function buildNodesFromBranch(branch: BranchBlueprint): {
   }
 
   if (parts.hasTopRecycleSource) {
-    nodes.push(createBeltNode(nodeId++, 270, 270, [{ x: 0, z: toGameZ(0, height) }]));
+    nodes.push(
+      createBeltNode(nodeId++, 270, 270, [{ x: 0, z: toGameZ(0, height) }]),
+    );
   }
 
   if (parts.hasInputSource) {
-    nodes.push(createBeltNode(nodeId++, 90, 90, [{ x: 0, z: toGameZ(middleRow, height) }]));
+    nodes.push(
+      createBeltNode(nodeId++, 90, 90, [
+        { x: 0, z: toGameZ(middleRow, height) },
+      ]),
+    );
   }
 
   if (parts.hasBottomRecycleSource && !mergeBottomSourceIntoTurn) {
-    nodes.push(createBeltNode(nodeId++, 270, 270, [{ x: 0, z: toGameZ(height - 1, height) }]));
+    nodes.push(
+      createBeltNode(nodeId++, 270, 270, [
+        { x: 0, z: toGameZ(height - 1, height) },
+      ]),
+    );
   }
 
   if (parts.topTurnCol != null) {
@@ -349,18 +416,28 @@ function buildNodesFromBranch(branch: BranchBlueprint): {
       createBeltNode(nodeId++, 0, 270, [
         { x: parts.topTurnCol, z: toGameZ(topBeltRow, height) },
         { x: parts.topTurnCol, z: toGameZ(0, height) },
-      ])
+      ]),
     );
   }
 
   for (const col of [...parts.topBelts].sort((a: number, b: number) => b - a)) {
     if (col === parts.topTurnCol) continue;
-    nodes.push(createBeltNode(nodeId++, 0, 0, [{ x: col, z: toGameZ(topBeltRow, height) }]));
+    nodes.push(
+      createBeltNode(nodeId++, 0, 0, [
+        { x: col, z: toGameZ(topBeltRow, height) },
+      ]),
+    );
   }
 
-  for (const col of [...parts.bottomBelts].sort((a: number, b: number) => b - a)) {
+  for (const col of [...parts.bottomBelts].sort(
+    (a: number, b: number) => b - a,
+  )) {
     if (col === parts.bottomTurnCol) continue;
-    nodes.push(createBeltNode(nodeId++, 180, 180, [{ x: col, z: toGameZ(bottomBeltRow, height) }]));
+    nodes.push(
+      createBeltNode(nodeId++, 180, 180, [
+        { x: col, z: toGameZ(bottomBeltRow, height) },
+      ]),
+    );
   }
 
   return { nodes, width, height };
@@ -371,26 +448,33 @@ function defaultBlueprintName(branch: BranchBlueprint): string {
   if (Number.isFinite(denominator) && denominator > 0) {
     return `1/${denominator}`;
   }
-  return 'Blueprint';
+  return "Blueprint";
 }
 
-export function getBranchDenominatorToken(branch: BranchBlueprint | null | undefined): string {
+export function getBranchDenominatorToken(
+  branch: BranchBlueprint | null | undefined,
+): string {
   const denominator = Number(branch?.denominator);
   if (Number.isFinite(denominator) && denominator > 0) {
     return String(denominator);
   }
-  return 'unknown';
+  return "unknown";
 }
 
-export function getBranchPowerToken(branch: BranchBlueprint | null | undefined): string {
+export function getBranchPowerToken(
+  branch: BranchBlueprint | null | undefined,
+): string {
   const power = Number(branch?.power);
   if (Number.isFinite(power)) {
     return `${Math.round(power)}w`;
   }
-  return 'unknownw';
+  return "unknownw";
 }
 
-export function getIndexedBranchStem(branch: BranchBlueprint, index: number): string {
+export function getIndexedBranchStem(
+  branch: BranchBlueprint,
+  index: number,
+): string {
   return `branch_${index + 1}_1_${getBranchDenominatorToken(branch)}_${getBranchPowerToken(branch)}`;
 }
 
@@ -405,14 +489,14 @@ export interface BuildBlueprintOptions {
 
 export function buildEndfieldBlueprint(
   branch: BranchBlueprint,
-  options: BuildBlueprintOptions = {}
+  options: BuildBlueprintOptions = {},
 ): Record<string, unknown> {
   const { nodes, width, height } = buildNodesFromBranch(branch);
   const name =
-    typeof options.name === 'string' && options.name.trim()
+    typeof options.name === "string" && options.name.trim()
       ? options.name.trim()
       : defaultBlueprintName(branch);
-  const desc = typeof options.desc === 'string' ? options.desc : '';
+  const desc = typeof options.desc === "string" ? options.desc : "";
 
   const bpIcon = {
     ...DEFAULT_BLUEPRINT_ICON,
@@ -424,10 +508,12 @@ export function buildEndfieldBlueprint(
     ...(options.meta || {}),
   };
 
-  const bpParam = cloneBpParam(options.bpParam || (DEFAULT_BLUEPRINT_PARAM as BlueprintParam));
+  const bpParam = cloneBpParam(
+    options.bpParam || (DEFAULT_BLUEPRINT_PARAM as BlueprintParam),
+  );
 
   return {
-    index: '',
+    index: "",
     bluePrintData: {
       name,
       desc,
@@ -462,11 +548,13 @@ export function roundNumber(value: unknown, digits: number = 2): number | null {
 }
 
 function buildPhaseOffsetParamPayload(
-  params: CalcParams | null | undefined
+  params: CalcParams | null | undefined,
 ): Record<string, number | null> {
   const payload: Record<string, number | null> = {};
   for (let i = 1; i <= PARAM_LIMITS.MAX_BRANCHES; i += 1) {
-    payload[`phaseOffsetBranch${i}`] = toFiniteOrNull(params?.[`phaseOffsetBranch${i}`]);
+    payload[`phaseOffsetBranch${i}`] = toFiniteOrNull(
+      params?.[`phaseOffsetBranch${i}`],
+    );
   }
   return payload;
 }
@@ -482,7 +570,7 @@ export interface BuildExportParamsPayloadOptions {
 
 export function getExportTargetPower(
   solution: SolutionResult | null | undefined,
-  options: { targetPower?: number } = {}
+  options: { targetPower?: number } = {},
 ): number {
   const explicitTarget = Number(options.targetPower);
   if (Number.isFinite(explicitTarget)) {
@@ -505,14 +593,15 @@ export function buildExportParamsPayload({
   targetPower,
 }: BuildExportParamsPayloadOptions): Record<string, unknown> {
   const safeParams =
-    params && typeof params === 'object'
+    params && typeof params === "object"
       ? {
           targetPower: toFiniteOrNull(params.targetPower),
           minBatteryPercent: toFiniteOrNull(params.minBatteryPercent),
           maxWaste: toFiniteOrNull(params.maxWaste),
           maxBranches: toFiniteOrNull(params.maxBranches),
           ...buildPhaseOffsetParamPayload(params),
-          excludeBelt: typeof params.excludeBelt === 'boolean' ? params.excludeBelt : null,
+          excludeBelt:
+            typeof params.excludeBelt === "boolean" ? params.excludeBelt : null,
           primaryFuelId: params.primaryFuelId ?? null,
           secondaryFuelId: params.secondaryFuelId ?? null,
           inputSourceId: params.inputSourceId ?? null,

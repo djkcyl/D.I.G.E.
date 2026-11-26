@@ -51,6 +51,10 @@
     {
       "question": "Pourquoi la puissance s'arrête-t-elle après ma déconnexion ?",
       "answer": "D'après les retours et tests, le serveur peut simplifier le calcul des convoyeurs et appareils associés (pont logistique, entrée d'objets) en hors ligne, provoquant des arrêts sur les routes de convoyeurs. Nous ne pouvons pas le confirmer. L'option « Exclure les convoyeurs » a été ajoutée pour retirer les convoyeurs et appareils associés du blueprint. Si vous subissez des coupures ou débordements hors ligne malgré un fonctionnement normal en ligne, essayez cette option."
+    },
+    {
+      "question": "La fenêtre du panneau de décision a disparu de l'écran. Que faire ?",
+      "answer": "Double-cliquez sur le bouton « N branches actuelles… » en haut pour ramener la fenêtre au centre de l'écran, ou double-cliquez sur sa propre barre de titre. Faites ensuite glisser la barre de titre pour la repositionner (la position est mémorisée automatiquement)."
     }
   ]
 }

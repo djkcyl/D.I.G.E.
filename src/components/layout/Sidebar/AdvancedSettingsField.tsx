@@ -18,7 +18,6 @@ export interface AdvancedSettingsFieldProps {
 export default function AdvancedSettingsField({
   params,
   onChange,
-  onCalculate,
 }: AdvancedSettingsFieldProps) {
   const { t } = useI18n();
   const [collapsed, setCollapsed] = useState(true);
@@ -27,13 +26,13 @@ export default function AdvancedSettingsField({
     PARAM_LIMITS.MIN_BRANCHES,
     Math.min(
       PARAM_LIMITS.MAX_BRANCHES,
-      params.maxBranches ?? PARAM_LIMITS.MAX_BRANCHES
-    )
+      params.maxBranches ?? PARAM_LIMITS.MAX_BRANCHES,
+    ),
   );
 
   const phaseOffsetBranchKeys = Array.from(
     { length: visibleBranchCount },
-    (_, index) => `phaseOffsetBranch${index + 1}` as keyof CalcParams
+    (_, index) => `phaseOffsetBranch${index + 1}` as keyof CalcParams,
   );
 
   return (
@@ -71,7 +70,7 @@ export default function AdvancedSettingsField({
                     onChange(key as keyof CalcParams, nextValue)
                   }
                   ariaLabel={`${t("branch")} ${index + 1} ${t(
-                    "branchPhaseOffset"
+                    "branchPhaseOffset",
                   )}`}
                   rightSlot={
                     <span

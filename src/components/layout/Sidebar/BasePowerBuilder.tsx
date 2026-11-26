@@ -1,8 +1,11 @@
-import { useMemo } from "react";
 import { useI18n } from "../../../i18n";
 import type { CalcParams, ManualBaseLine } from "../../../types/calc";
 import type { Fuel } from "../../../utils/constants";
-import { CONSTANTS, FUEL_OPTIONS, resolveFuel } from "../../../utils/constants";
+import {
+  CONSTANTS,
+  FUEL_OPTIONS_DISPLAY,
+  resolveFuel,
+} from "../../../utils/constants";
 import Icon from "../../ui/Icon";
 import type { SelectOption } from "../../ui/Select";
 import Select from "../../ui/Select";
@@ -38,17 +41,12 @@ export default function BasePowerBuilder({
   const getFuelName = (fuel: { name?: Fuel["name"] } | undefined) =>
     fuel?.name?.[locale] || fuel?.name?.en || "";
 
-  const fuelOptions = useMemo(
-    () =>
-      FUEL_OPTIONS.map((f) => ({
-        value: f.id,
-        label: getFuelName(f),
-        ...f,
-      })),
-    // locale drives labels
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [locale]
-  );
+  // 标签随 locale 变化，直接每次渲染重建（燃料选项只有 9 项）
+  const fuelOptions = FUEL_OPTIONS_DISPLAY.map((f) => ({
+    value: f.id,
+    label: getFuelName(f),
+    ...f,
+  }));
 
   const renderFuelOption = (opt: SelectOption<string> & Partial<Fuel>) => (
     <>
@@ -70,7 +68,7 @@ export default function BasePowerBuilder({
 
   const updateLine = (id: string, patch: Partial<ManualBaseLine>) => {
     setLines(
-      lines.map((line) => (line.id === id ? { ...line, ...patch } : line))
+      lines.map((line) => (line.id === id ? { ...line, ...patch } : line)),
     );
   };
 
@@ -79,7 +77,8 @@ export default function BasePowerBuilder({
   };
 
   const addLine = () => {
-    const defaultFuelId = params.primaryFuelId || FUEL_OPTIONS[0]?.id || "ore";
+    const defaultFuelId =
+      params.primaryFuelId || FUEL_OPTIONS_DISPLAY[0]?.id || "ore";
     setLines([
       ...lines,
       {
