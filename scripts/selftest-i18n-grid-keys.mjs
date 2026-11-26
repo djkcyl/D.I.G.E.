@@ -1,6 +1,6 @@
 /**
  * Ensure grid-code i18n keys exist in all 8 locales.
- * Prefer: pnpm exec tsx scripts/_selftest_i18n_grid_keys.mjs
+ * Prefer: pnpm exec tsx scripts/selftest-i18n-grid-keys.mjs
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -35,9 +35,15 @@ for (const loc of locales) {
   const j = JSON.parse(fs.readFileSync(file, "utf8"));
   for (const key of required) {
     assert.ok(typeof j[key] === "string" && j[key].length > 0, `${loc}.${key}`);
-    assert.ok(!/[\u{1F300}-\u{1FAFF}]/u.test(j[key]), `${loc}.${key} has emoji`);
+    assert.ok(
+      !/[\u{1F300}-\u{1FAFF}]/u.test(j[key]),
+      `${loc}.${key} has emoji`,
+    );
   }
-  assert.ok(j.importCodePrefixMismatch.includes("{power}"), `${loc} needs {power}`);
+  assert.ok(
+    j.importCodePrefixMismatch.includes("{power}"),
+    `${loc} needs {power}`,
+  );
 }
 
-console.log("_selftest_i18n_grid_keys: all passed");
+console.log("selftest-i18n-grid-keys: all passed");

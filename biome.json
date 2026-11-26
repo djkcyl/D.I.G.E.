@@ -21,7 +21,7 @@
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 100
+    "lineWidth": 80
   },
   "assist": {
     "enabled": true,
@@ -48,9 +48,9 @@
   },
   "javascript": {
     "formatter": {
-      "quoteStyle": "single",
+      "quoteStyle": "double",
       "semicolons": "always",
-      "trailingCommas": "es5"
+      "trailingCommas": "all"
     }
   }
 }

@@ -1,15 +1,18 @@
 /**
  * Region–fuel limiter matrix self-test (no vitest).
- * Prefer: pnpm exec tsx scripts/_selftest_region_limiter.mjs
+ * Prefer: pnpm exec tsx scripts/selftest-region-limiter.mjs
  */
 import assert from "node:assert/strict";
+import {
+  generateValidDenominators,
+  resolveFuel,
+} from "../src/utils/constants.ts";
+import { buildBranchLimiterOptions } from "../src/utils/inputRate.ts";
 import {
   isFuelLimiterSupported,
   normalizeFactoryRegion,
   shouldShowWulingCrossRegionLimiterHint,
 } from "../src/utils/regionLimiter.ts";
-import { buildBranchLimiterOptions } from "../src/utils/inputRate.ts";
-import { resolveFuel, generateValidDenominators } from "../src/utils/constants.ts";
 
 function checkSupportMatrix() {
   assert.equal(normalizeFactoryRegion(undefined), "free");
@@ -34,13 +37,38 @@ function checkSupportMatrix() {
   assert.equal(isFuelLimiterSupported("valleyMid", "valley"), true);
   assert.equal(isFuelLimiterSupported("wulingMid", "valley"), false);
   assert.equal(isFuelLimiterSupported("wulingLow", "valley"), false);
+  assert.equal(isFuelLimiterSupported("wulingHigh", "valley"), false);
   assert.equal(isFuelLimiterSupported("customPrimary", "valley"), true);
 
   // hint: free/valley + wuling battery
-  assert.equal(shouldShowWulingCrossRegionLimiterHint("wulingMid", "free"), true);
-  assert.equal(shouldShowWulingCrossRegionLimiterHint("wulingMid", "valley"), true);
-  assert.equal(shouldShowWulingCrossRegionLimiterHint("wulingMid", "wuling"), false);
-  assert.equal(shouldShowWulingCrossRegionLimiterHint("valleyHigh", "free"), false);
+  assert.equal(
+    shouldShowWulingCrossRegionLimiterHint("wulingMid", "free"),
+    true,
+  );
+  assert.equal(
+    shouldShowWulingCrossRegionLimiterHint("wulingMid", "valley"),
+    true,
+  );
+  assert.equal(
+    shouldShowWulingCrossRegionLimiterHint("wulingMid", "wuling"),
+    false,
+  );
+  assert.equal(
+    shouldShowWulingCrossRegionLimiterHint("wulingHigh", "free"),
+    true,
+  );
+  assert.equal(
+    shouldShowWulingCrossRegionLimiterHint("wulingHigh", "valley"),
+    true,
+  );
+  assert.equal(
+    shouldShowWulingCrossRegionLimiterHint("wulingHigh", "wuling"),
+    false,
+  );
+  assert.equal(
+    shouldShowWulingCrossRegionLimiterHint("valleyHigh", "free"),
+    false,
+  );
   assert.equal(shouldShowWulingCrossRegionLimiterHint("", "free"), false);
 }
 
@@ -54,45 +82,48 @@ function checkBranchCandidates() {
     wulingMid,
     "warehouse",
     dens,
-    !isFuelLimiterSupported("wulingMid", "valley")
+    !isFuelLimiterSupported("wulingMid", "valley"),
   );
-  assert.ok(valleyWuling.length > 0, "valley+wulingMid should still have full-speed options");
+  assert.ok(
+    valleyWuling.length > 0,
+    "valley+wulingMid should still have full-speed options",
+  );
   assert.ok(
     valleyWuling.every((o) => o.requiresLimiter === false),
-    "valley+wulingMid must not emit limited candidates"
+    "valley+wulingMid must not emit limited candidates",
   );
 
   const valleyNative = buildBranchLimiterOptions(
     valleyHigh,
     "warehouse",
     dens,
-    !isFuelLimiterSupported("valleyHigh", "valley")
+    !isFuelLimiterSupported("valleyHigh", "valley"),
   );
   assert.ok(
     valleyNative.some((o) => o.requiresLimiter === true),
-    "valley+valleyHigh should include limited candidates"
+    "valley+valleyHigh should include limited candidates",
   );
 
   const wulingForeign = buildBranchLimiterOptions(
     valleyHigh,
     "warehouse",
     dens,
-    !isFuelLimiterSupported("valleyHigh", "wuling")
+    !isFuelLimiterSupported("valleyHigh", "wuling"),
   );
   assert.ok(
     wulingForeign.some((o) => o.requiresLimiter === true),
-    "wuling+valleyHigh should include limited candidates"
+    "wuling+valleyHigh should include limited candidates",
   );
 
   const freeWuling = buildBranchLimiterOptions(
     wulingMid,
     "warehouse",
     dens,
-    !isFuelLimiterSupported("wulingMid", "free")
+    !isFuelLimiterSupported("wulingMid", "free"),
   );
   assert.ok(
     freeWuling.some((o) => o.requiresLimiter === true),
-    "free+wulingMid should include limited candidates"
+    "free+wulingMid should include limited candidates",
   );
 }
 
