@@ -1,3 +1,4 @@
+import { GAME_CONFIG } from "../config/game";
 import type {
   BasePowerDetails,
   CalcParams,
@@ -43,13 +44,13 @@ const WARMUP_CYCLES = 2;
  * Hard cap on LCM cycle period (seconds). Prevents OOM from huge timeline arrays
  * when sparse high-power fuels yield enormous multi-branch LCMs (EDGE-01).
  */
-const MAX_SIMULATION_DURATION = 1200;
+const MAX_SIMULATION_DURATION = GAME_CONFIG.solver.maxSimulationDuration;
 
 /**
  * Theory-stage prune: single-branch feed interval above this (seconds) cannot
  * sustain battery under realistic minBatteryPercent; skip before simulateCycle.
  */
-const MAX_BRANCH_INTERVAL = 600;
+const MAX_BRANCH_INTERVAL = GAME_CONFIG.solver.maxBranchInterval;
 
 /** Absolute ceiling on timeline sample count (seconds of sim wall-clock). */
 const MAX_TIMELINE_SAMPLES = 4000;

@@ -1,3 +1,4 @@
+import { GAME_CONFIG } from "../config/game";
 // 燃料类型配置
 export interface FuelName {
   en: string;
@@ -267,17 +268,17 @@ export const PARAM_LIMITS = {
   MAX_MAX_WASTE: 4095,
   MAX_BATTERY_PERCENT: 100,
   MIN_BRANCHES: 1,
-  MAX_BRANCHES: 4,
+  MAX_BRANCHES: GAME_CONFIG.solver.maxBranches,
   MIN_PHASE_OFFSET_CELLS: 0,
   MAX_PHASE_OFFSET_CELLS: 16,
 } as const;
 
 // 系统常量
 export const CONSTANTS = {
-  BASE_POWER: 200, // 基地自带发电功率 (w)
-  BELT_SPEED: 0.5, // 传送带速度 (个/s)
-  BELT_INTERVAL: 2, // 传送带间隔 (s) = 1/BELT_SPEED
-  BATTERY_CAPACITY: 100000, // 默认蓄电池容量 (J)
+  BASE_POWER: GAME_CONFIG.grid.basePower, // 基地自带发电功率 (w)
+  BELT_SPEED: GAME_CONFIG.grid.beltSpeed, // 传送带速度 (个/s)
+  BELT_INTERVAL: GAME_CONFIG.grid.beltInterval, // 传送带间隔 (s)
+  BATTERY_CAPACITY: GAME_CONFIG.grid.batteryCapacity, // 蓄电池容量 (J)
 } as const;
 
 // 计算满带发电功率

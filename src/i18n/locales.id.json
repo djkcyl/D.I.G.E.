@@ -214,6 +214,7 @@
   "oscPoolPlanMin": "Daya total minimum",
   "oscPoolPowerLine": "Kumpulan osilasi kustom",
   "oscPoolSharedFuel": "Baterai sama juga dipakai di dasar: total {{rate}} item/menit",
+  "oscPoolShareSlotLimit": "Ada {{total}} kumpulan osilasi kustom; kode berbagi hanya membawa {{max}} pertama (perhitungan lokal tidak terpengaruh).",
   "oscPoolSingleMax": "Maks per cabang",
   "oscPoolSingleMin": "Min per cabang",
   "oscPoolTarget": "Daya target",

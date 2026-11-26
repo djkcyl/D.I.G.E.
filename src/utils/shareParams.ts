@@ -1,4 +1,5 @@
-﻿import { SITE_CONFIG } from "../config/site";
+import { GAME_CONFIG } from "../config/game";
+import { SITE_CONFIG } from "../config/site";
 import {
   DEFAULT_INPUT_SOURCE_ID,
   FUEL_OPTIONS,
@@ -25,8 +26,8 @@ const LEGACY_TARGET_POWER_MAX = 32767;
 /** 尾部扩展：目标功率超过 32767 时写入（16 bit，最大 65535） */
 const TARGET_POWER_WIDE_BITS = 16;
 /** 自定义震荡热能池：最多分享 4 条；投料量按 0.1 个/分精度编码 */
-const POOL_SLOTS = 4;
-const BASE_SLOTS = 4;
+const POOL_SLOTS = GAME_CONFIG.share.poolSlots;
+const BASE_SLOTS = GAME_CONFIG.share.baseSlots;
 const INPUT_SOURCE_BITS = 2;
 const MAX_BRANCHES_BITS = 3;
 const EXCLUDE_BELT_BITS = 2;

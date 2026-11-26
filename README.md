@@ -43,18 +43,6 @@ D.I.G.E.（Dijiang Integrated Generator Efficiency）是《明日方舟：终末
 
 差异的代码级细节（宽窗、双轨、分桶、分享码 bit 槽）见 [`docs/architecture.md`](docs/architecture.md) 与 [`docs/handover.md`](docs/handover.md)。
 
-## 上游 issue 处理情况
-
-本仓库用**功能覆盖**而不是逐条回复的方式处理上游 issue：
-
-| 上游 issue | 诉求 | 本仓库现状 |
-| --- | --- | --- |
-| [#16](https://github.com/djkcyl/D.I.G.E./issues/16) 希望增加一个主燃料多选功能 | 想让常驻/震荡同时吃多种电池 | **已由「自定义常驻热能池」实现**：多行、每行独立选电池与台数，配合「自定义震荡热能池」可再指定一种电池做震荡 |
-| [#13](https://github.com/djkcyl/D.I.G.E./issues/13) max Fuel/hr 与第三燃料 | 想限制每小时耗料、并加第三种燃料 | **已由「自定义常驻 + 自定义震荡热能池」实现**：主/副/自定义常驻/自定义震荡可同时存在，投料量按个/分钟直接设定 |
-| [#14](https://github.com/djkcyl/D.I.G.E./issues/14) 常驻燃料上限 | 想限制常驻台数 | **不打算实现**：正常玩法下玩家不会铺超过 10 台热能池，用「自定义常驻热能池」手动排即可 |
-| [#2](https://github.com/djkcyl/D.I.G.E./issues/2) 回灌分流 / 能量泄漏 | 用 loopback 实现任意 1/x 精度 | **暂不实现**：调研与评估记录在 `feature/input-rate-limiter` 分支的 `docs/upstream-issue-2-loopback.md` |
-| [#9](https://github.com/djkcyl/D.I.G.E./issues/9) 赞助渠道 | 想赞助项目 | 不属于代码范畴，未处理 |
-
 ## 分支说明
 
 | 分支 | 用途 |

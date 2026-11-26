@@ -55,6 +55,18 @@
     {
       "question": "The decision-matrix window was dragged somewhere invisible. What now?",
       "answer": "Double-click the \"current N branches…\" button at the top to bring the window back to the centre of the screen, or double-click the window's own title bar. Then drag the title bar to reposition it — the position is remembered automatically."
+    },
+    {
+      "question": "What is the custom oscillation pool and how do I use it?",
+      "answer": "Pick one battery and give it an items-per-minute cap; the tool treats it as fixed supply: every full 1.5/min (7.5/min for originium ore) becomes one full-speed generator, and the remainder becomes a single oscillation branch. Turning it off keeps your settings; the same battery may also appear in the custom base pools."
+    },
+    {
+      "question": "What happens if I enter 3.3 items/min?",
+      "answer": "It splits into two full-speed generators (1.5/min each) plus one 0.3/min oscillation branch. A full-speed band is pickup → three-way splitters → generators with no storage ports; only the remainder needs storage ports and splitters."
+    },
+    {
+      "question": "Why is the pool power subtracted from the target?",
+      "answer": "The pool is already-decided supply, so it does not take part in the primary/secondary enumeration. The solver works on target minus pool power, then the pool power is added back for display, so the current-power and waste figures stay comparable. The yellow dashed line in the cycle chart is the pool curve: flat for full-speed bands, pulsing for the remainder branch."
     }
   ]
 }

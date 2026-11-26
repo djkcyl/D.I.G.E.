@@ -214,6 +214,7 @@
   "oscPoolPlanMin": "構成の最低総出力",
   "oscPoolPowerLine": "カスタム振動プール",
   "oscPoolSharedFuel": "同じ電池を常駐でも使用：合計 {{rate}} 個/分",
+  "oscPoolShareSlotLimit": "カスタム振動プールが {{total}} 件あります。共有コードは先頭 {{max}} 件のみ含みます（ローカル計算には影響しません）。",
   "oscPoolSingleMax": "単支最大（常駐）",
   "oscPoolSingleMin": "単支最小",
   "oscPoolTarget": "目標出力",

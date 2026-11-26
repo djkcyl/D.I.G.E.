@@ -214,6 +214,7 @@
   "oscPoolPlanMin": "Min total power",
   "oscPoolPowerLine": "Custom oscillation pool",
   "oscPoolSharedFuel": "Same fuel also used by base pools: {{rate}} items/min in total",
+  "oscPoolShareSlotLimit": "You have {{total}} custom oscillation pools; share codes only carry the first {{max}} (local calculation is unaffected).",
   "oscPoolSingleMax": "Max per branch",
   "oscPoolSingleMin": "Min per branch",
   "oscPoolTarget": "Target power",

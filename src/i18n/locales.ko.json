@@ -214,6 +214,7 @@
   "oscPoolPlanMin": "최저 총전력",
   "oscPoolPowerLine": "사용자 지정 진동 풀",
   "oscPoolSharedFuel": "같은 배터리를 상시에서도 사용: 합계 {{rate}} 개/분",
+  "oscPoolShareSlotLimit": "사용자 지정 진동 풀이 {{total}}개 있습니다. 공유 코드는 앞의 {{max}}개만 포함합니다(로컬 계산에는 영향 없음).",
   "oscPoolSingleMax": "단일 최대(상시)",
   "oscPoolSingleMin": "단일 최소",
   "oscPoolTarget": "희망 전력",

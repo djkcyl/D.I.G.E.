@@ -55,6 +55,18 @@
     {
       "question": "Jendela keputusan tergeser ke luar layar. Bagaimana?",
       "answer": "Klik ganda tombol \"saat ini N cabang…\" di bagian atas untuk mengembalikan jendela ke tengah layar, atau klik ganda bilah judul jendela itu sendiri. Setelah itu seret bilah judul untuk memindahkannya (posisi tersimpan otomatis)."
+    },
+    {
+      "question": "Apa itu kumpulan osilasi kustom dan bagaimana memakainya?",
+      "answer": "Pilih satu baterai dan beri batas item per menit; alat memperlakukannya sebagai pasokan tetap. Setiap 1,5 item/menit penuh (bijih 7,5/menit) menjadi satu generator kecepatan penuh, sisanya menjadi satu cabang osilasi. Mematikan sakelar tetap menyimpan konfigurasi; baterai yang sama juga boleh ada di kumpulan dasar kustom."
+    },
+    {
+      "question": "Apa yang terjadi jika saya memasukkan 3,3 item/menit?",
+      "answer": "Akan jadi dua generator kecepatan penuh (masing-masing 1,5/menit) ditambah satu cabang osilasi 0,3/menit. Pita kecepatan penuh adalah port pengambilan → pemisah tiga arah → generator tanpa port penyimpanan; hanya sisanya yang butuh port penyimpanan dan pemisah."
+    },
+    {
+      "question": "Mengapa daya kumpulan dikurangkan dari target?",
+      "answer": "Karena kumpulan adalah pasokan yang sudah pasti, sehingga tidak ikut pencarian bahan bakar utama/sekunder. Alat menghitung kekurangan sebagai \"target − daya kumpulan\", lalu menambahkan daya kumpulan kembali saat menampilkan. Garis putus-putus kuning pada grafik adalah kurva kumpulan: datar untuk pita kecepatan penuh, berdenyut untuk sisanya."
     }
   ]
 }

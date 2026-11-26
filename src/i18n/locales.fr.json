@@ -214,6 +214,7 @@
   "oscPoolPlanMin": "Puissance totale mini",
   "oscPoolPowerLine": "Pool d'oscillation perso.",
   "oscPoolSharedFuel": "Même batterie aussi en base : {{rate}} obj/min au total",
+  "oscPoolShareSlotLimit": "Vous avez {{total}} pools d'oscillation personnalisés ; les codes de partage n'emportent que les {{max}} premiers (le calcul local n'est pas affecté).",
   "oscPoolSingleMax": "Max par branche",
   "oscPoolSingleMin": "Min par branche",
   "oscPoolTarget": "Puissance visée",

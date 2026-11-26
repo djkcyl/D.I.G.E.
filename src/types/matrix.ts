@@ -1,3 +1,4 @@
+import { GAME_CONFIG } from "../config/game";
 import type { SolutionResult } from "./calc";
 
 /** 冗余 Waste X 轴 3 档列枚举 */
@@ -26,8 +27,8 @@ export const WASTE_COLUMNS = [
   { id: 2, label: ">500w", subLabel: "千瓦级", max: Number.POSITIVE_INFINITY },
 ] as const;
 
-export const SEARCH_MAX_WASTE = 1200;
-export const MIN_BATTERY_CUTOFF = 5;
+export const SEARCH_MAX_WASTE = GAME_CONFIG.solver.maxWaste;
+export const MIN_BATTERY_CUTOFF = GAME_CONFIG.solver.minBatteryPercent;
 
 export function getWasteColumnIndex(waste: number): WasteColumnIndex {
   if (waste <= 100) return 0;

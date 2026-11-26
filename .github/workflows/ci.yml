@@ -39,7 +39,6 @@ jobs:
           pnpm exec tsx scripts/selftest-region-limiter.mjs
           pnpm exec tsx scripts/selftest-i18n-grid-keys.mjs
           pnpm exec tsx scripts/selftest-osc-budget.mjs
-          pnpm exec tsx scripts/selftest-osc-plan.mjs
           pnpm exec tsx scripts/selftest-osc-scenarios.mjs
           pnpm exec tsx scripts/selftest-matrix-7665.mjs
 

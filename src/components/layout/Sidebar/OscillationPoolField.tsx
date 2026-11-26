@@ -1,4 +1,5 @@
 ﻿import { useState } from "react";
+import { GAME_CONFIG } from "../../../config/game";
 import { useI18n } from "../../../i18n";
 import type { CalcParams } from "../../../types/calc";
 import type { Fuel } from "../../../utils/constants";
@@ -223,6 +224,15 @@ export default function OscillationPoolField({
           +
         </button>
       </div>
+
+      {pools.length > GAME_CONFIG.share.poolSlots ? (
+        <p className="text-xs text-endfield-yellow">
+          {t("oscPoolShareSlotLimit", {
+            max: GAME_CONFIG.share.poolSlots,
+            total: pools.length,
+          })}
+        </p>
+      ) : null}
 
       {active ? (
         <>

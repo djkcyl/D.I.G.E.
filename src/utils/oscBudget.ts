@@ -8,14 +8,17 @@
  *
  * 边界口径（口径 B：可运行下限）：
  * 1. 设备容量上限（默认 48，整方案合计）限制分母不可能无限大；
- * 2. 传送带每 30 分钟会吞 1 个物品（客户端 bug），支路越慢损失占比越大，
- *    因此低速震荡在实战中不可用——这是"最低瓦数"的真正来源。
+ * 2. 历史上曾存在「每 30 分钟吞 1 个物品」的下线降速问题（官方已修复），
+ *    这里保留 5% 损耗容忍仅作为保守下限，避免给出速率低到没有实践意义的支路。
+ *
+ * 游戏数值统一来自 `src/config/game.ts`。
  */
 
+import { GAME_CONFIG } from "../config/game";
 import type { Fuel } from "./constants";
 
 /** 母带满速：仓库/封装机模型里震荡枚举使用的基准（个/分钟） */
-export const BELT_ITEMS_PER_MINUTE = 30;
+export const BELT_ITEMS_PER_MINUTE = GAME_CONFIG.grid.portItemsPerMinute;
 
 /** 传送带吞物品 bug：每 30 分钟丢 1 个 */
 export const ITEM_LOSS_PER_WINDOW = 1;
@@ -27,26 +30,28 @@ export const DEFAULT_LOSS_TOLERANCE = 0.05;
 /** 设备容量占用（按游戏实体计；存货口是每支路 2 个，全二分器时可只 1 个） */
 export const DEVICE_COST = {
   /** 三分器按 5 格设备容量计 */
-  split3: 5,
+  split3: GAME_CONFIG.device.cost.split3,
   /** 二分器按 3 格 */
-  split2: 3,
-  merger: 1,
+  split2: GAME_CONFIG.device.cost.split2,
+  merger: GAME_CONFIG.device.cost.merger,
   /** 取货口 */
-  pickup: 1,
+  pickup: GAME_CONFIG.device.cost.pickup,
   /** 单个存货口 */
-  storage: 1,
+  storage: GAME_CONFIG.device.cost.storage,
   /** 热能池 */
-  generator: 1,
-  limiter: 1,
+  generator: GAME_CONFIG.device.cost.generator,
+  limiter: GAME_CONFIG.device.cost.limiter,
 } as const;
 
 /** 单支路需要的存货口数量：用到三分器要 2 个，全是二分器 1 个就够 */
 export function storagePortsFor(split3: number): number {
-  return split3 > 0 ? 2 : 1;
+  return split3 > 0
+    ? GAME_CONFIG.device.storagePortsWithThree
+    : GAME_CONFIG.device.storagePortsBinaryOnly;
 }
 
 /** 整方案默认可用的震荡系统设备容量 */
-export const DEFAULT_DEVICE_LIMIT = 48;
+export const DEFAULT_DEVICE_LIMIT = GAME_CONFIG.device.budget;
 
 /** 单台满速耗料（个/分钟）：40s 电池 = 1.5 */
 export function fullSpeedPerMinute(fuel: Fuel): number {

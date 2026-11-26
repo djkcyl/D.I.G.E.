@@ -55,6 +55,18 @@
     {
       "question": "Das Entscheidungsfenster ist aus dem Bild verschwunden. Was nun?",
       "answer": "Doppelklicke oben auf die Schaltfläche „aktuell N Zweige…“, um das Fenster wieder in die Bildschirmmitte zu holen — oder doppelklicke auf die Titelleiste des Fensters selbst. Danach kannst du es an der Titelleiste verschieben (die Position wird automatisch gemerkt)."
+    },
+    {
+      "question": "Was ist der benutzerdefinierte Schwingungspool und wie nutze ich ihn?",
+      "answer": "Eine Batterie wählen und eine Obergrenze in Stück/Minute setzen: Das Tool behandelt sie als feste Zufuhr. Jede volle 1,5/min (bei Erz 7,5/min) ergibt einen Generator mit Vollgas, der Rest eine Schwingungsverzweigung. Ausschalten behält die Einstellungen; dieselbe Batterie darf auch in den Grundlastpools stehen."
+    },
+    {
+      "question": "Was passiert bei 3,3 Stück/Minute?",
+      "answer": "Es entstehen zwei Generatoren mit Vollgas (je 1,5/min) und eine Schwingungsverzweigung mit 0,3/min. Ein Vollgasband ist Entnahme → Dreiwegverteiler → Generatoren ohne Lagerports; nur der Rest braucht Lagerports und Verteiler."
+    },
+    {
+      "question": "Warum wird die Poolleistung vom Ziel abgezogen?",
+      "answer": "Der Pool ist bereits festgelegte Zufuhr und nimmt nicht an der Enumeration von Haupt-/Zweitbrennstoff teil. Das Tool rechnet den Restbedarf als „Ziel − Poolleistung“ und addiert die Poolleistung für die Anzeige wieder. Die gelbe gestrichelte Linie im Diagramm ist die Poolkurve: flach bei Vollgasbändern, pulsierend beim Rest."
     }
   ]
 }

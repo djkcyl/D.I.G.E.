@@ -214,6 +214,7 @@
   "oscPoolPlanMin": "Minimale Gesamtleistung",
   "oscPoolPowerLine": "Eigener Schwingungspool",
   "oscPoolSharedFuel": "Gleiche Batterie auch in Grundlast: insgesamt {{rate}} Stück/min",
+  "oscPoolShareSlotLimit": "Es gibt {{total}} benutzerdefinierte Schwingungspools; Freigabecodes enthalten nur die ersten {{max}} (lokale Berechnung bleibt unberührt).",
   "oscPoolSingleMax": "Max. pro Zweig",
   "oscPoolSingleMin": "Min. pro Zweig",
   "oscPoolTarget": "Zielleistung",

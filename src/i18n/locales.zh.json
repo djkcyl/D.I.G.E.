@@ -214,6 +214,7 @@
   "oscPoolPlanMin": "方案最低总功率",
   "oscPoolPowerLine": "自定义震荡池功率",
   "oscPoolSharedFuel": "该电池也用于自定义常驻：合计 {{rate}} 个/分钟",
+  "oscPoolShareSlotLimit": "当前有 {{total}} 条自定义震荡热能池，分享码只携带前 {{max}} 条（本地计算不受影响）。",
   "oscPoolSingleMax": "单支最高（常驻）",
   "oscPoolSingleMin": "单支最低",
   "oscPoolTarget": "期望瓦数",

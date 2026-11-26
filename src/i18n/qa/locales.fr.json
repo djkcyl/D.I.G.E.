@@ -55,6 +55,18 @@
     {
       "question": "La fenêtre du panneau de décision a disparu de l'écran. Que faire ?",
       "answer": "Double-cliquez sur le bouton « N branches actuelles… » en haut pour ramener la fenêtre au centre de l'écran, ou double-cliquez sur sa propre barre de titre. Faites ensuite glisser la barre de titre pour la repositionner (la position est mémorisée automatiquement)."
+    },
+    {
+      "question": "Qu'est-ce que le pool d'oscillation personnalisé et comment l'utiliser ?",
+      "answer": "Choisissez une batterie et fixez un plafond d'objets par minute : l'outil la traite comme une fourniture fixe. Chaque tranche pleine de 1,5/min (7,5/min pour le minerai) devient un générateur à pleine vitesse, le reste devient une branche d'oscillation. Désactiver le pool conserve la configuration ; la même batterie peut aussi figurer dans les pools permanents."
+    },
+    {
+      "question": "Que se passe-t-il si je saisis 3,3 objets/min ?",
+      "answer": "Cela donne deux générateurs à pleine vitesse (1,5/min chacun) et une branche d'oscillation de 0,3/min. Une bande pleine vitesse, c'est prise → séparateurs ternaires → générateurs, sans ports de stockage ; seuls les restes ont besoin de ports et de séparateurs."
+    },
+    {
+      "question": "Pourquoi la puissance du pool est-elle retirée de la cible ?",
+      "answer": "Le pool est une fourniture déjà décidée, il ne participe pas à l'énumération carburant principal/secondaire. L'outil calcule le déficit sur « cible − puissance du pool », puis rajoute cette puissance à l'affichage. La ligne jaune pointillée du graphique est la courbe du pool : plate pour les bandes pleines, pulsée pour le reste."
     }
   ]
 }
