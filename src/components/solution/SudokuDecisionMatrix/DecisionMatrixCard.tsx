@@ -35,9 +35,25 @@ export default function DecisionMatrixCard({
   const { t } = useI18n();
   const rows = matrix ?? EMPTY_GRID;
   const cellH = compact ? "h-14" : "h-12 sm:h-[3.35rem]";
+  // 方案 B：池满速带超出目标的纯常驻解（配置不优）在卡片头部给黄色警告
+  const overSupply = rows
+    .flat()
+    .find((cell) => cell?.poolOverSupply)?.poolOverSupply;
 
   return (
     <div className="w-full">
+      {overSupply ? (
+        <div
+          role="alert"
+          className="mb-1 border-l-2 border-endfield-yellow bg-endfield-yellow/10 px-2 py-1 text-[11px] text-endfield-yellow leading-snug"
+        >
+          {t("poolOverSupplyWarning", {
+            overPercent: overSupply.overPercent,
+            peak: Math.round(overSupply.peakW),
+            target: Math.round(overSupply.targetW),
+          })}
+        </div>
+      ) : null}
       <table className="w-full table-fixed border-collapse text-center">
         <thead>
           <tr>

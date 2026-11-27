@@ -1,5 +1,7 @@
 import { useI18n } from "../../i18n";
+import type { PoolAdjustSummary } from "../../utils/factoryDesigner.worker";
 import type { DiagnosisResult } from "../../utils/failureDiagnose";
+import PoolAdjustTrace from "../PoolAdjustTrace";
 import AlertModal from "../ui/AlertModal";
 
 export interface ErrorStateProps {
@@ -7,6 +9,8 @@ export interface ErrorStateProps {
   onDismiss: () => void;
   closeOnBackdrop?: boolean;
   diagnosis?: DiagnosisResult | null;
+  /** 调整链摘要；有 trace 或 outcome 时在弹窗里列出「已尝试」 */
+  poolAdjust?: PoolAdjustSummary | null;
 }
 
 export default function ErrorState({
@@ -14,8 +18,18 @@ export default function ErrorState({
   onDismiss,
   closeOnBackdrop = false,
   diagnosis = null,
+  poolAdjust = null,
 }: ErrorStateProps) {
   const { t } = useI18n();
+
+  const trace =
+    poolAdjust && (poolAdjust.trace.length > 0 || poolAdjust.outcome) ? (
+      <PoolAdjustTrace
+        trace={poolAdjust.trace}
+        outcome={poolAdjust.outcome}
+        stoppedAtStep={poolAdjust.stoppedAtStep}
+      />
+    ) : null;
 
   const message = diagnosis ? (
     <div className="space-y-3">
@@ -32,6 +46,12 @@ export default function ErrorState({
           </ul>
         </div>
       ) : null}
+      {trace}
+    </div>
+  ) : trace ? (
+    <div className="space-y-3">
+      <p>{t("errorSuggestion")}</p>
+      {trace}
     </div>
   ) : (
     t("errorSuggestion")

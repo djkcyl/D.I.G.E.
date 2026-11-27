@@ -1,4 +1,4 @@
-﻿import {
+import {
   Chart as ChartJS,
   type ChartOptions,
   Filler,
@@ -14,6 +14,12 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Line } from "react-chartjs-2";
 import { useI18n } from "../../i18n";
 import { formatTime } from "../../utils/constants";
+import {
+  type PoolSegments,
+  poolAverageWatt,
+  poolWattAt as poolWattAtSeconds,
+  resolveLogSecondsPerPoint,
+} from "../../utils/poolChartSegments";
 import { useTheme } from "../../utils/useTheme";
 
 const CHART_CANVAS_BG_DARK = "#111111";
@@ -58,18 +64,10 @@ const TARGET_SECONDS_PER_POINT = 4;
 const MAX_CHART_POINTS = 1000;
 const MIN_VISIBLE_SECONDS = TARGET_SECONDS_PER_POINT * 20;
 
-export interface PoolSegment {
-  /** 满速带恒定功率 */
-  constant: number;
-  /** 余量震荡支路功率（燃烧时） */
-  remainderWatt: number;
-  /** 震荡周期（秒） */
-  cycle: number;
-  /** 每个周期内的燃烧时长（秒） */
-  onDuration: number;
-}
-
-export type PoolSegments = PoolSegment[];
+export type {
+  PoolSegment,
+  PoolSegments,
+} from "../../utils/poolChartSegments";
 
 export interface SolutionChartProps {
   solution?: {
@@ -81,6 +79,8 @@ export interface SolutionChartProps {
     preciseBurnStateLog?: number[][];
     poolPowerLog?: number[];
     period?: number;
+    /** 每个日志点代表的秒数（仿真 sampleStep） */
+    logSecondsPerPoint?: number;
   };
   targetPower: number;
   minBatteryThreshold?: number;
@@ -165,11 +165,13 @@ export default function SolutionChart({
     const rawPeriod = Math.max(0, solution?.period ?? 0);
     const usingPreciseSource =
       preciseValues && Array.isArray(solution?.preciseBatteryLog);
+    // 精确日志按仿真 sampleStep 采样（period ≥ 2000 时每点 ceil(period/500) 秒），不能把下标当秒
+    const logSecondsPerPoint = resolveLogSecondsPerPoint(solution);
     const rawSecondsPerPoint = usingPreciseSource
-      ? 1
+      ? logSecondsPerPoint
       : rawPeriod > 0 && rawPointCount > 1
         ? rawPeriod / (rawPointCount - 1)
-        : 1;
+        : logSecondsPerPoint;
 
     let secondsPerPoint = rawSecondsPerPoint;
 
@@ -339,22 +341,10 @@ export default function SolutionChart({
     minBatteryThresholdValue === null
       ? t("minBatteryPercent")
       : `${t("minBatteryPercent")} (${minBatteryThresholdValue.toFixed(0)}%)`;
-  const poolTotalWatt =
-    poolSegments?.reduce(
-      (sum, seg) => sum + seg.constant + seg.remainderWatt,
-      0,
-    ) ?? 0;
+  // 图例/标题判断用平均功率；折线亮灯段用瞬时功率 pulseWatt（都来自 poolPowerForRate 口径）
+  const poolTotalWatt = poolAverageWatt(poolSegments);
   const poolWattAt = useCallback(
-    (seconds: number) => {
-      if (!poolSegments || poolSegments.length === 0) return 0;
-      return poolSegments.reduce((sum, seg) => {
-        const on =
-          seg.cycle > 0 && seconds % seg.cycle < seg.onDuration
-            ? seg.remainderWatt
-            : 0;
-        return sum + seg.constant + on;
-      }, 0);
-    },
+    (seconds: number) => poolWattAtSeconds(poolSegments, seconds),
     [poolSegments],
   );
   const powerLineColor = isLight ? "#D97706" : "#d4ff00";

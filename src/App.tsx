@@ -21,12 +21,16 @@ import type { CalcParams, SolutionResult } from "./types/calc";
 import type { DecisionMatrixGrid, MatrixSelection } from "./types/matrix";
 import type { ProfileModalMode, ProfilesStorageState } from "./types/profile";
 import { DEFAULT_PARAMS } from "./utils/defaultParams";
-import type { WorkerResponse } from "./utils/factoryDesigner.worker";
+import type {
+  PoolAdjustSummary,
+  WorkerResponse,
+} from "./utils/factoryDesigner.worker";
 import {
   type DiagnosisResult,
   diagnoseNoSolution,
 } from "./utils/failureDiagnose";
 import { buildGridCode } from "./utils/gridCode";
+import { findAdjustTargetPool } from "./utils/poolAdjustChain";
 import {
   createProfileId,
   getActiveProfile,
@@ -131,6 +135,9 @@ function AppContent({
   const [lastDiagnosis, setLastDiagnosis] = useState<DiagnosisResult | null>(
     null,
   );
+  /** 无解时 worker 回传的调整链摘要，诊断弹窗列「已尝试」用 */
+  const [lastPoolAdjust, setLastPoolAdjust] =
+    useState<PoolAdjustSummary | null>(null);
   const [showPrivacyFooter, setShowPrivacyFooter] = useState(() => {
     if (typeof window === "undefined") return true;
     return localStorage.getItem(PRIVACY_FOOTER_DISMISSED_KEY) !== "1";
@@ -164,6 +171,32 @@ function AppContent({
       setDirtyDismissed(false);
     },
     [],
+  );
+
+  /** 调整提示条「套用到参数」：放宽后的冗余上限 */
+  const handleApplyMaxWaste = useCallback(
+    (used: number) => {
+      setParamsWithDirty((prev) => ({ ...prev, maxWaste: used }));
+    },
+    [setParamsWithDirty],
+  );
+
+  /** 调整提示条「套用到参数」：降低后的投料速率（降到 0 = 停用该池，与调整链一致） */
+  const handleApplyPoolRate = useCallback(
+    (toPerMin: number) => {
+      setParamsWithDirty((prev) => {
+        const index = findAdjustTargetPool(prev);
+        if (index < 0 || !prev.oscPools) return prev;
+        const oscPools = prev.oscPools.map((cfg, i) => {
+          if (i !== index || !cfg) return cfg;
+          return toPerMin > 0
+            ? { ...cfg, maxPerMin: toPerMin }
+            : { ...cfg, maxPerMin: 0, enabled: false };
+        });
+        return { ...prev, oscPools };
+      });
+    },
+    [setParamsWithDirty],
   );
 
   const runCalculation = useCallback(
@@ -220,6 +253,7 @@ function AppContent({
             payload.poolPrecheck ?? null,
           );
           setLastDiagnosis(diagnosis);
+          setLastPoolAdjust(payload.poolAdjust ?? null);
           setShowError(true);
           setSolutions([]);
           setMatrix(payload.matrix ?? null);
@@ -228,6 +262,7 @@ function AppContent({
         }
 
         setLastDiagnosis(null);
+        setLastPoolAdjust(null);
         setSolutions(payload.solutions);
         setMatrix(payload.matrix);
         setDefaultSelection(payload.defaultSelection);
@@ -254,6 +289,7 @@ function AppContent({
           // 第 8 步：超时只提示，不清空上一次的有效结果
           console.warn("Calculation timed out:", error);
           setIsLoading(false);
+          setLastPoolAdjust(null);
           setLastDiagnosis({
             title: t("solveTimeoutTitle"),
             primaryHint: t("diagSolveTimeout", {
@@ -267,6 +303,7 @@ function AppContent({
         console.error("Calculation failed:", error);
         setIsLoading(false);
         setLastDiagnosis(null);
+        setLastPoolAdjust(null);
         setShowError(true);
         setSolutions([]);
         setMatrix(null);
@@ -711,6 +748,8 @@ function AppContent({
               onSelectSolution={setSelectedIndex}
               params={params}
               diagnosis={lastDiagnosis}
+              onApplyMaxWaste={handleApplyMaxWaste}
+              onApplyPoolRate={handleApplyPoolRate}
               matrix={matrix}
               defaultSelection={defaultSelection}
               profile={{
@@ -772,6 +811,7 @@ function AppContent({
         onDismiss={() => setShowError(false)}
         closeOnBackdrop={false}
         diagnosis={lastDiagnosis}
+        poolAdjust={lastPoolAdjust}
       />
       <SaveProfileModal
         show={profileModalOpen}

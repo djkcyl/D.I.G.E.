@@ -7,6 +7,7 @@ import { QRCodeCanvas } from "qrcode.react";
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import type { CalcParams, SolutionResult } from "../../types/calc";
+import { buildPoolSegments } from "../poolChartSegments";
 import type { BranchBlueprint } from "./blueprintCore";
 import {
   buildExportParamsPayload,
@@ -344,6 +345,7 @@ export async function buildCompleteExportImageBlob(
           fontFamily,
           chartWidth: chartTargetWidth,
           chartHeight: chartTargetHeight,
+          poolSegments: buildPoolSegments(options.params),
         })
       : null;
   const chartImage = chartBlob ? await blobToImage(chartBlob) : null;

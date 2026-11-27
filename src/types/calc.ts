@@ -182,6 +182,8 @@ export interface SolutionResult {
   poolPowerLog?: number[];
   precisePowerLog: number[];
   preciseBurnStateLog: number[][];
+  /** 每个日志点代表的秒数（仿真 sampleStep：period < 2000 为 1，否则 ceil(period/500)） */
+  logSecondsPerPoint?: number;
   fuelConsumption: {
     base: {
       fuel: Fuel;
@@ -204,5 +206,62 @@ export interface SolutionResult {
   baseDetails?: BasePowerDetails;
   /** 是否为多燃料混合震荡方案 */
   isMixed?: boolean;
+  /** 调度链放宽了冗余上限：base = 原搜索窗，used = 实际出解用的上限（W） */
+  wasteRelax?: WasteRelaxInfo;
+  /** 调度链调整了自定义池投料量 */
+  poolAdjust?: PoolAdjustInfo;
+  /** 调度链每一步尝试的记录 */
+  poolAdjustTrace?: PoolAdjustTraceStep[];
+  /** 调度链因共用求解 deadline 到期而提前停止 */
+  timedOut?: boolean;
+  /** 调度链采用那次预检给出的最低富余（W，向上取整） */
+  requiredSurplusW?: number;
+  /** 自定义池投料超过 1.5/分 被截断（求解按截断后的值算）；没有截断时不写 */
+  poolFeedClamp?: PoolFeedClampInfo[];
+  /**
+   * 方案 B：自定义池满速带（未钳制）≥ 目标 + 冗余上限的纯常驻解。
+   * 物理成立但配置不优；UI 显示黄色警告条。peakW = 方案均值，overPercent = 超出目标的百分比。
+   */
+  poolOverSupply?: { peakW: number; targetW: number; overPercent: number };
   [key: string]: unknown;
+}
+
+/** 自定义池投料截断记录（个/分） */
+export interface PoolFeedClampInfo {
+  /** 在 params.oscPools 里的下标 */
+  index: number;
+  id: string;
+  fuelId: string;
+  /** 用户填的值 */
+  requestedPerMin: number;
+  /** 实际采用的值（= 1.5） */
+  usedPerMin: number;
+}
+
+/** 冗余上限放宽信息（W） */
+export interface WasteRelaxInfo {
+  base: number;
+  used: number;
+}
+
+export type PoolAdjustDirection = "none" | "down" | "up";
+
+/** 自定义池投料调整信息（个/分） */
+export interface PoolAdjustInfo {
+  direction: PoolAdjustDirection;
+  fromPerMin: number;
+  toPerMin: number;
+  /** 要达到原需求实际需要的投料量（个/分），可选 */
+  requiredActualRatePerMin?: number;
+}
+
+export type PoolAdjustTraceKind = "wasteRelax" | "down" | "up";
+
+/** 调度链单步记录：before / after = 预检前后候选数 */
+export interface PoolAdjustTraceStep {
+  kind: PoolAdjustTraceKind;
+  maxWaste: number;
+  ratePerMin: number;
+  before: number;
+  after: number;
 }

@@ -2,17 +2,22 @@
  * 客户端无解诊断（纯 UI 层启发式，不触碰求解内核）
  */
 import type { CalcParams } from "../types/calc";
+import { SEARCH_MAX_WASTE } from "../types/matrix";
 import { CONSTANTS, resolveFuel } from "./constants";
+import { normalizeDeviceLimit, poolPowerForRate } from "./oscBudget";
 import {
   computePoolBatteryNeed,
   type PoolPrecheckReport,
 } from "./poolBatteryPrecheck";
+import { splitPoolFeed } from "./poolFeedSplit";
 
 export interface DiagnosisResult {
   /** 第 8 步：弹窗标题覆盖（如「计算超时」）；缺省为「未找到解决方案」 */
   title?: string;
   primaryHint: string;
   secondaryHints: string[];
+  /** 方案 B：poolExceedsTarget 场景下 Σ未钳制池额定功率 − 目标（W）；其它场景缺省 */
+  surplusW?: number;
 }
 
 type TranslateFn = (
@@ -84,6 +89,35 @@ function isAutoBaseEnabled(params: CalcParams, hasManual: boolean): boolean {
   return !hasManual;
 }
 
+/** 自定义池额定总功率（未按目标钳制），与 FactoryDesigner 同口径：splitPoolFeed → poolPowerForRate */
+function poolRatedWatt(params: CalcParams): number {
+  let sum = 0;
+  for (const cfg of params.oscPools ?? []) {
+    if (!cfg || cfg.enabled === false) continue;
+    if (!cfg.fuelId || cfg.fuelId === "none") continue;
+    const fuel = resolveFuel(cfg.fuelId, params.fuelOverrides);
+    if (!fuel) continue;
+    const feed = splitPoolFeed(
+      cfg.fuelId,
+      cfg.maxPerMin,
+      params.fuelOverrides,
+    );
+    if (!feed.active) continue;
+    sum += poolPowerForRate(fuel, feed.ratePerMin, {
+      deviceLimit: normalizeDeviceLimit(cfg.deviceLimit),
+    }).watt;
+  }
+  return sum;
+}
+
+/** 与 FactoryDesigner.maxWaste 同口径：只有显式放宽（> SEARCH_MAX_WASTE）才采用 params.maxWaste */
+function solverWasteCap(params: CalcParams): number {
+  const requested = Number(params.maxWaste);
+  return Number.isFinite(requested) && requested > SEARCH_MAX_WASTE
+    ? requested
+    : SEARCH_MAX_WASTE;
+}
+
 function uniqueHints(hints: string[]): string[] {
   const seen = new Set<string>();
   return hints.filter((h) => {
@@ -115,6 +149,35 @@ export function diagnoseNoSolution(
         t("diagCheckDecisionMatrix"),
         t("diagAddManualBase"),
       ]),
+    };
+  }
+
+  // 场景 E（方案 B）：池额定功率单独就 ≥ 目标，求解缺口被压成 0，最少也要叠上基地供电，
+  // 所有候选的冗余都 > 上限 → 真无解。本函数只在 solutions = 0 时调用；
+  // 「池满速带 ≥ 目标 + 上限」的纯常驻解已由 FactoryDesigner 放出（poolOverSupply），不会走到这里。
+  let poolRated = 0;
+  try {
+    poolRated = poolRatedWatt(params);
+  } catch {
+    poolRated = 0;
+  }
+  const target = Number(params.targetPower) || 0;
+  const wasteCap = solverWasteCap(params);
+  if (
+    target > 0 &&
+    poolRated >= target &&
+    poolRated + CONSTANTS.BASE_POWER - target > wasteCap + 0.5
+  ) {
+    const surplusW = Math.round(poolRated - target);
+    return {
+      primaryHint: t("diagPoolExceedsTarget", {
+        pool: Math.round(poolRated),
+        target: Math.round(target),
+        surplus: surplusW,
+        cap: Math.round(wasteCap),
+      }),
+      secondaryHints: uniqueHints([t("diagCheckDecisionMatrix")]),
+      surplusW,
     };
   }
 

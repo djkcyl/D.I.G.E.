@@ -14,7 +14,15 @@ import {
 } from "chart.js";
 import type { SolutionResult } from "../../types/calc";
 import { CONSTANTS, formatTime } from "../constants";
+import {
+  type PoolSegments,
+  poolAverageWatt,
+  poolWattAt,
+  resolveLogSecondsPerPoint,
+} from "../poolChartSegments";
 import { getExportTargetPower } from "./blueprintCore";
+
+const POOL_LINE_COLOR = "#ffd60a";
 import {
   canvasToBlob,
   ensureCanvasFontReady,
@@ -46,6 +54,7 @@ function getPreciseChartLabels(
     batteryAxis: labels.batteryAxis || "Battery",
     stateOn: labels.stateOn || "On",
     stateOff: labels.stateOff || "Off",
+    oscPoolPowerLine: labels.oscPoolPowerLine || "Pool Power",
   };
 }
 
@@ -85,6 +94,8 @@ export interface PreciseChartOptions {
   fontFamily?: string;
   chartWidth?: number;
   chartHeight?: number;
+  /** 自定义震荡池分段；不传时不画池折线（与旧行为一致） */
+  poolSegments?: PoolSegments;
   [key: string]: unknown;
 }
 
@@ -133,6 +144,33 @@ export async function buildPreciseChartPngBlob(
   ctx.fillRect(0, 0, width, height);
 
   const xValues = batteryLog.map((_, i) => i);
+  // 下标 → 秒：日志按仿真 sampleStep 采样，不能把下标当秒
+  const secondsPerPoint = resolveLogSecondsPerPoint(solution);
+  const poolSegments = Array.isArray(options.poolSegments)
+    ? options.poolSegments
+    : [];
+  const poolLog = Array.isArray(solution?.poolPowerLog)
+    ? solution.poolPowerLog
+    : [];
+  const poolDatasets =
+    poolAverageWatt(poolSegments) > 0
+      ? [
+          {
+            label: labels.oscPoolPowerLine,
+            data: xValues.map((x, i) => ({
+              x,
+              y: poolLog[i] ?? poolWattAt(poolSegments, x * secondsPerPoint),
+            })),
+            borderColor: POOL_LINE_COLOR,
+            borderWidth: 1.2,
+            borderDash: [2, 3],
+            pointRadius: 0,
+            fill: false,
+            stepped: true,
+            yAxisID: "y",
+          },
+        ]
+      : [];
   const batteryPercent = batteryLog.map((value) => {
     const ratio = batteryCapacity > 0 ? (value / batteryCapacity) * 100 : 0;
     return Math.min(100, Math.max(0, ratio));
@@ -169,6 +207,7 @@ export async function buildPreciseChartPngBlob(
           tension: 0.1,
           yAxisID: "y",
         },
+        ...poolDatasets,
         {
           label: labels.targetPowerLine,
           data: xValues.map((x) => ({ x, y: targetPower })),
@@ -240,7 +279,7 @@ export async function buildPreciseChartPngBlob(
             title: ((items: { parsed?: { x?: number | null } }[]) => {
               if (!items || items.length === 0) return "";
               const x = Number(items[0]?.parsed?.x ?? 0);
-              return formatTime(Math.max(0, x));
+              return formatTime(Math.max(0, x * secondsPerPoint));
             }) as (this: unknown, items: unknown[]) => string,
             label: ((context: {
               dataset: { label?: string; yAxisID?: string };
@@ -273,7 +312,7 @@ export async function buildPreciseChartPngBlob(
             font: { family: fontFamily, size: 14 },
             maxTicksLimit: 8,
             callback: (value: string | number) =>
-              formatTime(Math.max(0, Number(value))),
+              formatTime(Math.max(0, Number(value) * secondsPerPoint)),
           },
         },
         y: {

@@ -3,6 +3,7 @@
  */
 import { strToU8, zipSync } from "fflate";
 import type { CalcParams, SolutionResult } from "../../types/calc";
+import { buildPoolSegments } from "../poolChartSegments";
 import type {
   BranchBlueprint,
   BuildExportParamsPayloadOptions,
@@ -181,6 +182,7 @@ export async function downloadEndfieldBlueprintZip(
       fontFamily: options.fontFamily,
       chartWidth: options.chartWidth,
       chartHeight: options.chartHeight,
+      poolSegments: buildPoolSegments(options.params),
     });
     files["chart_precise.png"] = await blobToU8(preciseChartBlob);
   }

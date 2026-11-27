@@ -4,10 +4,10 @@ import type { CalcParams, SolutionResult } from "../../types/calc";
 import type { DecisionMatrixGrid, MatrixSelection } from "../../types/matrix";
 import { MIN_BATTERY_CUTOFF } from "../../types/matrix";
 import type { PowerGridProfile } from "../../types/profile";
-import { resolveFuel } from "../../utils/constants";
 import { findSelectionForSolution } from "../../utils/decisionMatrix";
 import type { DiagnosisResult } from "../../utils/failureDiagnose";
-import { poolPowerForRate } from "../../utils/oscBudget";
+import { buildPoolSegments } from "../../utils/poolChartSegments";
+import PoolAdjustNotice from "../PoolAdjustNotice";
 import CollapsibleSection from "../ui/CollapsibleSection";
 import FloatingPanel from "../ui/FloatingPanel";
 import Icon from "../ui/Icon";
@@ -41,6 +41,10 @@ export interface SolutionListProps {
   profile?: SolutionListProfileProps | null;
   matrix?: DecisionMatrixGrid | null;
   defaultSelection?: MatrixSelection | null;
+  /** 调整提示条「套用到参数」：把放宽后的冗余上限写回参数 */
+  onApplyMaxWaste?: (used: number) => void;
+  /** 调整提示条「套用到参数」：把降低后的投料速率写回参数 */
+  onApplyPoolRate?: (toPerMin: number) => void;
 }
 
 function formatWaste(value: number): string {
@@ -119,6 +123,8 @@ export default function SolutionList({
   profile = null,
   matrix = null,
   defaultSelection = null,
+  onApplyMaxWaste,
+  onApplyPoolRate,
 }: SolutionListProps) {
   const { t, locale } = useI18n();
   const [hideHoverDetails, setHideHoverDetails] = useState(false);
@@ -185,34 +191,15 @@ export default function SolutionList({
     if (centered) setPickerRecenter((n) => n + 1);
   };
 
-  /** 自定义震荡热能池：满速带恒功率 + 余量震荡方波，供图表画折线 */
-  const poolSegments = useMemo(() => {
-    const segments: Array<{
-      constant: number;
-      remainderWatt: number;
-      cycle: number;
-      onDuration: number;
-    }> = [];
-    for (const pool of params.oscPools ?? []) {
-      if (!pool || pool.enabled === false) continue;
-      if (!pool.fuelId || pool.fuelId === "none") continue;
-      const fuel = resolveFuel(pool.fuelId);
-      const perMin = Number(pool.maxPerMin) || 0;
-      if (!fuel || !(perMin > 0)) continue;
-      const rated = poolPowerForRate(fuel, perMin, {
-        deviceLimit: pool.deviceLimit,
-      });
-      const cycle =
-        rated.remainderDenominator != null ? 2 * rated.remainderDenominator : 0;
-      segments.push({
-        constant: rated.bands.watt,
-        remainderWatt: fuel.power,
-        cycle,
-        onDuration: cycle > 0 ? Math.min(fuel.burnTime, cycle) : 0,
-      });
-    }
-    return segments;
-  }, [params.oscPools]);
+  /** 自定义震荡热能池分段：与 FactoryDesigner.poolSegments 同口径（亮灯段 = 燃料瞬时功率） */
+  const poolSegments = useMemo(
+    () =>
+      buildPoolSegments({
+        oscPools: params.oscPools,
+        fuelOverrides: params.fuelOverrides,
+      }),
+    [params.oscPools, params.fuelOverrides],
+  );
 
   const handleSelectCell = (
     _row: number,
@@ -339,6 +326,28 @@ export default function SolutionList({
 
         {hasSolutions && selectedSolution ? (
           <>
+            {selectedSolution.poolOverSupply ? (
+              <div className="px-2 sm:px-4 pt-2 sm:pt-4">
+                <div
+                  role="alert"
+                  className="border-l-2 border-endfield-yellow bg-endfield-yellow/10 px-3 py-2 text-sm text-endfield-yellow leading-relaxed"
+                >
+                  {t("poolOverSupplyWarning", {
+                    overPercent: selectedSolution.poolOverSupply.overPercent,
+                    peak: Math.round(selectedSolution.poolOverSupply.peakW),
+                    target: Math.round(selectedSolution.poolOverSupply.targetW),
+                  })}
+                </div>
+              </div>
+            ) : null}
+            <PoolAdjustNotice
+              className="px-2 sm:px-4 pt-2 sm:pt-4"
+              wasteRelax={selectedSolution.wasteRelax}
+              poolAdjust={selectedSolution.poolAdjust}
+              requiredSurplusW={selectedSolution.requiredSurplusW}
+              onApplyMaxWaste={onApplyMaxWaste}
+              onApplyPoolRate={onApplyPoolRate}
+            />
             <div
               className={`${
                 collapsedSections.chart
