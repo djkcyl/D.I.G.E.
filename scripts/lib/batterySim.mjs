@@ -5,7 +5,7 @@
  *   - 不调用 FactoryDesigner/_simulate()/PowerCycleSimulator；
  *   - 不读方案里的 batteryLog / powerLog / poolPowerLog / precise* 日志。
  *
- * 起算假设（与游戏机制对应，见 docs/architecture.md「三之一」）：
+ * 起算假设（与游戏机制对应，见 README「物品准入口限流是成串放行」）：
  *   1. t=0 时蓄电池满电（capacity）。每秒 battery += supply − targetPower，
  *      超过容量钳位到 capacity（溢出浪费）；低于 0 视为停机。
  *   2. supply 由以下部分叠加：

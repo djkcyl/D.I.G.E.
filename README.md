@@ -24,7 +24,7 @@ D.I.G.E.（Dijiang Integrated Generator Efficiency）是《明日方舟：终末
 
 ## 游戏特性
 
-- **物品准入口限流是成串放行，不是均匀拉长间隔**：设到 `6n` 个/分钟时，以 5 个传送带格位（10s）为周期，**连续放行 n 个、再空 5−n 个**（6/分 = `■□□□□`，12/分 = `■■□□□`，以此类推）。平均速率仍是 6n/分，但下游热能池会看到「成串 + 长空档」，仿真必须按格位序列推演。详见 [docs/architecture.md](docs/architecture.md)「三之一」。
+- **物品准入口限流是成串放行，不是均匀拉长间隔**：设到 `6n` 个/分钟时，以 5 个传送带格位（10s）为周期，**连续放行 n 个、再空 5−n 个**（6/分 = `■□□□□`，12/分 = `■■□□□`，以此类推）。平均速率仍是 6n/分，但下游热能池会看到「成串 + 长空档」，仿真必须按格位序列推演。详见 [architecture.md](https://github.com/VincentHDLee/D.I.G.E./blob/main/docs/architecture.md)「三之一」。
 
 ## 快速开始
 
@@ -73,7 +73,7 @@ pnpm exec tsx scripts/selftest-pool-adjust-chain.mjs  # 固定冗余档、升降
 pnpm exec tsx --test src/utils/poolFeedSplit.test.ts src/utils/poolAdjustChain.test.ts src/utils/poolChartSegments.test.ts src/utils/poolPulseRegression.test.ts src/utils/poolOverSupplyRegression.test.ts
 ```
 
-`selftest-grid-code` 里有一条硬断言：**燃料在分享码里的下标顺序不允许重排**，新燃料只能追加到 `FUELS` 末尾（UI 顺序走 `FUEL_DISPLAY_ORDER`）。命名统一为 `selftest-*.mjs`，不要再加 `_` 前缀；**新增自测必须同时接入 CI**，覆盖说明见 [docs/handover.md](docs/handover.md) 第七节。
+`selftest-grid-code` 里有一条硬断言：**燃料在分享码里的下标顺序不允许重排**，新燃料只能追加到 `FUELS` 末尾（UI 顺序走 `FUEL_DISPLAY_ORDER`）。命名统一为 `selftest-*.mjs`，不要再加 `_` 前缀；**新增自测必须同时接入 CI**，覆盖说明见 [handover.md](https://github.com/VincentHDLee/D.I.G.E./blob/main/docs/handover.md) 第七节。
 
 ## 项目结构
 
@@ -126,7 +126,7 @@ docs/                    # 仅本 fork 维护（不随 PR 提交上游）：架�
 ## 已知问题
 
 - Biome 已对齐仓库既有风格（双引号 + 80 列），`pnpm lint` 应为 0 错；不要单方面改成单引号，否则全仓 diff 爆炸。
-- 自定义热能池的调整链只调第一个启用池、首个有解即停，不做多池联合调参；已知边界见 [docs/pool-adjust-chain.md](docs/pool-adjust-chain.md)。
+- 自定义热能池的调整链只调第一个启用池、首个有解即停，不做多池联合调参；已知边界见 [pool-adjust-chain.md](https://github.com/VincentHDLee/D.I.G.E./blob/main/docs/pool-adjust-chain.md)。
 - 求解结果对「目标功率刚好卡在两台高功率机之间」的情况只能给硬顶解（例：单用高容武陵电池、目标 7300W 时只有 2×6400+200=13000W）。想精细就配低一档副燃料。
 
 ## 多语言规范

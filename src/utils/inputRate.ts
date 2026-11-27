@@ -51,7 +51,7 @@ export interface BranchLimiterPlan {
   /**
    * 等效分母 D = localD·5/k（一般式 localD·sourceMaxPerMin/effectivePerMin），
    * **只用于均值和展示，不能用于仿真**。
-   * 准入口是 n-of-5 成串放行（docs/architecture.md「三之一」），到达时刻请用 branchArrivalTimes()。
+   * 准入口是 n-of-5 成串放行（README「物品准入口限流是成串放行」），到达时刻请用 branchArrivalTimes()。
    */
   denominator: number;
   /**
@@ -355,7 +355,7 @@ export function buildBranchLimiterOptions(
     .sort((a, b) => a.power - b.power);
 }
 
-// ─── 准入口成串放行（游戏特性，见 docs/architecture.md「三之一」）──────────────
+// ─── 准入口成串放行（游戏特性，见 README「物品准入口限流是成串放行」）──────────────
 
 /** 准入口限流周期的格位数：5 格 = 5 × BELT_INTERVAL = 10s */
 export const GATE_CYCLE_SLOTS = 5;
