@@ -5,6 +5,7 @@ import type {
   FactoryRegion,
   ManualBaseLine,
   OscillatingBranch,
+  PoolFeedClampInfo,
   SolutionResult,
   UnifiedFuelBOMItem,
 } from "../types/calc";
@@ -20,20 +21,27 @@ import {
   generateValidDenominators,
   INPUT_SOURCES,
   PARAM_LIMITS,
+  POOL_INPUT_BUFFER,
   resolveFuel,
 } from "./constants";
 import { buildSudokuDecisionMatrix } from "./decisionMatrix";
 import {
   type BranchLimiterPlan,
+  branchArrivalTimes,
+  branchGatePeriodSlots,
   buildBranchLimiterOptions,
+  GATE_CYCLE_SLOTS,
   getBeltThroughput,
   getEffectiveInput,
+  resolveMeanBranchInterval,
+  splitPathOfDenominator,
 } from "./inputRate";
 import {
   DEFAULT_DEVICE_LIMIT,
   normalizeDeviceLimit,
   poolPowerForRate,
 } from "./oscBudget";
+import { splitPoolFeed } from "./poolFeedSplit";
 import {
   isFuelLimiterSupported,
   normalizeFactoryRegion,
@@ -198,6 +206,8 @@ interface OscillatingSolutionInput {
   preciseBatteryLog: number[];
   precisePowerLog: number[];
   preciseBurnStateLog: number[][];
+  /** 每个日志点代表的秒数（来自仿真 sampleStep） */
+  logSecondsPerPoint?: number;
 }
 
 interface BuildSolutionOutputParams {
@@ -233,6 +243,8 @@ function buildUnifiedBOM(
     branchInterval?: number;
     localDenominator?: number;
     denominator?: number;
+    limiterSpeed?: number | null;
+    requiresLimiter?: boolean;
   }> | null,
   /** 母带间隔，用于 branchInterval fallback */
   inputIntervalForBom: number = 2,
@@ -272,11 +284,8 @@ function buildUnifiedBOM(
     for (const branch of oscBranches) {
       const fid = branch.fuelId || oscFuel?.id;
       if (!fid) continue;
-      let bi = branch.branchInterval;
-      if (!(bi != null && Number.isFinite(bi) && bi > 0)) {
-        const d = branch.localDenominator ?? branch.denominator ?? 1;
-        bi = inputIntervalForBom * d;
-      }
+      // 缺 branchInterval 时按支路有效母带间隔 × localD 兜底（限流分支用 60/limiterSpeed），缺字段抛错
+      const bi = resolveMeanBranchInterval(branch, inputIntervalForBom);
       if (bi === Infinity || bi <= 0 || !Number.isFinite(bi)) continue;
       const ratePerSec = 1 / bi;
       oscRateByFuel.set(fid, (oscRateByFuel.get(fid) || 0) + ratePerSec);
@@ -495,6 +504,7 @@ function buildSolutionOutput({
     preciseBatteryLog: solution.preciseBatteryLog,
     precisePowerLog: solution.precisePowerLog,
     preciseBurnStateLog: solution.preciseBurnStateLog,
+    logSecondsPerPoint: solution.logSecondsPerPoint,
     fuelConsumption: {
       base: {
         fuel: primaryFuel,
@@ -549,11 +559,17 @@ interface SimulateCycleSuccess {
   preciseBatteryLog: number[];
   precisePowerLog: number[];
   preciseBurnStateLog: number[][];
+  /** 每个日志点代表的秒数 = sampleStep（period < 2000 时为 1，否则 ceil(period/500)） */
+  logSecondsPerPoint: number;
 }
 
 interface SimulateCycleFailure {
   success: false;
-  reason: "period_too_long" | "battery_depleted_preheat" | "battery_below_min";
+  reason:
+    | "period_too_long"
+    | "battery_depleted_preheat"
+    | "battery_below_min"
+    | "pool_buffer_overflow";
   minBattery?: number;
 }
 
@@ -655,14 +671,68 @@ class PowerCycleSimulator {
     return this.inputInterval * branch.denominator;
   }
 
+  /**
+   * 限速分支的准入口档位 k（1..4）；不限速 / 满速 / 无法识别返回 null（走均匀到达）。
+   * 依次取 limiterK、limiterSpeed/6，最后由 denominator = localD·5/k 反推。
+   */
+  _resolveLimiterK(branch: {
+    denominator: number;
+    localDenominator?: number;
+    requiresLimiter?: boolean;
+    limiterSpeed?: number | null;
+    limiterK?: number;
+  }): number | null {
+    if (!branch.requiresLimiter) return null;
+    let k = Number(branch.limiterK);
+    if (!(k > 0) && branch.limiterSpeed != null) {
+      k = Number(branch.limiterSpeed) / 6;
+    }
+    if (
+      !(k > 0) &&
+      branch.localDenominator != null &&
+      branch.localDenominator > 0 &&
+      branch.denominator > 0
+    ) {
+      k = (GATE_CYCLE_SLOTS * branch.localDenominator) / branch.denominator;
+    }
+    const n = Math.round(k);
+    if (
+      !Number.isFinite(k) ||
+      Math.abs(k - n) > 1e-6 ||
+      n < 1 ||
+      n >= GATE_CYCLE_SLOTS
+    ) {
+      return null;
+    }
+    return n;
+  }
+
+  /** 限速分支的分流树（2^a·3^b）；拿不到合法本地分母返回 null */
+  _resolveLimiterSplitPath(
+    branch: { denominator: number; localDenominator?: number },
+    k: number,
+  ): number[] | null {
+    const localD =
+      branch.localDenominator != null && branch.localDenominator > 0
+        ? branch.localDenominator
+        : Math.round((branch.denominator * k) / GATE_CYCLE_SLOTS);
+    return splitPathOfDenominator(localD);
+  }
+
   simulateCycle(
     baseConfig: { totalPower: number },
     oscillatingBranches: Array<{
       denominator: number;
       phaseOffsetCells?: number;
+      /** 平均间隔（s），仅均值用 */
       branchInterval?: number;
+      /** 最大到达间隔（s），见 inputRate.branchMaxInterval；判据归 sim-builder */
+      maxBranchInterval?: number;
       localDenominator?: number;
       baseInterval?: number;
+      requiresLimiter?: boolean;
+      limiterSpeed?: number | null;
+      limiterK?: number;
       fuel?: Fuel;
     }>,
     fuel: Fuel,
@@ -678,8 +748,25 @@ class PowerCycleSimulator {
         return { success: false, reason: "period_too_long" };
       }
     }
+    // 限速分支（准入口 n-of-5 成串放行）：到达序列的真实周期是
+    // 5·lcm(D,n)/n 格 = 10s·lcm(D,n)/n，而不是均值间隔 10D/n；并把 10s 限流周期并入 LCM。
+    const limiterKs = oscillatingBranches.map((b) => this._resolveLimiterK(b));
+    const splitPaths = oscillatingBranches.map((b, i) => {
+      const k = limiterKs[i];
+      return k == null ? null : this._resolveLimiterSplitPath(b, k);
+    });
+    const periodIntervals = branchIntervals.map((iv, i) => {
+      const k = limiterKs[i];
+      const path = splitPaths[i];
+      return k == null || path == null
+        ? iv
+        : branchGatePeriodSlots(k, path) * CONSTANTS.BELT_INTERVAL;
+    });
+    if (splitPaths.some((p) => p != null)) {
+      periodIntervals.push(GATE_CYCLE_SLOTS * CONSTANTS.BELT_INTERVAL);
+    }
     const period = this._getCyclePeriodFromIntervals(
-      branchIntervals,
+      periodIntervals,
       maxPeriod,
     );
     if (!Number.isFinite(period) || period <= 0 || period > maxPeriod) {
@@ -730,11 +817,54 @@ class PowerCycleSimulator {
       const branchStartTime = phaseOffsetCells * CONSTANTS.BELT_INTERVAL;
       let lastBurnEnd = 0;
 
-      for (let t = branchStartTime; t < totalDuration; t += inputInterval) {
+      const limiterK = limiterKs[branchIndex];
+      const splitPath = splitPaths[branchIndex];
+      let arrivals: number[];
+      if (limiterK != null && splitPath != null) {
+        // 限速分支：母带格位先按 n-of-5 放行，再经分流树轮转，逐格推出本支路到达时刻
+        arrivals = branchArrivalTimes(
+          limiterK,
+          splitPath,
+          0,
+          totalDuration - branchStartTime,
+        ).map((dt) => branchStartTime + dt);
+      } else {
+        // 非限速分支：均匀到达，保持原逻辑（同样的浮点累加）
+        arrivals = [];
+        for (let t = branchStartTime; t < totalDuration; t += inputInterval) {
+          arrivals.push(t);
+        }
+      }
+
+      // 池入口排队（仍按 burnStart = max(到达, 上一份结束)）：
+      //   - 长期：一个周期内到达件数 × 燃烧时长 > 周期 → 排队无限增长，必然堵满；
+      //   - 瞬时：queued = 已到达件数 − 已开始燃烧件数（不含正在烧的那份），
+      //     只在到达时刻增长，逐到达检查即得峰值；> POOL_INPUT_BUFFER 即堵带。
+      // 两者都判方案无效，不静默继续。
+      const rateFuel = branch.fuel ?? fuel;
+      const arrivalsInCycle = arrivals.filter(
+        (a) => a >= warmupDuration - 1e-9 && a < totalDuration - 1e-9,
+      ).length;
+      if (arrivalsInCycle * rateFuel.burnTime > period + 1e-6) {
+        return { success: false, reason: "pool_buffer_overflow" };
+      }
+      const burnStarts: number[] = [];
+      let startedCount = 0;
+      for (const [arrivalIndex, t] of arrivals.entries()) {
         const branchFuel = branch.fuel ?? fuel;
         const burnStart = Math.max(t, lastBurnEnd);
         const burnEnd = burnStart + branchFuel.burnTime;
         lastBurnEnd = burnEnd;
+        burnStarts.push(burnStart);
+        while (
+          startedCount < burnStarts.length &&
+          burnStarts[startedCount] <= t + 1e-9
+        ) {
+          startedCount += 1;
+        }
+        if (arrivalIndex + 1 - startedCount > POOL_INPUT_BUFFER) {
+          return { success: false, reason: "pool_buffer_overflow" };
+        }
 
         // 精确分数积分：每个 1 秒格子只计入与燃烧区间 [burnStart, burnEnd) 的真实重叠时长，
         // 不再对起止时刻做 floor/ceil 整格计入（旧做法每个脉冲最多多算近 2 秒额定功率）。
@@ -839,6 +969,8 @@ class PowerCycleSimulator {
       preciseBatteryLog,
       precisePowerLog,
       preciseBurnStateLog,
+      // 每个日志点代表的秒数（batteryLog/powerLog/precise* 共用同一采样步长）
+      logSecondsPerPoint: sampleStep,
     };
   }
 }
@@ -919,6 +1051,8 @@ export class FactoryDesigner {
     fuel: Fuel;
     phaseOffsetCells: number;
   }>;
+  /** 自定义池投料超过 1.5/分 被截断的记录（空数组 = 没截断），随方案挂给 UI */
+  poolFeedClamp: PoolFeedClampInfo[];
   validDenominators: number[];
   simulator: PowerCycleSimulator;
 
@@ -926,7 +1060,13 @@ export class FactoryDesigner {
     this.targetPower = params.targetPower;
     // v1.11.1: internal wide-window search; ignore tight UI/share values.
     this.minBatteryPercent = MIN_BATTERY_CUTOFF;
-    this.maxWaste = SEARCH_MAX_WASTE;
+    // 只有显式放宽（> 内部宽窗 SEARCH_MAX_WASTE）才采用 params.maxWaste；
+    // 默认 1000 / 老分享码解码强制的 1000 仍走 1200 宽窗，行为不变
+    const requestedWaste = Number(params.maxWaste);
+    this.maxWaste =
+      Number.isFinite(requestedWaste) && requestedWaste > SEARCH_MAX_WASTE
+        ? requestedWaste
+        : SEARCH_MAX_WASTE;
     const resolvedPrimary = resolveFuel(
       params.primaryFuelId,
       params.fuelOverrides,
@@ -998,13 +1138,31 @@ export class FactoryDesigner {
     this.poolFuelStats = new Map();
     this.poolBandWatt = 0;
     this.poolBranches = [];
-    for (const poolCfg of params.oscPools ?? []) {
+    this.poolFeedClamp = [];
+    for (const [poolIndex, poolCfg] of (params.oscPools ?? []).entries()) {
       if (!poolCfg || poolCfg.enabled === false) continue;
       if (!poolCfg.fuelId || poolCfg.fuelId === "none") continue;
       const poolFuel = resolveFuel(poolCfg.fuelId, params.fuelOverrides);
       if (!poolFuel) continue;
-      const perMin = Number(poolCfg.maxPerMin) || 0;
-      if (!(perMin > 0)) continue;
+      // 投料先过 splitPoolFeed：十分位取整 + 截到 1.5/分。
+      // 常驻台数只由 poolPowerForRate 记成满速带（constant），不写进 manualBaseLines，
+      // 否则功率和 BOM 会重复计算。
+      const feed = splitPoolFeed(
+        poolCfg.fuelId,
+        poolCfg.maxPerMin,
+        params.fuelOverrides,
+      );
+      if (!feed.active) continue;
+      if (feed.clamped) {
+        this.poolFeedClamp.push({
+          index: poolIndex,
+          id: String(poolCfg.id ?? poolIndex),
+          fuelId: poolFuel.id,
+          requestedPerMin: Number(poolCfg.maxPerMin) || 0,
+          usedPerMin: feed.ratePerMin,
+        });
+      }
+      const perMin = feed.ratePerMin;
       const rated = poolPowerForRate(poolFuel, perMin, {
         // deviceLimit=0/非法 → 按默认 48；其余限制在 1..48（第 7 步）
         deviceLimit: normalizeDeviceLimit(poolCfg.deviceLimit),
@@ -1073,8 +1231,12 @@ export class FactoryDesigner {
       denominator: number;
       phaseOffsetCells?: number;
       branchInterval?: number;
+      maxBranchInterval?: number;
       localDenominator?: number;
       baseInterval?: number;
+      requiresLimiter?: boolean;
+      limiterSpeed?: number | null;
+      limiterK?: number;
       fuel?: Fuel;
     }>,
     fuel: Fuel,
@@ -1369,6 +1531,7 @@ export class FactoryDesigner {
           denominator: opt.denominator,
           localDenominator: opt.localDenominator,
           branchInterval: opt.branchInterval,
+          maxBranchInterval: opt.maxBranchInterval,
           phaseOffsetCells: this.branchPhaseOffsets[i] ?? 0,
           power: opt.power,
           limiterSpeed: opt.limiterSpeed,
@@ -1433,6 +1596,7 @@ export class FactoryDesigner {
             burnStateLog: result.burnStateLog ?? [],
             preciseBatteryLog: result.preciseBatteryLog ?? [],
             precisePowerLog: result.precisePowerLog ?? [],
+            logSecondsPerPoint: result.logSecondsPerPoint,
             preciseBurnStateLog: result.preciseBurnStateLog ?? [],
           });
         }
@@ -1484,6 +1648,7 @@ export class FactoryDesigner {
       denominator: opt.denominator,
       localDenominator: opt.localDenominator,
       branchInterval: opt.branchInterval,
+      maxBranchInterval: opt.maxBranchInterval,
       phaseOffsetCells: this.branchPhaseOffsets[index] ?? 0,
       power: opt.power,
       limiterSpeed: opt.limiterSpeed,
@@ -1558,6 +1723,7 @@ export class FactoryDesigner {
       burnStateLog: result.burnStateLog ?? [],
       preciseBatteryLog: result.preciseBatteryLog ?? [],
       precisePowerLog: result.precisePowerLog ?? [],
+      logSecondsPerPoint: result.logSecondsPerPoint,
       preciseBurnStateLog: result.preciseBurnStateLog ?? [],
     };
   }
@@ -1750,6 +1916,7 @@ export class FactoryDesigner {
     out: SolutionResult,
     baseTotalPower: number,
   ): SolutionResult | null {
+    if (this.poolFeedClamp.length > 0) out.poolFeedClamp = this.poolFeedClamp;
     // 未启用任何自定义池：原样返回，不能再按 maxWaste 二次过滤
     // （纯常驻方案允许超出 maxWaste 去覆盖硬顶档位，例如 matrix-7665 的 9800W 格）
     if (this.poolBranches.length === 0 && this.poolBandWatt === 0) return out;
@@ -1758,7 +1925,21 @@ export class FactoryDesigner {
       // 只有满速带：恒定供给，直接并入均值，并按真实均值复查浪费上限
       out.avgPower += this.poolBandWatt;
       out.waste = out.avgPower - this.originalTargetPower;
-      if (out.waste > wasteCap + 0.5) return null;
+      if (out.waste > wasteCap + 0.5) {
+        // 方案 B：池满速带本身（未钳制的 rated 功率）就 ≥ 目标 + 冗余上限时，
+        // 任何常驻组合都压不进窗口。恒定供给、电池不掉，物理上成立：
+        // 放出来并标记「配置不优」，不混进通用无解。其它超限候选照常过滤。
+        const target = this.originalTargetPower;
+        if (target > 0 && this.poolBandWatt >= target + wasteCap) {
+          out.poolOverSupply = {
+            peakW: out.avgPower,
+            targetW: target,
+            overPercent: Math.round((out.waste / target) * 1000) / 10,
+          };
+          return out;
+        }
+        return null;
+      }
       return out;
     }
     const sim = this._simulate(
@@ -1780,6 +1961,7 @@ export class FactoryDesigner {
     out.burnStateLog = sim.burnStateLog;
     out.preciseBatteryLog = sim.preciseBatteryLog;
     out.precisePowerLog = sim.precisePowerLog;
+    out.logSecondsPerPoint = sim.logSecondsPerPoint;
     out.preciseBurnStateLog = sim.preciseBurnStateLog;
     return out;
   }
@@ -1943,16 +2125,16 @@ export class FactoryDesigner {
                 denominator: number;
                 branchInterval?: number;
                 localDenominator?: number;
+                limiterSpeed?: number | null;
+                requiresLimiter?: boolean;
               },
             ) =>
               (() => {
-                const branchInterval =
-                  branch.branchInterval != null &&
-                  Number.isFinite(branch.branchInterval) &&
-                  branch.branchInterval > 0
-                    ? branch.branchInterval
-                    : this.inputInterval *
-                      (branch.localDenominator ?? branch.denominator);
+                // 平均间隔；缺字段时限流分支用 60/limiterSpeed × localD，不再用 inputInterval × localD
+                const branchInterval = resolveMeanBranchInterval(
+                  branch,
+                  this.inputInterval,
+                );
                 if (
                   branchInterval === Infinity ||
                   branchInterval <= 0 ||
@@ -2078,7 +2260,9 @@ export class FactoryDesigner {
 
       for (const sol of merged) {
         if (Array.isArray(sol.powerLog) && !Array.isArray(sol.poolPowerLog)) {
-          sol.poolPowerLog = sol.powerLog.map((_, i) => poolAt(i));
+          // powerLog 每点对应 logSecondsPerPoint 秒（period ≥ 2000 时 > 1），poolAt 的参数是秒。
+          const step = sol.logSecondsPerPoint ?? 1;
+          sol.poolPowerLog = sol.powerLog.map((_, i) => poolAt(i * step));
         }
       }
     }

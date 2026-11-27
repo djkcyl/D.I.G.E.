@@ -281,6 +281,9 @@ export const CONSTANTS = {
   BATTERY_CAPACITY: GAME_CONFIG.grid.batteryCapacity, // 蓄电池容量 (J)
 } as const;
 
+/** 热能池入口缓存格数：入口最多先缓存 50 个物品，缓存满了传送带才会堵住 */
+export const POOL_INPUT_BUFFER = 50;
+
 // 计算满带发电功率
 // 满带时，发电机持续工作，输出功率 = 燃料发电功率
 export function getFullBeltPower(fuel: Fuel): number {

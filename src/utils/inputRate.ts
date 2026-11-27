@@ -1,5 +1,6 @@
 import {
   analyzeSplitterComplexity,
+  CONSTANTS,
   DEFAULT_INPUT_SOURCE_ID,
   type Fuel,
   getOscillatingPower,
@@ -23,7 +24,11 @@ export type LimiterK = (typeof LIMITER_K_VALUES)[number];
 export interface EffectiveInput {
   /** 个/s */
   speed: number;
-  /** s（0 速时为 Infinity） */
+  /**
+   * **平均**间隔 s（= 1/speed；0 速时为 Infinity）。
+   * ⚠ 限速时准入口是 n-of-5 成串放行，实际格位间隔不均匀；这里只是均值，
+   *   仿真到达序列请用 branchArrivalTimes()。
+   */
   interval: number;
   /** 个/min */
   perMin: number;
@@ -32,21 +37,35 @@ export interface EffectiveInput {
 }
 
 export interface BranchLimiterPlan {
-  /** 准入口限速（个/min）；null = 不限速（源满速） */
+  /**
+   * 准入口限速（个/min）；null = 不限速（源满速）。
+   * 限流分支每 5 格放行 n = limiterSpeed/6 个（gateSlotPattern），仿真必须透传它。
+   */
   limiterSpeed: number | null;
   /** 是否需要前置准入口限速器 */
   requiresLimiter: boolean;
   /** 限速比例 k（1..5），满速时为 sourceMax/6 */
   limiterK: number;
-  /** 限速后的本地分流分母（仅 2^a·3^b） */
+  /** 限速后的本地分流分母（仅 2^a·3^b）；仿真用它拆分流树（splitPathOfDenominator） */
   localDenominator: number;
   /**
-   * 展示/仿真用等效分母（相对源满速母带）：
-   *   D = localD * (sourceMaxPerMin / effectivePerMin) = localD * 5 / k  （仓库满速 30）
+   * 等效分母 D = localD·5/k（一般式 localD·sourceMaxPerMin/effectivePerMin），
+   * **只用于均值和展示，不能用于仿真**。
+   * 准入口是 n-of-5 成串放行（docs/architecture.md「三之一」），到达时刻请用 branchArrivalTimes()。
    */
   denominator: number;
-  /** 分支物品到达间隔（s） */
+  /**
+   * 分支物品**平均**到达间隔（s）= 有效母带平均间隔 × localD。
+   * 用于平均功率 / BOM / oscillatingFuelPerSec / 损耗估算。
+   * ⚠ 限速分支的实际间隔不均匀（成串 + 长空档），不能拿它 `t += branchInterval` 生成到达序列。
+   */
   branchInterval: number;
+  /**
+   * 分支物品**最大**到达间隔（s），由 gateSlotPattern / branchArrivalTimes 推出（见 branchMaxInterval）：
+   *   n∤L 时 = branchInterval + (10−2n)(n−s)/n，s = L mod n；n | L 或不限速时 = branchInterval。
+   * 供 sim-builder 做「热能池会不会烧空」类判据。
+   */
+  maxBranchInterval: number;
   power: number;
   splitterCount: { split2: number; split3: number; total: number };
   /** 硬件成本：分流器数 +（限速器 ? 1 : 0） */
@@ -63,6 +82,7 @@ export interface BranchLimiterPlan {
  * - limitPerMin == null：不限速，使用源上限
  * - 非法档位：回退到源上限
  * - 合法档位：clamp 到 [0, 源上限]
+ * 返回的 interval 是**平均**间隔（mean），不是逐格间隔。
  */
 export function getEffectiveInput(
   sourceId: string = DEFAULT_INPUT_SOURCE_ID,
@@ -82,6 +102,7 @@ export function getEffectiveInput(
   }
 
   const speed = effectivePerMin / 60;
+  // mean interval：限速时只代表均值（n-of-5 成串放行）
   const interval = speed > 0 ? 1 / speed : Infinity;
 
   return {
@@ -104,6 +125,41 @@ export function getBeltThroughput(inputInterval: number): number {
     return 0;
   }
   return 1 / inputInterval;
+}
+
+/**
+ * 分支**平均**到达间隔（s）。优先用 branchInterval；缺字段时按「该支路有效母带平均间隔 × localD」兜底：
+ *   限流分支 = (60 / limiterSpeed) × localD；不限速分支 = unlimitedInterval × localD。
+ * ⚠ 不能用 unlimitedInterval × localD 兜底限流分支（间隔被算短 5/k 倍，燃料速率被高估 5/k 倍）。
+ * 缺 localDenominator、或限流分支缺 limiterSpeed 时直接抛错，不再拿等效分母 D 猜。
+ */
+export function resolveMeanBranchInterval(
+  branch: {
+    branchInterval?: number;
+    localDenominator?: number;
+    limiterSpeed?: number | null;
+    requiresLimiter?: boolean;
+  },
+  unlimitedInterval: number,
+): number {
+  const bi = branch.branchInterval;
+  if (bi != null && Number.isFinite(bi) && bi > 0) return bi;
+  const localD = branch.localDenominator;
+  if (!(localD != null && Number.isFinite(localD) && localD >= 1)) {
+    throw new Error(
+      `branch 缺 branchInterval 且缺 localDenominator（limiterSpeed=${String(branch.limiterSpeed)}），无法求平均间隔`,
+    );
+  }
+  if (branch.requiresLimiter || branch.limiterSpeed != null) {
+    const ls = Number(branch.limiterSpeed);
+    if (!(ls > 0) || !Number.isFinite(ls)) {
+      throw new Error(
+        `限流分支缺合法 limiterSpeed（localD=${localD}），无法求平均间隔`,
+      );
+    }
+    return (60 / ls) * localD;
+  }
+  return unlimitedInterval * localD;
 }
 
 function buildDescription(
@@ -213,7 +269,13 @@ export function buildBranchLimiterOptions(
       if (!(power < fuel.power - 1e-9) || !(power > 0)) continue;
 
       const c = analyzeSplitterComplexity(localD);
+      // 平均间隔（mean）；保留给 BOM / oscillatingFuelPerSec / 剪枝
       const branchInterval = effective.interval * localD;
+      // 最大间隔：限流分支按 n-of-5 成串放行推出；不限速母带均匀，max = mean
+      const maxBranchInterval =
+        requiresLimiter && limiterSpeed != null
+          ? branchMaxInterval(limiterSpeed / 6, localD)
+          : branchInterval;
       // D_display = localD * sourceMax / effective  （= localD * 5/k 当满速 30）
       const denominator =
         effective.perMin > 0
@@ -239,6 +301,7 @@ export function buildBranchLimiterOptions(
         localDenominator: localD,
         denominator,
         branchInterval,
+        maxBranchInterval,
         power,
         splitterCount: { split2: c.twoWay, split3: c.threeWay, total: c.total },
         hardwareCost,
@@ -290,4 +353,160 @@ export function buildBranchLimiterOptions(
   return Array.from(bestByPower.values())
     .map(({ sortKey: _s, ...rest }) => rest)
     .sort((a, b) => a.power - b.power);
+}
+
+// ─── 准入口成串放行（游戏特性，见 docs/architecture.md「三之一」）──────────────
+
+/** 准入口限流周期的格位数：5 格 = 5 × BELT_INTERVAL = 10s */
+export const GATE_CYCLE_SLOTS = 5;
+
+function gcdInt(a: number, b: number): number {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+  while (y !== 0) {
+    const t = x % y;
+    x = y;
+    y = t;
+  }
+  return x;
+}
+
+function lcmInt(a: number, b: number): number {
+  return (a / gcdInt(a, b)) * b;
+}
+
+/**
+ * 准入口一个限流周期（5 格）的放行序列：前 n 个格位放行，后 5−n 个格位空。
+ * k = 档位 / 6：6/分 → 1 → ■□□□□；12/分 → 2 → ■■□□□；…；30/分 → 5 满速。
+ * 非整数 / 越界的 k 四舍五入后夹到 [0, 5]。
+ */
+export function gateSlotPattern(k: number): boolean[] {
+  const n = Number.isFinite(k)
+    ? Math.min(GATE_CYCLE_SLOTS, Math.max(0, Math.round(k)))
+    : 0;
+  return Array.from({ length: GATE_CYCLE_SLOTS }, (_, i) => i < n);
+}
+
+/** 分流树：按物品经过顺序排列的每级分流器路数（2 或 3） */
+export type SplitPath = readonly number[];
+
+/**
+ * 把本地分母 2^a·3^b 拆成分流树（与 buildBranchBlueprint 一致：先三分、后二分）。
+ * 含其它质因子 / 非正整数时返回 null。
+ */
+export function splitPathOfDenominator(
+  localDenominator: number,
+): number[] | null {
+  if (!Number.isInteger(localDenominator) || localDenominator < 1) return null;
+  const c = analyzeSplitterComplexity(localDenominator);
+  if (2 ** c.twoWay * 3 ** c.threeWay !== localDenominator) return null;
+  return [
+    ...new Array<number>(c.threeWay).fill(3),
+    ...new Array<number>(c.twoWay).fill(2),
+  ];
+}
+
+function splitProduct(splitPath: SplitPath): number {
+  let d = 1;
+  for (const ways of splitPath) {
+    if (!Number.isInteger(ways) || ways < 1) {
+      throw new RangeError(`invalid splitter ways: ${ways}`);
+    }
+    d *= ways;
+  }
+  return d;
+}
+
+/**
+ * 限速支路到达序列的周期（格位数）。
+ * 每 5 格放行 n 个，支路取每 D 个放行物品中的 1 个（D = ∏ways），
+ * lcm(D, n) 个放行物品后序列重复 ⇒ 周期 5·lcm(D,n)/n 格（恒为 5 的整数倍）。
+ * n=5（满速）退化为每 D 格 1 个；n=0 返回 Infinity。
+ */
+export function branchGatePeriodSlots(k: number, splitPath: SplitPath): number {
+  const n = gateSlotPattern(k).filter(Boolean).length;
+  if (n === 0) return Number.POSITIVE_INFINITY;
+  const d = splitProduct(splitPath);
+  if (n === GATE_CYCLE_SLOTS) return d;
+  return (GATE_CYCLE_SLOTS * lcmInt(d, n)) / n;
+}
+
+/**
+ * 限速支路的到达时刻（s，相对母带第 0 格），[0, duration) 内升序。
+ * 1. 母带每 slotInterval 一格；第 s 格处于限流周期的 (s + phaseSlots) mod 5 位，
+ *    落在前 n 位才放行（phaseSlots ∈ 0..4，其余取模）；
+ * 2. 放行物品依次进入分流树，每级分流器轮转（第 i 个物品走第 i mod ways 路）；
+ * 3. 本支路约定为每级第 0 路，即第 0、D、2D… 个放行物品。
+ */
+export function branchArrivalTimes(
+  k: number,
+  splitPath: SplitPath,
+  phaseSlots: number,
+  duration: number,
+  slotInterval: number = CONSTANTS.BELT_INTERVAL,
+): number[] {
+  if (!(duration > 0) || !(slotInterval > 0)) return [];
+  const pattern = gateSlotPattern(k);
+  if (!pattern.some(Boolean)) return [];
+  const d = splitProduct(splitPath);
+  const p0 = Number.isFinite(phaseSlots) ? Math.round(phaseSlots) : 0;
+  const phase = ((p0 % GATE_CYCLE_SLOTS) + GATE_CYCLE_SLOTS) % GATE_CYCLE_SLOTS;
+  const out: number[] = [];
+  let passed = 0;
+  for (let s = 0; s * slotInterval < duration; s += 1) {
+    if (!pattern[(s + phase) % GATE_CYCLE_SLOTS]) continue;
+    if (passed % d === 0) out.push(s * slotInterval);
+    passed += 1;
+  }
+  return out;
+}
+
+/**
+ * 放行窗口起点对齐方式（已确认）：'per-gate' —— 每个准入口各自计时，
+ * 第一个格位就是该支路的相位起点；phaseOffsetCells 只做整体平移。
+ */
+export type GateWindowAlign = "per-gate";
+export const GATE_WINDOW_ALIGN: GateWindowAlign = "per-gate";
+
+/**
+ * 限速支路的最大到达间隔（s），闭式解。
+ * 推导：第 p 个放行物品位于第 ⌊p/n⌋ 个周期的第 (p mod n) 格；支路取 p → p+L，
+ *   L = qn + s。若 (p mod n)+s < n，间隔 5q+s 格；否则跨一次空档，间隔 5(q+1)+s−n 格。
+ *   s>0 时后者必然出现（p mod n 取遍 gcd(L,n) 的倍数，最大 n−g ≥ n−s），故
+ *   max − mean = slot·(5−n)(n−s)/n，slot=2s 时即 (10−2n)(n−s)/n。
+ * 与相位无关（相位只平移起点，稳态间隔集合不变）。
+ * n=5 或 n | L ⇒ 间隔恒等，返回均值；n=0 返回 Infinity。
+ */
+export function branchMaxInterval(
+  k: number,
+  localDenominator: number,
+  slotInterval: number = CONSTANTS.BELT_INTERVAL,
+): number {
+  const n = gateSlotPattern(k).filter(Boolean).length;
+  if (n === 0 || !(localDenominator >= 1)) return Number.POSITIVE_INFINITY;
+  const L = Math.round(localDenominator);
+  const mean = (GATE_CYCLE_SLOTS * slotInterval * L) / n;
+  if (n === GATE_CYCLE_SLOTS) return mean;
+  const s = L % n;
+  if (s === 0) return mean;
+  return mean + (slotInterval * (GATE_CYCLE_SLOTS - n) * (n - s)) / n;
+}
+
+/**
+ * 校验用：直接从 branchArrivalTimes 数出最大间隔（取两个完整周期的稳态差分）。
+ * 应与 branchMaxInterval(k, ∏splitPath) 相等，供单测对拍。
+ */
+export function branchMaxIntervalFromArrivals(
+  k: number,
+  splitPath: SplitPath,
+  phaseSlots: number = 0,
+  slotInterval: number = CONSTANTS.BELT_INTERVAL,
+): number {
+  const period = branchGatePeriodSlots(k, splitPath);
+  if (!Number.isFinite(period)) return Number.POSITIVE_INFINITY;
+  const duration = (3 * period + GATE_CYCLE_SLOTS) * slotInterval;
+  const t = branchArrivalTimes(k, splitPath, phaseSlots, duration, slotInterval);
+  let max = 0;
+  for (let i = 1; i < t.length; i += 1) max = Math.max(max, t[i] - t[i - 1]);
+  return max;
 }

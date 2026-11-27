@@ -16,6 +16,7 @@
 
 import { GAME_CONFIG } from "../config/game";
 import type { Fuel } from "./constants";
+import { splitPoolFeedForFuel } from "./poolFeedSplit";
 
 /** 母带满速：仓库/封装机模型里震荡枚举使用的基准（个/分钟） */
 export const BELT_ITEMS_PER_MINUTE = GAME_CONFIG.grid.portItemsPerMinute;
@@ -442,10 +443,12 @@ export function poolPowerForRate(
     beltPerMinute?: number;
   } = {},
 ): PoolRatePower {
-  const fullRate = Math.max(fullSpeedPerMinute(fuel), 1e-9);
-  const limit = Math.max(0, Number(maxPerMin) || 0);
-  const generators = Math.floor(limit / fullRate + 1e-9);
-  const remainderPerMin = Math.max(0, limit - generators * fullRate);
+  // 整数十分位口径（与 poolFeedSplit 一致）：先截到 1.5/分，再拆成满速台数 + 零头，
+  // 避免 limit / fullRate 的浮点 floor 在 0.1 步进上抖动（例如 1.5/1.5 落到 0.9999…）。
+  const split = splitPoolFeedForFuel(fuel, maxPerMin);
+  const limit = split.ratePerMin;
+  const generators = split.residentCount;
+  const remainderPerMin = split.remainderPerMin;
   const bands = bandPlanFor(fuel, generators);
 
   let remainderWatt = 0;
