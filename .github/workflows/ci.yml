@@ -42,6 +42,7 @@ jobs:
           pnpm exec tsx scripts/selftest-osc-scenarios.mjs
           pnpm exec tsx scripts/selftest-matrix-7665.mjs
           pnpm exec tsx scripts/selftest-stage-matrix.mjs
+          pnpm exec tsx scripts/selftest-gate-burst.mjs
           pnpm exec tsx scripts/selftest-power-integration.mjs
           pnpm exec tsx scripts/selftest-pool-precheck.mjs
           pnpm exec tsx scripts/selftest-solve-timeout.mjs
