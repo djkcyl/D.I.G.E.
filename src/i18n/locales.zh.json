@@ -80,6 +80,7 @@
   "diagGeneralFailure": "当前参数组合未找到可行方案。",
   "diagIncreaseMaxWaste": "提高功率浪费/冗余上限（当前 {{current}}W）。",
   "diagLowerBatteryPercent": "降低最小蓄电量要求（当前 {{current}}%）。",
+  "diagPoolBatteryDrain": "自定义震荡热能池的零头是间歇供电：蓄电池缓冲不够时，没燃烧的那几十秒会掉电。建议降低投料量、把它做成整台满速带，或提高常驻供给。",
   "diagramDevices": "设备数",
   "diagramGeneratorShort": "发电",
   "diagramLegend": "图例",

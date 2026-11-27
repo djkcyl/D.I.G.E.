@@ -120,6 +120,26 @@ export function diagnoseNoSolution(
     return { primaryHint, secondaryHints: uniqueHints(secondaryHints) };
   }
 
+  // 场景 C：启用了自定义震荡热能池——零头是间歇供电，电池缓冲不足就会停机
+  const poolDrainsBattery = (params.oscPools ?? []).some(
+    (pool) =>
+      pool &&
+      pool.enabled !== false &&
+      Boolean(pool.fuelId) &&
+      pool.fuelId !== "none" &&
+      (Number(pool.maxPerMin) || 0) > 0,
+  );
+  if (poolDrainsBattery) {
+    return {
+      primaryHint: t("diagPoolBatteryDrain"),
+      secondaryHints: uniqueHints([
+        t("diagCheckDecisionMatrix"),
+        t("diagAddManualBase"),
+        t("diagEnableAutoBase"),
+      ]),
+    };
+  }
+
   // 场景 B：综合约束
   const secondaryHints: string[] = [];
   secondaryHints.push(t("diagCheckDecisionMatrix"));

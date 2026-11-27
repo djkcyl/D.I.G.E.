@@ -1,4 +1,4 @@
-import { GAME_CONFIG } from "../config/game";
+﻿import { GAME_CONFIG } from "../config/game";
 import type {
   BasePowerDetails,
   CalcParams,
@@ -855,8 +855,10 @@ export class FactoryDesigner {
   deviceBudget: number;
   /** 自定义震荡热能池的分段功率（供曲线还原方波） */
   poolSegments: Array<{
+    /** 满速带恒定功率 */
     constant: number;
-    remainderWatt: number;
+    /** 余量分支燃烧时的瞬时功率（燃料额定功率） */
+    pulseWatt: number;
     cycle: number;
     onDuration: number;
   }>;
@@ -870,6 +872,18 @@ export class FactoryDesigner {
       oscWatt: number;
     }
   >;
+  /** 用户输入的目标功率（未扣池功率），供仿真使用 */
+  originalTargetPower: number;
+  /** 池满速带合计功率（恒定供给，参与仿真） */
+  poolBandWatt: number;
+  /** 池余量震荡分支（按 2D 周期脉冲供电，参与仿真） */
+  poolBranches: Array<{
+    denominator: number;
+    branchInterval: number;
+    power: number;
+    fuel: Fuel;
+    phaseOffsetCells: number;
+  }>;
   validDenominators: number[];
   simulator: PowerCycleSimulator;
 
@@ -947,6 +961,8 @@ export class FactoryDesigner {
     this.poolDeviceCost = 0;
     this.poolSegments = [];
     this.poolFuelStats = new Map();
+    this.poolBandWatt = 0;
+    this.poolBranches = [];
     for (const poolCfg of params.oscPools ?? []) {
       if (!poolCfg || poolCfg.enabled === false) continue;
       if (!poolCfg.fuelId || poolCfg.fuelId === "none") continue;
@@ -964,7 +980,7 @@ export class FactoryDesigner {
         rated.remainderDenominator != null ? 2 * rated.remainderDenominator : 0;
       this.poolSegments.push({
         constant: rated.bands.watt,
-        remainderWatt: rated.remainderWatt,
+        pulseWatt: poolFuel.power,
         cycle,
         onDuration: cycle > 0 ? Math.min(poolFuel.burnTime, cycle) : 0,
       });
@@ -979,22 +995,62 @@ export class FactoryDesigner {
       stat.oscRatePerMin += rated.remainderPerMin;
       stat.oscWatt += rated.remainderWatt;
       this.poolFuelStats.set(poolFuel.id, stat);
+      this.poolBandWatt += rated.bands.watt;
+      if (
+        rated.remainderDenominator != null &&
+        rated.remainderDenominator > 0 &&
+        rated.remainderWatt > 0
+      ) {
+        this.poolBranches.push({
+          denominator: rated.remainderDenominator,
+          branchInterval: 2 * rated.remainderDenominator,
+          // 分支功率必须是燃烧时的瞬时功率（燃料额定），平均功率由占空比决定
+          power: poolFuel.power,
+          fuel: poolFuel,
+          phaseOffsetCells: 0,
+        });
+      }
     }
-    this.poolPower = Math.min(this.poolPower, Number(params.targetPower) || 0);
+    this.originalTargetPower = Number(params.targetPower) || 0;
+    this.poolPower = Math.min(this.poolPower, this.originalTargetPower);
     this.deviceBudget = Math.max(0, DEFAULT_DEVICE_LIMIT - this.poolDeviceCost);
-    this.targetPower = Math.max(
-      0,
-      (Number(params.targetPower) || 0) - this.poolPower,
-    );
+    // 求解只针对「目标 − 池功率」的缺口，但仿真必须按真实目标算电池
+    this.targetPower = Math.max(0, this.originalTargetPower - this.poolPower);
     this.validDenominators = generateValidDenominators();
     this.simulator = new PowerCycleSimulator({
-      targetPower: this.targetPower,
+      targetPower: this.originalTargetPower,
       minBatteryPercent: this.minBatteryPercent,
       batteryCapacity: this.batteryCapacity,
       inputInterval: Number.isFinite(this.inputInterval)
         ? this.inputInterval
         : 0,
     });
+  }
+
+  /**
+   * 带自定义震荡热能池的仿真：满速带作为恒定供给、余量分支作为脉冲分支一起进仿真，
+   * 这样电池曲线与最低电量才会反映真实的池间歇供电。
+   */
+  private _simulate(
+    baseConfig: { totalPower: number },
+    branchConfigs: Array<{
+      denominator: number;
+      phaseOffsetCells?: number;
+      branchInterval?: number;
+      localDenominator?: number;
+      baseInterval?: number;
+      fuel?: Fuel;
+    }>,
+    fuel: Fuel,
+  ): SimulateCycleResult {
+    if (this.poolBranches.length === 0 && this.poolBandWatt === 0) {
+      return this.simulator.simulateCycle(baseConfig, branchConfigs, fuel);
+    }
+    return this.simulator.simulateCycle(
+      { ...baseConfig, totalPower: baseConfig.totalPower + this.poolBandWatt },
+      [...branchConfigs, ...this.poolBranches],
+      fuel,
+    );
   }
 
   /** 限速为 0（inputInterval === Infinity）时的安全判断 */
@@ -1290,11 +1346,7 @@ export class FactoryDesigner {
           },
         }));
 
-        const result = this.simulator.simulateCycle(
-          baseConfig,
-          branchConfigs,
-          fuel,
-        );
+        const result = this._simulate(baseConfig, branchConfigs, fuel);
 
         if (
           result.success &&
@@ -1498,11 +1550,7 @@ export class FactoryDesigner {
         this._optToBranchConfig(opt, i, fuels[i]),
       );
       simCount += 1;
-      const result = this.simulator.simulateCycle(
-        baseConfig,
-        branchConfigs,
-        primary, // fallback; per-branch fuel used inside
-      );
+      const result = this._simulate(baseConfig, branchConfigs, primary);
       if (
         result.success &&
         result.waste != null &&
@@ -1655,6 +1703,45 @@ export class FactoryDesigner {
     ].join("|");
   }
 
+  /**
+   * 纯常驻方案（无系统震荡分支）也要把自定义振荡池带进电池仿真：
+   * 池余量是脉冲供电，靠平均功率无法判断会不会停机。
+   * 返回 null 表示该方案在真实电池约束下不可行。
+   */
+  private _applyPoolSimulation(
+    out: SolutionResult,
+    baseTotalPower: number,
+  ): SolutionResult | null {
+    if (this.poolBranches.length === 0) {
+      // 只有满速带：恒定供给，直接并入均值，并按真实均值复查浪费上限
+      out.avgPower += this.poolBandWatt;
+      out.waste = out.avgPower - this.originalTargetPower;
+      if (out.waste > this.maxWaste) return null;
+      return out;
+    }
+    const sim = this._simulate(
+      { totalPower: baseTotalPower },
+      [],
+      this.primaryFuel,
+    );
+    if (!sim.success) return null;
+    // 池功率可能大于目标缺口：按真实均值复查浪费上限
+    if (sim.waste > this.maxWaste) return null;
+    out.avgPower = sim.avgPower;
+    out.waste = sim.waste;
+    out.variance = sim.variance;
+    out.period = sim.period;
+    out.minBattery = sim.minBattery;
+    out.minBatteryPercent = sim.minBatteryPercent;
+    out.batteryLog = sim.batteryLog;
+    out.powerLog = sim.powerLog;
+    out.burnStateLog = sim.burnStateLog;
+    out.preciseBatteryLog = sim.preciseBatteryLog;
+    out.precisePowerLog = sim.precisePowerLog;
+    out.preciseBurnStateLog = sim.preciseBurnStateLog;
+    return out;
+  }
+
   private runOscillationPipelines(): SolutionResult[] {
     const layered = this.calculateBasePower();
     const baseConfig = {
@@ -1686,53 +1773,8 @@ export class FactoryDesigner {
             this.inputInterval,
             this.poolFuelStats,
           );
-          return [
-            buildSolutionOutput({
-              baseConfig,
-              primaryFuel: this.primaryFuel,
-              targetPower: this.targetPower,
-              inputInterval: this.inputInterval,
-              inputSourceId: this.inputSource.id,
-              rateLimitPerMin: null,
-              isRateLimited: false,
-              excludeBelt: this.excludeBelt,
-              batteryCapacity: this.batteryCapacity,
-              baseFuelPerSec: layeredBaseFuelPerSec,
-              solution: null,
-              oscillatingFuelPerSec: 0,
-              baseDetails: layeredBaseDetails,
-              fuelBOM,
-            }),
-          ];
-        })()
-      : this._getDirectBaseConfigs().map((directBaseConfig) => {
-          const baseFuelPerSec =
-            directBaseConfig.generators > 0
-              ? directBaseConfig.generators / this.primaryFuel.burnTime
-              : 0;
-          // 旧路径：用 direct 台数合成简易 baseDetails，保持 BOM 可用
-          const autoCount = directBaseConfig.generators;
-          const details: BasePowerDetails = {
-            corePower: CONSTANTS.BASE_POWER,
-            manualLines: [],
-            autoBaseCount: autoCount,
-            autoBaseFuel: autoCount > 0 ? this.primaryFuel : undefined,
-            totalBasePower: directBaseConfig.totalPower,
-          };
-          const fuelBOM = buildUnifiedBOM(
-            details,
-            null,
-            0,
-            this.primaryFuel,
-            this.secondaryFuel,
-            this.fuelOverrides,
-            0,
-            null,
-            this.inputInterval,
-            this.poolFuelStats,
-          );
-          return buildSolutionOutput({
-            baseConfig: directBaseConfig,
+          const out = buildSolutionOutput({
+            baseConfig,
             primaryFuel: this.primaryFuel,
             targetPower: this.targetPower,
             inputInterval: this.inputInterval,
@@ -1741,13 +1783,64 @@ export class FactoryDesigner {
             isRateLimited: false,
             excludeBelt: this.excludeBelt,
             batteryCapacity: this.batteryCapacity,
-            baseFuelPerSec,
+            baseFuelPerSec: layeredBaseFuelPerSec,
             solution: null,
             oscillatingFuelPerSec: 0,
-            baseDetails: details,
+            baseDetails: layeredBaseDetails,
             fuelBOM,
           });
-        });
+          const withPool = this._applyPoolSimulation(
+            out,
+            baseConfig.totalPower,
+          );
+          return withPool ? [withPool] : [];
+        })()
+      : this._getDirectBaseConfigs()
+          .map((directBaseConfig) => {
+            const baseFuelPerSec =
+              directBaseConfig.generators > 0
+                ? directBaseConfig.generators / this.primaryFuel.burnTime
+                : 0;
+            // 旧路径：用 direct 台数合成简易 baseDetails，保持 BOM 可用
+            const autoCount = directBaseConfig.generators;
+            const details: BasePowerDetails = {
+              corePower: CONSTANTS.BASE_POWER,
+              manualLines: [],
+              autoBaseCount: autoCount,
+              autoBaseFuel: autoCount > 0 ? this.primaryFuel : undefined,
+              totalBasePower: directBaseConfig.totalPower,
+            };
+            const fuelBOM = buildUnifiedBOM(
+              details,
+              null,
+              0,
+              this.primaryFuel,
+              this.secondaryFuel,
+              this.fuelOverrides,
+              0,
+              null,
+              this.inputInterval,
+              this.poolFuelStats,
+            );
+            const out = buildSolutionOutput({
+              baseConfig: directBaseConfig,
+              primaryFuel: this.primaryFuel,
+              targetPower: this.targetPower,
+              inputInterval: this.inputInterval,
+              inputSourceId: this.inputSource.id,
+              rateLimitPerMin: null,
+              isRateLimited: false,
+              excludeBelt: this.excludeBelt,
+              batteryCapacity: this.batteryCapacity,
+              baseFuelPerSec,
+              solution: null,
+              oscillatingFuelPerSec: 0,
+              baseDetails: details,
+              fuelBOM,
+            });
+            return this._applyPoolSimulation(out, directBaseConfig.totalPower);
+          })
+          .filter((item): item is SolutionResult => item !== null);
 
     const allOscillatingSolutions: OscillatingSolutionInput[] = [];
     if (baseConfig.totalPower < this.targetPower) {
@@ -1881,21 +1974,6 @@ export class FactoryDesigner {
     return outputs;
   }
 
-  /** 自定义震荡热能池的合并周期（各段周期的最小公倍数，封顶 600s） */
-  private _poolCyclePeriod(): number {
-    const cycles = this.poolSegments
-      .map((seg) => seg.cycle)
-      .filter((c) => Number.isFinite(c) && c > 1);
-    if (cycles.length === 0) return 0;
-    const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
-    let lcm = cycles[0];
-    for (let i = 1; i < cycles.length; i += 1) {
-      lcm = (lcm * cycles[i]) / gcd(lcm, cycles[i]);
-      if (lcm > 600) return 600;
-    }
-    return Math.round(lcm);
-  }
-
   private _buildOutputSignature(solution: SolutionResult): string {
     const round = (value: number, digits: number): number => {
       const factor = 10 ** digits;
@@ -1940,67 +2018,21 @@ export class FactoryDesigner {
       merged.push(sol);
     }
 
-    // 自定义震荡热能池的功率已在目标里扣除，这里加回展示值，waste 口径保持不变
+    // 池功率已随仿真进入 powerLog / batteryLog；
+    // 这里只把池功率加回方案均值（用于展示与 waste 对照），并单独给出池曲线。
     if (this.poolPower > 0) {
       const poolAt = (seconds: number): number =>
         this.poolSegments.reduce((sum, seg) => {
           const on =
             seg.cycle > 0 && seconds % seg.cycle < seg.onDuration
-              ? seg.remainderWatt
+              ? seg.pulseWatt
               : 0;
           return sum + seg.constant + on;
         }, 0);
-      const cyclePeriod = this._poolCyclePeriod();
-      // 原始目标（未扣池功率），用于合成纯常驻 + 池方案的曲线
-      const originalTarget = this.targetPower + this.poolPower;
 
       for (const sol of merged) {
-        sol.avgPower += this.poolPower;
-        const isPureBase = !sol.oscillating || sol.oscillating.length === 0;
-
-        if (isPureBase && cyclePeriod > 1) {
-          // 纯常驻方案本身没有周期，用池的周期展开一条真实曲线
-          const len = cyclePeriod + 1;
-          const basePower = sol.baseConfig.totalPower;
-          const poolSeries: number[] = [];
-          const powerSeries: number[] = [];
-          const batterySeries: number[] = [];
-          let battery = this.batteryCapacity;
-          let minBattery = battery;
-          for (let t = 0; t < len; t += 1) {
-            const poolWatt = poolAt(t);
-            const supply = basePower + poolWatt;
-            poolSeries.push(poolWatt);
-            powerSeries.push(supply);
-            if (t > 0) {
-              battery += supply - originalTarget;
-              if (battery > this.batteryCapacity)
-                battery = this.batteryCapacity;
-              if (battery < 0) battery = 0;
-              if (battery < minBattery) minBattery = battery;
-            }
-            batterySeries.push(battery);
-          }
-          sol.powerLog = powerSeries;
-          sol.poolPowerLog = poolSeries;
-          sol.batteryLog = batterySeries;
-          sol.precisePowerLog = [...powerSeries];
-          sol.preciseBatteryLog = [...batterySeries];
-          sol.period = cyclePeriod;
-          sol.minBattery = minBattery;
-          sol.minBatteryPercent = (minBattery / this.batteryCapacity) * 100;
-          continue;
-        }
-
-        if (Array.isArray(sol.powerLog)) {
-          const poolSeries = sol.powerLog.map((_, i) => poolAt(i));
-          sol.poolPowerLog = poolSeries;
-          sol.powerLog = sol.powerLog.map((v, i) => v + poolSeries[i]);
-        }
-        if (Array.isArray(sol.precisePowerLog)) {
-          sol.precisePowerLog = sol.precisePowerLog.map(
-            (v, i) => v + poolAt(i),
-          );
+        if (Array.isArray(sol.powerLog) && !Array.isArray(sol.poolPowerLog)) {
+          sol.poolPowerLog = sol.powerLog.map((_, i) => poolAt(i));
         }
       }
     }

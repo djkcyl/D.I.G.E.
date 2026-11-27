@@ -80,6 +80,7 @@
   "diagGeneralFailure": "현재 매개변수 조합으로 가능한 해를 찾지 못했습니다.",
   "diagIncreaseMaxWaste": "전력 낭비/여유 상한을 높이세요(현재 {{current}}W).",
   "diagLowerBatteryPercent": "최소 축전량 요구를 낮추세요(현재 {{current}}%).",
+  "diagPoolBatteryDrain": "사용자 지정 진동 풀의 나머지는 간헐 공급입니다. 축전지 여유가 부족하면 연소하지 않는 수십 초 동안 전력이 끊깁니다. 투입량을 줄이거나 만속 대역으로 만들거나 상시 공급을 늘리세요.",
   "diagramDevices": "설비 수",
   "diagramGeneratorShort": "발전",
   "diagramLegend": "범례",

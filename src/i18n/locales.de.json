@@ -80,6 +80,7 @@
   "diagGeneralFailure": "Für die aktuellen Parameter wurde keine machbare Lösung gefunden.",
   "diagIncreaseMaxWaste": "Erhöhen Sie das Verlust-/Redundanzlimit (aktuell {{current}}W).",
   "diagLowerBatteryPercent": "Senken Sie die Mindest-Batterieanforderung (aktuell {{current}}%).",
+  "diagPoolBatteryDrain": "Der Rest des Schwingungspools liefert stoßweise: Bei zu kleinem Batteriepuffer bricht die Grundlast in den Pausen ein. Zufuhr senken, zu Vollgasbändern bündeln oder Grundlast erhöhen.",
   "diagramDevices": "Geräte",
   "diagramGeneratorShort": "Gen.",
   "diagramLegend": "Legende",

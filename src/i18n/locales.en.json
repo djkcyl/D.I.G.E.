@@ -80,6 +80,7 @@
   "diagGeneralFailure": "No feasible solution was found for the current parameters.",
   "diagIncreaseMaxWaste": "Increase the waste/redundancy limit (currently {{current}}W).",
   "diagLowerBatteryPercent": "Lower the minimum battery requirement (currently {{current}}%).",
+  "diagPoolBatteryDrain": "The custom oscillation pool's remainder supplies power intermittently: when the battery buffer is too small, the base loses power during the off periods. Lower the feed rate, make it whole full-speed bands, or raise the base supply.",
   "diagramDevices": "Devices",
   "diagramGeneratorShort": "Gen",
   "diagramLegend": "Legend",

@@ -80,6 +80,7 @@
   "diagGeneralFailure": "Tidak ada solusi layak untuk parameter saat ini.",
   "diagIncreaseMaxWaste": "Naikkan batas limbah/redundansi (saat ini {{current}}W).",
   "diagLowerBatteryPercent": "Turunkan persyaratan baterai minimum (saat ini {{current}}%).",
+  "diagPoolBatteryDrain": "Sisa kumpulan osilasi dipasok secara berdenyut: bila penyangga baterai kurang, daya dasar terputus saat jeda pembakaran. Turunkan laju masukan, jadikan pita kecepatan penuh, atau tambah pasokan dasar.",
   "diagramDevices": "Perangkat",
   "diagramGeneratorShort": "Gen",
   "diagramLegend": "Keterangan",

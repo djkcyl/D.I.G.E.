@@ -80,6 +80,7 @@
   "diagGeneralFailure": "Aucune solution réalisable pour les paramètres actuels.",
   "diagIncreaseMaxWaste": "Augmentez la limite de gaspillage/redondance (actuellement {{current}}W).",
   "diagLowerBatteryPercent": "Abaissez l’exigence de batterie minimale (actuellement {{current}}%).",
+  "diagPoolBatteryDrain": "Le reste du pool d'oscillation est fourni par impulsions : si la réserve de batterie est trop faible, la base perd l'alimentation pendant les pauses. Réduisez le débit, regroupez en bandes pleine vitesse ou augmentez l'apport permanent.",
   "diagramDevices": "Appareils",
   "diagramGeneratorShort": "Gén.",
   "diagramLegend": "Légende",

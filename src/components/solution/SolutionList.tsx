@@ -206,7 +206,7 @@ export default function SolutionList({
         rated.remainderDenominator != null ? 2 * rated.remainderDenominator : 0;
       segments.push({
         constant: rated.bands.watt,
-        remainderWatt: rated.remainderWatt,
+        remainderWatt: fuel.power,
         cycle,
         onDuration: cycle > 0 ? Math.min(fuel.burnTime, cycle) : 0,
       });

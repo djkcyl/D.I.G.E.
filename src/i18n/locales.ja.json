@@ -80,6 +80,7 @@
   "diagGeneralFailure": "現在のパラメータでは実行可能な解が見つかりませんでした。",
   "diagIncreaseMaxWaste": "電力浪費/冗長上限を上げてください（現在 {{current}}W）。",
   "diagLowerBatteryPercent": "最小蓄電量要件を下げてください（現在 {{current}}%）。",
+  "diagPoolBatteryDrain": "カスタム振動プールの端数は断続供給です。蓄電池の余裕が足りないと、燃焼していない数十秒で電力が落ちます。投入量を下げるか、満速帯にまとめるか、常駐供給を増やしてください。",
   "diagramDevices": "設備数",
   "diagramGeneratorShort": "発電",
   "diagramLegend": "凡例",
