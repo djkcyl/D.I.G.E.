@@ -97,11 +97,7 @@ function poolRatedWatt(params: CalcParams): number {
     if (!cfg.fuelId || cfg.fuelId === "none") continue;
     const fuel = resolveFuel(cfg.fuelId, params.fuelOverrides);
     if (!fuel) continue;
-    const feed = splitPoolFeed(
-      cfg.fuelId,
-      cfg.maxPerMin,
-      params.fuelOverrides,
-    );
+    const feed = splitPoolFeed(cfg.fuelId, cfg.maxPerMin, params.fuelOverrides);
     if (!feed.active) continue;
     sum += poolPowerForRate(fuel, feed.ratePerMin, {
       deviceLimit: normalizeDeviceLimit(cfg.deviceLimit),

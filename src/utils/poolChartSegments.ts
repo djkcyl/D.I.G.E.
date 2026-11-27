@@ -84,7 +84,10 @@ export function poolAverageWatt(
  * 不能直接当 1，否则 5760 s 周期会被画成 480 s。
  */
 export function resolveLogSecondsPerPoint(
-  solution: { logSecondsPerPoint?: unknown; period?: unknown } | null | undefined,
+  solution:
+    | { logSecondsPerPoint?: unknown; period?: unknown }
+    | null
+    | undefined,
 ): number {
   const step = Number(solution?.logSecondsPerPoint);
   if (Number.isFinite(step) && step > 0) return step;

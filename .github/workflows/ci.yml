@@ -46,6 +46,16 @@ jobs:
           pnpm exec tsx scripts/selftest-power-integration.mjs
           pnpm exec tsx scripts/selftest-pool-precheck.mjs
           pnpm exec tsx scripts/selftest-solve-timeout.mjs
+          pnpm exec tsx scripts/selftest-pool-adjust-chain.mjs
+
+      - name: TypeScript regression tests
+        run: |
+          pnpm exec tsx --test \
+            src/utils/poolFeedSplit.test.ts \
+            src/utils/poolAdjustChain.test.ts \
+            src/utils/poolChartSegments.test.ts \
+            src/utils/poolPulseRegression.test.ts \
+            src/utils/poolOverSupplyRegression.test.ts
 
       - name: Build
         run: pnpm build

@@ -28,9 +28,7 @@ const mkParams = (
     primaryFuelId: "valleyHigh",
     secondaryFuelId: "none",
     targetPower,
-    oscPools: [
-      { id: "p1", fuelId, enabled: true, deviceLimit: 48, maxPerMin },
-    ],
+    oscPools: [{ id: "p1", fuelId, enabled: true, deviceLimit: 48, maxPerMin }],
     ...extra,
   }) as unknown as CalcParams;
 

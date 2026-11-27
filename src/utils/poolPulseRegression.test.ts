@@ -135,7 +135,11 @@ describe("池零头脉冲回归：5965 / 高容武陵 0.5/分 / 100 kJ", () => {
         s.minBattery > 0,
     );
     assert.deepEqual(
-      fake.map((s) => ({ avg: s.avgPower, minB: s.minBattery, period: s.period })),
+      fake.map((s) => ({
+        avg: s.avgPower,
+        minB: s.minBattery,
+        period: s.period,
+      })),
       [],
     );
   });
@@ -151,7 +155,11 @@ function assertPoolLogOnSecondAxis(
   if (!Array.isArray(log)) return;
   const step = s.logSecondsPerPoint ?? 1;
   for (let i = 0; i < log.length; i++) {
-    assert.equal(log[i], at(i * step), `${tag}：poolPowerLog[${i}]（${i * step} s）`);
+    assert.equal(
+      log[i],
+      at(i * step),
+      `${tag}：poolPowerLog[${i}]（${i * step} s）`,
+    );
   }
 }
 
@@ -187,7 +195,13 @@ describe("正向用例：9415 武陵 / 中容武陵主燃料 / 高容武陵池 1
       primaryFuelId: "wulingMid",
       secondaryFuelId: "none",
       oscPools: [
-        { id: "p1", fuelId: "wulingHigh", enabled: true, deviceLimit: 48, maxPerMin: 1.5 },
+        {
+          id: "p1",
+          fuelId: "wulingHigh",
+          enabled: true,
+          deviceLimit: 48,
+          maxPerMin: 1.5,
+        },
       ],
     } as unknown as CalcParams);
     assert.equal(d.poolBandWatt, POOL_PULSE, "1 条满带 = 6400 W");
@@ -201,7 +215,10 @@ describe("正向用例：9415 武陵 / 中容武陵主燃料 / 高容武陵池 1
       const log = s.poolPowerLog;
       if (Array.isArray(log)) {
         assert.ok(log.length > 0);
-        assert.ok(log.every((w) => w === POOL_PULSE), `${tag}：池曲线应恒为 6400 W`);
+        assert.ok(
+          log.every((w) => w === POOL_PULSE),
+          `${tag}：池曲线应恒为 6400 W`,
+        );
       }
     }
   });

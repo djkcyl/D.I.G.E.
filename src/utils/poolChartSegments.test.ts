@@ -87,7 +87,13 @@ describe("buildPoolSegments：1/64 高容武陵（6400 W、40 s、周期 128 s�
     assert.equal(
       buildPoolSegments({
         oscPools: [
-          { id: "a", fuelId: "wulingHigh", enabled: false, deviceLimit: 48, maxPerMin: 0.5 },
+          {
+            id: "a",
+            fuelId: "wulingHigh",
+            enabled: false,
+            deviceLimit: 48,
+            maxPerMin: 0.5,
+          },
           { id: "b", fuelId: "none", deviceLimit: 48, maxPerMin: 0.5 },
           { id: "c", fuelId: "wulingHigh", deviceLimit: 48, maxPerMin: 0 },
         ],

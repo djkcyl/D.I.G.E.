@@ -505,7 +505,13 @@ export function branchMaxIntervalFromArrivals(
   const period = branchGatePeriodSlots(k, splitPath);
   if (!Number.isFinite(period)) return Number.POSITIVE_INFINITY;
   const duration = (3 * period + GATE_CYCLE_SLOTS) * slotInterval;
-  const t = branchArrivalTimes(k, splitPath, phaseSlots, duration, slotInterval);
+  const t = branchArrivalTimes(
+    k,
+    splitPath,
+    phaseSlots,
+    duration,
+    slotInterval,
+  );
   let max = 0;
   for (let i = 1; i < t.length; i += 1) max = Math.max(max, t[i] - t[i - 1]);
   return max;

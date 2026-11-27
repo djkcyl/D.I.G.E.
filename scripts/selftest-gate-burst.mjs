@@ -37,6 +37,24 @@ const diffs = (ts) =>
   ts.slice(1).map((t, i) => Math.round((t - ts[i]) * 1e6) / 1e6);
 const same = (a, b) =>
   a.length === b.length && a.every((x, i) => Math.abs(x - b[i]) < 1e-9);
+const hasFeasiblePair = (s) => {
+  const branches = s?.oscillating ?? [];
+  return (
+    branches.length === 2 &&
+    branches.some((b) => b.denominator === 45 && b.limiterSpeed === 6) &&
+    branches.some((b) => b.denominator === 22.5 && b.limiterSpeed === 12)
+  );
+};
+const collectCells = (result) => {
+  const cells = [];
+  for (const row of result?.matrix ?? []) {
+    for (const cell of row ?? []) if (cell) cells.push(cell);
+  }
+  for (const s of result?.solutions ?? []) {
+    if (!cells.includes(s)) cells.push(s);
+  }
+  return cells;
+};
 
 // 1. 格位序列 ---------------------------------------------------------------
 console.log("[1] 准入口单周期格位序列");
@@ -93,7 +111,12 @@ for (const k of [1, 2, 3, 4, 5]) {
     let all = 0;
     let leaf0 = 0;
     for (let leaf = 0; leaf < L; leaf += 1) {
-      const n = branchArrivalTimes({ k, localDenominator: L, leaf, horizon }).length;
+      const n = branchArrivalTimes({
+        k,
+        localDenominator: L,
+        leaf,
+        horizon,
+      }).length;
       all += n;
       if (leaf === 0) leaf0 = n;
     }
@@ -117,17 +140,24 @@ check(
 );
 
 // 3b. 均匀性 / 长间隔公式 ----------------------------------------------------
-console.log("[3b] n=1/5 恒均匀；n∈{2,3,4} 且 n∤L 时 长间隔−均值 = (10−2n)(n−s)/n");
+console.log(
+  "[3b] n=1/5 恒均匀；n∈{2,3,4} 且 n∤L 时 长间隔−均值 = (10−2n)(n−s)/n",
+);
 {
   let uniFail = 0;
   for (const k of [1, 5]) {
     for (let L = 1; L <= 24; L += 1) {
       const P = gatedBranchPeriod(k, L);
-      const g = diffs(branchArrivalTimes({ k, localDenominator: L, horizon: P * 4 }));
+      const g = diffs(
+        branchArrivalTimes({ k, localDenominator: L, horizon: P * 4 }),
+      );
       const want = (10 * L) / k;
       if (g.length === 0 || g.some((x) => Math.abs(x - want) > 1e-9)) {
         uniFail += 1;
-        check(false, `k=${k} L=${L} 非均匀：${[...new Set(g)].join("/")}s（期望 ${want}s）`);
+        check(
+          false,
+          `k=${k} L=${L} 非均匀：${[...new Set(g)].join("/")}s（期望 ${want}s）`,
+        );
       }
     }
   }
@@ -138,12 +168,17 @@ console.log("[3b] n=1/5 恒均匀；n∈{2,3,4} 且 n∤L 时 长间隔−均值
     for (let L = 1; L <= 24; L += 1) {
       const s = L % k;
       const P = gatedBranchPeriod(k, L);
-      const g = diffs(branchArrivalTimes({ k, localDenominator: L, horizon: P * 4 }));
+      const g = diffs(
+        branchArrivalTimes({ k, localDenominator: L, horizon: P * 4 }),
+      );
       const mean = (10 * L) / k;
       if (s === 0) {
         if (g.some((x) => Math.abs(x - mean) > 1e-9)) {
           fmFail += 1;
-          check(false, `k=${k} L=${L}（n|L）应均匀，实际 ${[...new Set(g)].join("/")}s`);
+          check(
+            false,
+            `k=${k} L=${L}（n|L）应均匀，实际 ${[...new Set(g)].join("/")}s`,
+          );
         }
         continue;
       }
@@ -177,7 +212,11 @@ console.log(`[4] 单台热能池断烧段（排队模型，燃烧 ${fuel.burnTim
 {
   // 12/分 + 1/9：均匀模型 45s 一份 → 每份后断 5s；格位模型 42/48s 交替 → 断 2s / 8s 交替。
   const P = gatedBranchPeriod(2, 9);
-  const slot = branchArrivalTimes({ k: 2, localDenominator: 9, horizon: P * 10 });
+  const slot = branchArrivalTimes({
+    k: 2,
+    localDenominator: 9,
+    horizon: P * 10,
+  });
   const uni = Array.from({ length: 20 }, (_, m) => m * 45);
   const gs = idleGaps(slot, fuel.burnTime, P * 2);
   const gu = idleGaps(uni, fuel.burnTime, 90);
@@ -193,9 +232,9 @@ console.log(`[4] 单台热能池断烧段（排队模型，燃烧 ${fuel.burnTim
   );
 }
 
-// 5. 截图案例复现 ------------------------------------------------------------
+// 5. 旧截图中的单路解必须淘汰；当前合法解用独立仿真复核 -----------------------------
 console.log(
-  "[5] 截图案例：武陵 5965W，主=高容谷地，1 路震荡 1/45 准入口 6/分 + 自定义池高容武陵 0.5/分",
+  "[5] 武陵 5965W / 池高容武陵 0.5/分：旧单路解不得出现，合法两路解必须通过电量校验",
 );
 const params = {
   ...DEFAULT_PARAMS,
@@ -204,22 +243,30 @@ const params = {
   primaryFuelId: "valleyHigh",
   secondaryFuelId: "none",
   oscPools: [
-    { id: "p1", fuelId: "wulingHigh", enabled: true, deviceLimit: 48, maxPerMin: 0.5 },
+    {
+      id: "p1",
+      fuelId: "wulingHigh",
+      enabled: true,
+      deviceLimit: 48,
+      maxPerMin: 0.5,
+    },
   ],
 };
 const result = new FactoryDesigner(params).solve();
-const cells = [];
-(result.matrix ?? []).forEach((row) => row?.forEach((c) => c && cells.push(c)));
-for (const s of result.solutions ?? []) if (!cells.includes(s)) cells.push(s);
-const target = cells.find(
+const cells = collectCells(result);
+const staleTarget = cells.find(
   (s) =>
     (s.oscillating ?? []).length === 1 &&
     s.oscillating[0].denominator === 45 &&
     s.oscillating[0].limiterSpeed === 6,
 );
-check(Boolean(target), "求解器给出 1 路 1/45 准入口 6/分 的格子");
+check(
+  !staleTarget,
+  "旧单路 1/45 准入口 6/分方案不得出现（游戏实测会耗尽电池）",
+);
+const target = cells.find(hasFeasiblePair);
+check(Boolean(target), "求解器保留两路 1/45@6/分 + 1/22.5@12/分 合法解");
 if (target) {
-  const b = target.oscillating[0];
   const poolFuel = resolveFuel("wulingHigh");
   const rp = poolPowerForRate(poolFuel, 0.5);
   const pools = [
@@ -229,36 +276,35 @@ if (target) {
       remainderDenominator: rp.remainderDenominator,
     },
   ];
-  const opts = { targetPower: params.targetPower, pools, minPercent: 5 };
-  const oldSim = simulateSolution(target, { ...opts, arrivalModel: "uniform" });
-  const newSim = simulateSolution(target, { ...opts, arrivalModel: "slot" });
+  const sim = simulateSolution(target, {
+    targetPower: params.targetPower,
+    pools,
+    minPercent: 5,
+  });
+  const branches = target.oscillating
+    .map((b) => `1/${b.denominator}@${b.limiterSpeed}/分`)
+    .join(" + ");
   console.log(
-    `  分支 1/${b.denominator} localD=${b.localDenominator} branchInterval=${b.branchInterval}s 相位 ${b.phaseOffsetCells} 格；池 1/${rp.remainderDenominator}`,
+    `  ${branches}；求解器 avg ${target.avgPower.toFixed(1)}W min ${target.minBatteryPercent.toFixed(1)}% 周期 ${target.period}s`,
   );
   console.log(
-    `  求解器：avg ${target.avgPower.toFixed(1)}W  min ${target.minBatteryPercent.toFixed(1)}%  周期 ${target.period}s`,
-  );
-  console.log(
-    `  旧模型：avg ${oldSim.avgPower.toFixed(1)}W  min ${oldSim.minBatteryPercent.toFixed(1)}%  周期 ${oldSim.period}s`,
-  );
-  console.log(
-    `  新模型：avg ${newSim.avgPower.toFixed(1)}W  min ${newSim.minBatteryPercent.toFixed(1)}%  周期 ${newSim.period}s`,
+    `  独立仿真：avg ${sim.avgPower.toFixed(1)}W min ${sim.minBatteryPercent.toFixed(1)}% valid=${sim.valid} failedAt=${sim.failedAt}`,
   );
   check(
-    Math.abs(oldSim.avgPower - 5988.9) < 1,
-    `旧模型独立仿真均值 ${oldSim.avgPower.toFixed(1)}W ≈ 截图 5988.9W`,
+    sim.valid && sim.failedAt == null,
+    "独立仿真：合法两路解不耗尽、不触发 5% 底线",
   );
   check(
-    Math.abs(newSim.avgPower - oldSim.avgPower) < 1,
-    `新模型均值不变（长期均值口径）：Δ ${(newSim.avgPower - oldSim.avgPower).toFixed(2)}W`,
+    target.minBatteryPercent >= 5 && sim.minBatteryPercent >= 5,
+    "求解器与独立仿真的最低电量均 ≥5%",
   );
   check(
-    Math.abs(oldSim.minBatteryPercent - 76.8) < 0.5,
-    `旧模型最低电量 ${oldSim.minBatteryPercent.toFixed(1)}% ≈ 截图 76.8%`,
+    Math.abs(sim.minBatteryPercent - target.minBatteryPercent) <= 0.5,
+    `最低电量口径差 ${(sim.minBatteryPercent - target.minBatteryPercent).toFixed(2)}pp ≤0.5pp`,
   );
   check(
-    Math.abs(newSim.minBatteryPercent - oldSim.minBatteryPercent) < 0.5,
-    `n=1 成串≡均匀：新旧最低电量 Δ ${(newSim.minBatteryPercent - oldSim.minBatteryPercent).toFixed(2)}pp（明显变化 = 格位分发 bug）`,
+    Math.abs(sim.avgPower - target.avgPower) < 1,
+    `平均功率口径差 ${(sim.avgPower - target.avgPower).toFixed(2)}W <1W`,
   );
 }
 
@@ -326,10 +372,8 @@ console.log(`[6] 池入口排队长度（入口缓存 ${POOL_INPUT_BUFFER} 格�
   );
 }
 
-// 7. precompute-analyst 截图对照 ---------------------------------------------
-console.log(
-  "[7] 截图对照：谷地 5965W，主=高容谷地，池高容武陵 0.5/分（1/64）；游戏实测断电",
-);
+// 7. 谷地同参数：原始单路截图断电，不代表搜索后的两路解也无解 -------------------
+console.log("[7] 谷地 5965W / 池高容武陵 0.5/分：合法两路解必须与独立仿真一致");
 {
   const p7 = {
     ...DEFAULT_PARAMS,
@@ -338,7 +382,13 @@ console.log(
     primaryFuelId: "valleyHigh",
     secondaryFuelId: "none",
     oscPools: [
-      { id: "p1", fuelId: "wulingHigh", enabled: true, deviceLimit: 48, maxPerMin: 0.5 },
+      {
+        id: "p1",
+        fuelId: "wulingHigh",
+        enabled: true,
+        deviceLimit: 48,
+        maxPerMin: 0.5,
+      },
     ],
   };
   let r7 = null;
@@ -347,9 +397,7 @@ console.log(
   } catch (e) {
     console.log(`  求解器抛错（按无解处理）：${e?.message ?? e}`);
   }
-  const cells7 = [];
-  (r7?.matrix ?? []).forEach((row) => row?.forEach((c) => c && cells7.push(c)));
-  for (const s of r7?.solutions ?? []) if (!cells7.includes(s)) cells7.push(s);
+  const cells7 = collectCells(r7);
   const poolFuel7 = resolveFuel("wulingHigh");
   const rp7 = poolPowerForRate(poolFuel7, 0.5);
   check(
@@ -367,9 +415,16 @@ console.log(
   let stale = 0;
   let survivors = 0;
   for (const s of cells7) {
-    const sim = simulateSolution(s, { targetPower: 5965, pools: pools7, minPercent: 5 });
+    const sim = simulateSolution(s, {
+      targetPower: 5965,
+      pools: pools7,
+      minPercent: 5,
+    });
     const tag = (s.oscillating ?? [])
-      .map((b) => `1/${b.denominator}${b.limiterSpeed ? `@${b.limiterSpeed}/分` : ""}`)
+      .map(
+        (b) =>
+          `1/${b.denominator}${b.limiterSpeed ? `@${b.limiterSpeed}/分` : ""}`,
+      )
       .join("+");
     console.log(
       `  ${tag || "(无震荡)"}：求解器 avg ${s.avgPower?.toFixed(1)}W min ${s.minBatteryPercent?.toFixed(1)}% ｜ 独立仿真 avg ${sim.avgPower.toFixed(1)}W min ${sim.minBatteryPercent.toFixed(1)}% failedAt=${sim.failedAt} valid=${sim.valid} 排队峰值 ${sim.queuePeak}`,
@@ -384,8 +439,12 @@ console.log(
   }
   check(stale === 0, `不再出现 5988.9W / 76.8% 的格子（命中 ${stale} 个）`);
   check(
-    cells7.length === 0 || survivors === 0,
-    `新模型判为无解或断电（求解器 ${cells7.length} 格，独立仿真不断电 ${survivors} 格）`,
+    cells7.some(hasFeasiblePair),
+    "求解器保留两路 1/45@6/分 + 1/22.5@12/分 合法解",
+  );
+  check(
+    cells7.length > 0 && survivors === cells7.length,
+    `所有可展示方案都经独立仿真证明不断电（求解器 ${cells7.length} 格，独立仿真通过 ${survivors} 格）`,
   );
 }
 
