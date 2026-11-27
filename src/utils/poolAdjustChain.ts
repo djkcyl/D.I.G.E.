@@ -153,6 +153,16 @@ export function toRateTenths(value: unknown): number {
 
 const tenthsToRate = (t: number) => t / 10;
 
+/**
+ * 限幅**已经折算成十分位**的档位（不是把个/分再换算一次）。
+ * 在构造步骤数组前收敛，避免异常大输入产生超长数组。
+ */
+function clampAdjustTenths(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(POOL_FEED_MAX_TENTHS, Math.round(n));
+}
+
 /** 求解器实际生效的冗余上限 = max(1200, params.maxWaste) */
 export function effectiveMaxWaste(params: CalcParams): number {
   const user = Number(params?.maxWaste);
@@ -272,22 +282,25 @@ interface PlannedStep {
 /**
  * 生成链上的全部步骤（顺序即尝试顺序）。
  * 档位全部是整数十分位步进；upMaxTenths 由 poolUpMaxTenths 给出，不写死。
+ * 即使外部直接传入越界档位，也先截到全局上限，保证计划最多 17 步（不含 initial）。
  */
 export function planPoolAdjustSteps(
   base: number,
   fromTenths: number,
   upMaxTenths: number,
 ): PlannedStep[] {
+  const from = clampAdjustTenths(fromTenths);
+  const upMax = clampAdjustTenths(upMaxTenths);
   const steps: PlannedStep[] = [];
   for (const tier of MAX_WASTE_RELAX_TIERS_W) {
     if (base < tier) {
-      steps.push({ kind: "wasteRelax", maxWaste: tier, tenths: fromTenths });
+      steps.push({ kind: "wasteRelax", maxWaste: tier, tenths: from });
     }
   }
-  for (let t = fromTenths - 1; t >= 0; t -= 1) {
+  for (let t = from - 1; t >= 0; t -= 1) {
     steps.push({ kind: "down", maxWaste: base, tenths: t });
   }
-  for (let t = fromTenths + 1; t <= upMaxTenths; t += 1) {
+  for (let t = from + 1; t <= upMax; t += 1) {
     steps.push({ kind: "up", maxWaste: base, tenths: t });
   }
   return steps;
@@ -319,7 +332,7 @@ export function solveWithPoolAdjustChain(
     : findAdjustTargetPool(params);
   const targetCfg = poolIndex >= 0 ? params.oscPools?.[poolIndex] : undefined;
   const fromTenths = isPoolActive(targetCfg)
-    ? toRateTenths(targetCfg?.maxPerMin)
+    ? Math.min(POOL_FEED_MAX_TENTHS, toRateTenths(targetCfg?.maxPerMin))
     : 0;
   const fromPerMin = tenthsToRate(fromTenths);
 

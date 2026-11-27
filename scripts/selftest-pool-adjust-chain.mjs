@@ -2,15 +2,18 @@
  * 预检剔光后的调整链自测（放宽冗余上限 → 降投料 → 升投料）。
  * Prefer: pnpm exec tsx scripts/selftest-pool-adjust-chain.mjs
  *
- * 求解 / 预检全部用假回调，不跑真求解器：
+ * 求解 / 预检用假回调；另用真实 FactoryDesigner 锁构造器窗口边界：
  * - 第 1 档有解 / 第 2 档才有解 / 基准 ≥ 2000 跳过第 1 档 / 基准 ≥ 3000 直接降投料
  * - 降到 0 有解且没调预检；多池时降到 0 仍预检
+ * - 原始投料 >1.5/分按求解器上限收敛，计划最多 17 步，不重复求解等效配置
  * - 只有升档有解（requiredActualRatePerMin）
  * - 全部无解：trace 完整（1 + 2 + 5 + 10 = 18 次）
  * - 超时 { timedOut, lastStep }、回调抛错 fail-open、普通无解不进链
  * - comparePoolAdjust 排序、真建盘时格子上挂 poolAdjust / wasteRelax、十分位无漂移
  */
 import assert from "node:assert/strict";
+import { DEFAULT_PARAMS } from "../src/utils/defaultParams.ts";
+import { FactoryDesigner } from "../src/utils/FactoryDesigner.ts";
 import {
   comparePoolAdjust,
   effectiveMaxWaste,
@@ -117,7 +120,27 @@ assert.equal(
   2 + 5 + 0,
   "no fuel → no up",
 );
-console.log("  ✓ constants / tenths / plan size");
+assert.deepEqual(
+  [1000, 1200, 1200.1, 2000, 3000].map(
+    (maxWaste) => new FactoryDesigner({ ...DEFAULT_PARAMS, maxWaste }).maxWaste,
+  ),
+  [1200, 1200, 1200.1, 2000, 3000],
+  "真实 FactoryDesigner：默认 1200，只有显式更大值才扩大窗口",
+);
+{
+  const expected = planPoolAdjustSteps(1200, 15, 15);
+  assert.equal(expected.length, 2 + POOL_FEED_MAX_TENTHS);
+  for (const rate of [1.5, 1.6, 10, 100, Number.MAX_SAFE_INTEGER]) {
+    const planned = planPoolAdjustSteps(1200, toRateTenths(rate), 15);
+    assert.deepEqual(
+      planned,
+      expected,
+      `投料 ${rate}/分只能走 1.5 对应的有限计划`,
+    );
+    assert.ok(planned.every((step) => step.tenths <= POOL_FEED_MAX_TENTHS));
+  }
+}
+console.log("  ✓ constants / real factory waste window / bounded plan size");
 
 // ── 1. 第 1 档就有解 ──────────────────────────────────────────────
 {
@@ -290,6 +313,33 @@ console.log("  ✓ constants / tenths / plan size");
   assert.equal(r2.trace.length, 1 + 2 + 15);
   assert.ok(r2.trace.every((a) => a.kind !== "up"));
   console.log("  ✓ all fail → full trace (18 attempts)");
+}
+
+// ── 6b. 超大投料：与 1.5/分使用同一条有限链 ──────────────────────────
+{
+  const capped = solveWithPoolAdjustChain(
+    mkParams({}, { maxPerMin: 1.5 }),
+    world().deps,
+  );
+  const huge = solveWithPoolAdjustChain(
+    mkParams({}, { maxPerMin: Number.MAX_SAFE_INTEGER }),
+    world().deps,
+  );
+  assert.deepEqual(steps(huge), steps(capped));
+  assert.equal(huge.trace.length, 1 + 2 + 15);
+  assert.equal(huge.poolAdjust.fromPerMin, 1.5);
+  assert.ok(huge.trace.every((a) => a.rateTenths <= 15));
+  assert.equal(
+    huge.trace.some((a) => a.kind === "down" && a.rateTenths === 15),
+    false,
+    "首个降档不是重复求解上限 1.5",
+  );
+  assert.equal(
+    huge.trace.find((a) => a.kind === "down")?.rateTenths,
+    14,
+    "第一个 down 步骤才从 1.5 降到 1.4，前两个放宽步骤保持原值",
+  );
+  console.log("  ✓ oversized input → 15 tenths, no duplicate capped solve");
 }
 
 // ── 7. 超时 ──────────────────────────────────────────────────────

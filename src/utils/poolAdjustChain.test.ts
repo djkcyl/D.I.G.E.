@@ -12,7 +12,7 @@ import {
   solveWithPoolAdjustChain,
   toRateTenths,
 } from "./poolAdjustChain";
-import { splitPoolFeed } from "./poolFeedSplit";
+import { POOL_FEED_MAX_TENTHS, splitPoolFeed } from "./poolFeedSplit";
 
 const mkParams = (
   fuelId: string,
@@ -85,6 +85,18 @@ describe("planPoolAdjustSteps：整数十分位步进", () => {
       relax.map((s) => s.maxWaste),
       [2000, 3000],
     );
+  });
+  it("异常大起点与升档上限先生成上限内的有限计划", () => {
+    const atMax = planPoolAdjustSteps(1200, POOL_FEED_MAX_TENTHS, 15);
+    for (const input of [16, 100, Number.MAX_SAFE_INTEGER]) {
+      assert.deepEqual(planPoolAdjustSteps(1200, input, 15), atMax);
+    }
+    assert.deepEqual(
+      planPoolAdjustSteps(1200, 5, Number.MAX_SAFE_INTEGER),
+      planPoolAdjustSteps(1200, 5, POOL_FEED_MAX_TENTHS),
+    );
+    assert.equal(atMax.length, 2 + POOL_FEED_MAX_TENTHS);
+    assert.ok(atMax.every((step) => step.tenths <= POOL_FEED_MAX_TENTHS));
   });
 });
 
