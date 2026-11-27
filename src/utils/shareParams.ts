@@ -28,6 +28,17 @@ const TARGET_POWER_WIDE_BITS = 16;
 /** 自定义震荡热能池：最多分享 4 条；投料量按 0.1 个/分精度编码 */
 const POOL_SLOTS = GAME_CONFIG.share.poolSlots;
 const BASE_SLOTS = GAME_CONFIG.share.baseSlots;
+
+/**
+ * 池设备上限规范化（与 oscBudget.normalizeDeviceLimit 同口径，这里内联以免循环依赖）：
+ * 0 / 负数 / 空值 / NaN → 默认 48；其余取整后限制在 1..48（第 7 步）。
+ */
+function clampPoolDeviceLimit(value: unknown): number {
+  const max = GAME_CONFIG.device.budget;
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n) || n <= 0) return max;
+  return Math.min(max, Math.max(1, n));
+}
 const INPUT_SOURCE_BITS = 2;
 const MAX_BRANCHES_BITS = 3;
 const EXCLUDE_BELT_BITS = 2;
@@ -699,10 +710,7 @@ export function encodeShareParams(params: ShareParams | null): string | null {
     const idx = i + 1;
     flat[`pool${idx}Fuel`] = slot?.fuelId ?? FUEL_OPTIONS[0].id;
     flat[`pool${idx}Rate`] = Math.round((Number(slot?.maxPerMin) || 0) * 10);
-    flat[`pool${idx}Limit`] = Math.max(
-      1,
-      Math.round(Number(slot?.deviceLimit) || 48),
-    );
+    flat[`pool${idx}Limit`] = clampPoolDeviceLimit(slot?.deviceLimit);
     flat[`pool${idx}Enabled`] = slot ? slot.enabled !== false : false;
   }
 
@@ -779,7 +787,7 @@ export function decodeShareParams(value: unknown): ShareParams | null {
     for (let i = 1; i <= POOL_SLOTS; i += 1) {
       const fuel = decoded[`pool${i}Fuel`];
       const rate = Number(decoded[`pool${i}Rate`]) || 0;
-      const limit = Number(decoded[`pool${i}Limit`]) || 48;
+      const limit = clampPoolDeviceLimit(decoded[`pool${i}Limit`]);
       const enabled = decoded[`pool${i}Enabled`] !== false;
       if (typeof fuel === "string" && rate > 0) {
         pools.push({

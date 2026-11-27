@@ -3,8 +3,14 @@
  */
 import type { CalcParams } from "../types/calc";
 import { CONSTANTS, resolveFuel } from "./constants";
+import {
+  computePoolBatteryNeed,
+  type PoolPrecheckReport,
+} from "./poolBatteryPrecheck";
 
 export interface DiagnosisResult {
+  /** 第 8 步：弹窗标题覆盖（如「计算超时」）；缺省为「未找到解决方案」 */
+  title?: string;
   primaryHint: string;
   secondaryHints: string[];
 }
@@ -93,7 +99,25 @@ function uniqueHints(hints: string[]): string[] {
 export function diagnoseNoSolution(
   params: CalcParams,
   t: TranslateFn,
+  /** 第 3 步：worker 回传的池蓄电预检结果；null/undefined = 未触发或预检出错 */
+  precheck?: PoolPrecheckReport | null,
 ): DiagnosisResult {
+  // 场景 D（第 3 步）：候选解本来有，但富余都不够让蓄电池兜住池零头的熄火段，被预检全部剔除
+  if (precheck?.allRemoved) {
+    return {
+      primaryHint: t("diagPoolSurplusNeeded", {
+        need: Math.ceil(precheck.requiredWaste),
+        toff: Math.round(precheck.tOff),
+        remW: Math.round(precheck.remW),
+      }),
+      secondaryHints: uniqueHints([
+        t("diagPoolBatteryDrain"),
+        t("diagCheckDecisionMatrix"),
+        t("diagAddManualBase"),
+      ]),
+    };
+  }
+
   const maxBranches = 4;
   const basePower = estimateBasePower(params);
   const gapPower = Math.max(0, params.targetPower - basePower);
@@ -120,15 +144,15 @@ export function diagnoseNoSolution(
     return { primaryHint, secondaryHints: uniqueHints(secondaryHints) };
   }
 
-  // 场景 C：启用了自定义震荡热能池——零头是间歇供电，电池缓冲不足就会停机
-  const poolDrainsBattery = (params.oscPools ?? []).some(
-    (pool) =>
-      pool &&
-      pool.enabled !== false &&
-      Boolean(pool.fuelId) &&
-      pool.fuelId !== "none" &&
-      (Number(pool.maxPerMin) || 0) > 0,
-  );
+  // 场景 C：自定义震荡热能池的零头确实有熄火段，且蓄电池可用电量兜不住（wNeed > 0）。
+  // 只「开了池」不算：整档无零头、熄火段为 0、或电池够兜底时都落到场景 B，避免把别的无解原因误判成掉电。
+  let poolDrainsBattery = false;
+  try {
+    const need = computePoolBatteryNeed(params);
+    poolDrainsBattery = Boolean(need && need.wNeed > 0);
+  } catch {
+    poolDrainsBattery = false;
+  }
   if (poolDrainsBattery) {
     return {
       primaryHint: t("diagPoolBatteryDrain"),

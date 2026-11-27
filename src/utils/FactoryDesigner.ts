@@ -1,4 +1,4 @@
-﻿import { GAME_CONFIG } from "../config/game";
+import { GAME_CONFIG } from "../config/game";
 import type {
   BasePowerDetails,
   CalcParams,
@@ -29,7 +29,11 @@ import {
   getBeltThroughput,
   getEffectiveInput,
 } from "./inputRate";
-import { DEFAULT_DEVICE_LIMIT, poolPowerForRate } from "./oscBudget";
+import {
+  DEFAULT_DEVICE_LIMIT,
+  normalizeDeviceLimit,
+  poolPowerForRate,
+} from "./oscBudget";
 import {
   isFuelLimiterSupported,
   normalizeFactoryRegion,
@@ -45,6 +49,12 @@ const WARMUP_CYCLES = 2;
  * when sparse high-power fuels yield enormous multi-branch LCMs (EDGE-01).
  */
 const MAX_SIMULATION_DURATION = GAME_CONFIG.solver.maxSimulationDuration;
+/**
+ * 电量积分安全裕量（W）：每秒从供给中额外扣除，用来吸收脉冲起止取整造成的积分误差。
+ * 过渡期曾为 10W；simulateCycle 已改为按真实重叠时长的精确分数积分，裕量设为 0。
+ * 保留常量与接入点，便于以后需要时重新打开。
+ */
+export const POWER_INTEGRATION_MARGIN_W = 0;
 
 /**
  * Theory-stage prune: single-branch feed interval above this (seconds) cannot
@@ -54,6 +64,17 @@ const MAX_BRANCH_INTERVAL = GAME_CONFIG.solver.maxBranchInterval;
 
 /** Absolute ceiling on timeline sample count (seconds of sim wall-clock). */
 const MAX_TIMELINE_SAMPLES = 4000;
+
+/**
+ * 带自定义震荡池时的周期上限（s）。
+ * 池余量分支间隔 = 2×分母（如 1/64 → 128s），与系统分支（如 1/45 → 90s）
+ * 常常近乎互质，LCM 轻易超过 1200s（lcm(90,128)=5760）。旧上限会把这些
+ * 本来可行的格子全部判成 period_too_long，3×3 决策盘只剩个别格子。
+ */
+const MAX_POOL_SIMULATION_DURATION = 7200;
+
+/** 池长周期的时间线上限：1 个预热周期 + 1 个检查周期 + 相位偏移余量 */
+const MAX_POOL_TIMELINE_SAMPLES = MAX_POOL_SIMULATION_DURATION * 2 + 600;
 
 const PART_FACE = {
   UP: "UP",
@@ -580,12 +601,15 @@ class PowerCycleSimulator {
     return result;
   }
 
-  _getCyclePeriodFromIntervals(intervals: number[]): number {
+  _getCyclePeriodFromIntervals(
+    intervals: number[],
+    maxPeriodSec: number = MAX_SIMULATION_DURATION,
+  ): number {
     if (intervals.length === 0) {
       return this.inputInterval;
     }
     // LCM in milliseconds to avoid float drift (e.g. 10/3 s)
-    const maxPeriodMs = MAX_SIMULATION_DURATION * 1000;
+    const maxPeriodMs = maxPeriodSec * 1000;
     const toMs = (sec: number) => {
       if (!Number.isFinite(sec) || sec <= 0) return Number.POSITIVE_INFINITY;
       return Math.max(1, Math.round(sec * 1000));
@@ -642,7 +666,9 @@ class PowerCycleSimulator {
       fuel?: Fuel;
     }>,
     fuel: Fuel,
+    options: { maxPeriod?: number } = {},
   ): SimulateCycleResult {
+    const maxPeriod = options.maxPeriod ?? MAX_SIMULATION_DURATION;
     const branchIntervals = oscillatingBranches.map((b) =>
       this._resolveBranchInterval(b),
     );
@@ -652,16 +678,18 @@ class PowerCycleSimulator {
         return { success: false, reason: "period_too_long" };
       }
     }
-    const period = this._getCyclePeriodFromIntervals(branchIntervals);
-    if (
-      !Number.isFinite(period) ||
-      period <= 0 ||
-      period > MAX_SIMULATION_DURATION
-    ) {
+    const period = this._getCyclePeriodFromIntervals(
+      branchIntervals,
+      maxPeriod,
+    );
+    if (!Number.isFinite(period) || period <= 0 || period > maxPeriod) {
       return { success: false, reason: "period_too_long" };
     }
 
-    const warmupCycles = WARMUP_CYCLES;
+    // 长周期（仅池 LCM 会走到这里）只预热 1 个周期：满电起步 + 容量钳位，
+    // 1 个完整 LCM 周期后电池已进入稳态；再多预热只是成倍增加耗时。
+    const isLongPoolPeriod = period > MAX_SIMULATION_DURATION;
+    const warmupCycles = isLongPoolPeriod ? 1 : WARMUP_CYCLES;
     const maxPhaseOffset = oscillatingBranches.reduce((maxOffset, branch) => {
       const offsetSeconds =
         normalizePhaseOffsetCells(branch.phaseOffsetCells) *
@@ -675,10 +703,13 @@ class PowerCycleSimulator {
     const totalDuration = warmupDuration + period;
     const timelineSize = Math.ceil(totalDuration);
     // Hard memory fence: refuse allocation of runaway timelines
+    const timelineCap = isLongPoolPeriod
+      ? MAX_POOL_TIMELINE_SAMPLES
+      : MAX_TIMELINE_SAMPLES;
     if (
       !Number.isFinite(timelineSize) ||
       timelineSize <= 0 ||
-      timelineSize > MAX_TIMELINE_SAMPLES
+      timelineSize > timelineCap
     ) {
       return { success: false, reason: "period_too_long" };
     }
@@ -705,10 +736,14 @@ class PowerCycleSimulator {
         const burnEnd = burnStart + branchFuel.burnTime;
         lastBurnEnd = burnEnd;
 
-        const start = Math.floor(burnStart);
-        const end = Math.min(Math.ceil(burnEnd), totalDuration);
+        // 精确分数积分：每个 1 秒格子只计入与燃烧区间 [burnStart, burnEnd) 的真实重叠时长，
+        // 不再对起止时刻做 floor/ceil 整格计入（旧做法每个脉冲最多多算近 2 秒额定功率）。
+        const start = Math.max(0, Math.floor(burnStart));
+        const end = Math.min(Math.ceil(burnEnd), timelineSize);
         for (let i = start; i < end; i += 1) {
-          powerTimeline[i] += branchFuel.power;
+          const overlap = Math.min(burnEnd, i + 1) - Math.max(burnStart, i);
+          if (overlap <= 0) continue;
+          powerTimeline[i] += branchFuel.power * overlap;
           branchBurnTimeline[branchIndex][i] = 1;
         }
       }
@@ -731,7 +766,7 @@ class PowerCycleSimulator {
 
     for (let t = 0; t < checkStart; t += 1) {
       const supply = baseConfig.totalPower + powerTimeline[t];
-      battery += supply - this.targetPower;
+      battery += supply - this.targetPower - POWER_INTEGRATION_MARGIN_W;
       if (battery > this.batteryCapacity) {
         battery = this.batteryCapacity;
       }
@@ -743,7 +778,7 @@ class PowerCycleSimulator {
     const sampleStep = period >= 2000 ? Math.ceil(period / 500) : 1;
     for (let t = checkStart; t < checkEnd; t += 1) {
       const supply = baseConfig.totalPower + powerTimeline[t];
-      battery += supply - this.targetPower;
+      battery += supply - this.targetPower - POWER_INTEGRATION_MARGIN_W;
 
       if (battery > this.batteryCapacity) {
         battery = this.batteryCapacity;
@@ -971,8 +1006,8 @@ export class FactoryDesigner {
       const perMin = Number(poolCfg.maxPerMin) || 0;
       if (!(perMin > 0)) continue;
       const rated = poolPowerForRate(poolFuel, perMin, {
-        deviceLimit:
-          Math.max(1, Number(poolCfg.deviceLimit) || 0) || DEFAULT_DEVICE_LIMIT,
+        // deviceLimit=0/非法 → 按默认 48；其余限制在 1..48（第 7 步）
+        deviceLimit: normalizeDeviceLimit(poolCfg.deviceLimit),
       });
       this.poolPower += rated.watt;
       this.poolDeviceCost += rated.deviceCost;
@@ -992,7 +1027,8 @@ export class FactoryDesigner {
       };
       stat.bandCount += rated.bands.generators;
       stat.bandWatt += rated.bands.watt;
-      stat.oscRatePerMin += rated.remainderPerMin;
+      // 第 1 步：零头向下取档后，用量按实际投料（带速/D）统计，恒 ≤ 申请量
+      stat.oscRatePerMin += rated.remainderActualPerMin;
       stat.oscWatt += rated.remainderWatt;
       this.poolFuelStats.set(poolFuel.id, stat);
       this.poolBandWatt += rated.bands.watt;
@@ -1050,6 +1086,8 @@ export class FactoryDesigner {
       { ...baseConfig, totalPower: baseConfig.totalPower + this.poolBandWatt },
       [...branchConfigs, ...this.poolBranches],
       fuel,
+      // 池分支与系统分支的 LCM 常超 1200s，单独放宽（见 MAX_POOL_SIMULATION_DURATION）
+      { maxPeriod: MAX_POOL_SIMULATION_DURATION },
     );
   }
 
@@ -1712,11 +1750,15 @@ export class FactoryDesigner {
     out: SolutionResult,
     baseTotalPower: number,
   ): SolutionResult | null {
+    // 未启用任何自定义池：原样返回，不能再按 maxWaste 二次过滤
+    // （纯常驻方案允许超出 maxWaste 去覆盖硬顶档位，例如 matrix-7665 的 9800W 格）
+    if (this.poolBranches.length === 0 && this.poolBandWatt === 0) return out;
+    const wasteCap = this.maxWaste;
     if (this.poolBranches.length === 0) {
       // 只有满速带：恒定供给，直接并入均值，并按真实均值复查浪费上限
       out.avgPower += this.poolBandWatt;
       out.waste = out.avgPower - this.originalTargetPower;
-      if (out.waste > this.maxWaste) return null;
+      if (out.waste > wasteCap + 0.5) return null;
       return out;
     }
     const sim = this._simulate(
@@ -1726,7 +1768,7 @@ export class FactoryDesigner {
     );
     if (!sim.success) return null;
     // 池功率可能大于目标缺口：按真实均值复查浪费上限
-    if (sim.waste > this.maxWaste) return null;
+    if (sim.waste > wasteCap + 0.5) return null;
     out.avgPower = sim.avgPower;
     out.waste = sim.waste;
     out.variance = sim.variance;
@@ -2001,7 +2043,11 @@ export class FactoryDesigner {
     ].join("|");
   }
 
-  solve(): SudokuDecisionMatrix {
+  /**
+   * 第 3 步：拆出「合并去重后的全部候选解」，供 worker 在完整候选集上做池蓄电预检
+   * （只在矩阵每格最优解上剔除会误丢同格里 waste 足够的候选）。
+   */
+  solveCandidates(): SolutionResult[] {
     const savedAuto = this.autoPlanBasePools;
     this.autoPlanBasePools = true;
     const trackA = this.runOscillationPipelines();
@@ -2037,6 +2083,13 @@ export class FactoryDesigner {
       }
     }
 
-    return buildSudokuDecisionMatrix(merged, this.secondaryFuel?.id);
+    return merged;
+  }
+
+  solve(): SudokuDecisionMatrix {
+    return buildSudokuDecisionMatrix(
+      this.solveCandidates(),
+      this.secondaryFuel?.id,
+    );
   }
 }

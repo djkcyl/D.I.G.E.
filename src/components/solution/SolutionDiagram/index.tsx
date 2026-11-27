@@ -268,6 +268,8 @@ export default function SolutionDiagram({
       bandPerMinute: number;
       bandDeviceCost: number;
       remainderPerMin: number;
+      /** 零头实际投料（带速/D，向下取档后 ≤ remainderPerMin） */
+      remainderActualPerMin: number;
       remainderWatt: number;
       remainderDeviceCost: number;
       remainderDenominator: number | null;
@@ -327,6 +329,7 @@ export default function SolutionDiagram({
         bandPerMinute: 60 / Math.max(fuel.burnTime, 1e-9),
         bandDeviceCost: rated.bands.deviceCost,
         remainderPerMin: rated.remainderPerMin,
+        remainderActualPerMin: rated.remainderActualPerMin,
         remainderWatt: rated.remainderWatt,
         remainderDeviceCost: rated.remainderDeviceCost,
         remainderDenominator: rated.remainderDenominator,
@@ -362,7 +365,8 @@ export default function SolutionDiagram({
                   split2,
                   Boolean(solution?.excludeBelt),
                 ),
-                description: `${rated.maxPerMin.toFixed(2)}${t("itemPerMin")} · ${t("diagramDevices")} ${branchDeviceCount(split2, split3, 0, false)}`,
+                // 第 1 步：显示实际投料（满速带 + 零头 30/D），向下取档后恒 ≤ 申请量 rated.maxPerMin
+                description: `${(rated.bands.generators * (60 / Math.max(fuel.burnTime, 1e-9)) + rated.remainderActualPerMin).toFixed(2)}${t("itemPerMin")} · ${t("diagramDevices")} ${branchDeviceCount(split2, split3, 0, false)}`,
               }
             : null,
       });
@@ -830,7 +834,7 @@ export default function SolutionDiagram({
                   ) : null}
                   {row.remainderDenominator != null ? (
                     <span>
-                      {row.remainderPerMin.toFixed(2)}
+                      {row.remainderActualPerMin.toFixed(2)}
                       {t("itemPerMin")} · 1/{row.remainderDenominator} ·{" "}
                       {row.remainderWatt.toFixed(0)}w
                     </span>

@@ -53,6 +53,17 @@ export function storagePortsFor(split3: number): number {
 /** 整方案默认可用的震荡系统设备容量 */
 export const DEFAULT_DEVICE_LIMIT = GAME_CONFIG.device.budget;
 
+/**
+ * 规范化热能池设备上限：
+ * - 0 / 负数 / 空值 / NaN → 按默认值 DEFAULT_DEVICE_LIMIT（48）处理，避免池被静默判成放不下；
+ * - 其余取整后限制在 1..DEFAULT_DEVICE_LIMIT。
+ */
+export function normalizeDeviceLimit(value: unknown): number {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_DEVICE_LIMIT;
+  return Math.min(DEFAULT_DEVICE_LIMIT, Math.max(1, n));
+}
+
 /** 单台满速耗料（个/分钟）：40s 电池 = 1.5 */
 export function fullSpeedPerMinute(fuel: Fuel): number {
   if (!(fuel.burnTime > 0)) return 0;
@@ -225,7 +236,7 @@ export function singleBranchRange(
     beltPerMinute?: number;
   } = {},
 ): SingleBranchRange {
-  const deviceLimit = options.deviceLimit ?? DEFAULT_DEVICE_LIMIT;
+  const deviceLimit = normalizeDeviceLimit(options.deviceLimit);
   const lossTolerance = options.lossTolerance ?? DEFAULT_LOSS_TOLERANCE;
   const beltPerMinute = options.beltPerMinute ?? BELT_ITEMS_PER_MINUTE;
 
@@ -325,7 +336,7 @@ export function matchDenominator(
   const range = singleBranchRange(fuel, options);
   const beltPerMinute = options.beltPerMinute ?? BELT_ITEMS_PER_MINUTE;
   const mode = options.mode ?? "nearest";
-  const costLimit = options.deviceLimit ?? DEFAULT_DEVICE_LIMIT;
+  const costLimit = normalizeDeviceLimit(options.deviceLimit);
 
   let best: DenominatorMatch | null = null;
   for (let d = 1; d <= range.deviceMaxDenominator; d += 1) {
@@ -399,8 +410,10 @@ export interface PoolRatePower {
   watt: number;
   /** 满速带明细 */
   bands: PoolBandPlan;
-  /** 余量投料（个/分） */
+  /** 余量投料申请量（个/分）= maxPerMin − 满速带用量 */
   remainderPerMin: number;
+  /** 余量实际投料（个/分）= 带速 / remainderDenominator；向下取档，恒 ≤ remainderPerMin；无档位时为 0 */
+  remainderActualPerMin: number;
   /** 余量吸附后的震荡功率 */
   remainderWatt: number;
   /** 余量吸附到的分母；null = 没有可用震荡档位 */
@@ -438,14 +451,22 @@ export function poolPowerForRate(
   let remainderWatt = 0;
   let remainderDenominator: number | null = null;
   let remainderDeviceCost = 0;
+  let remainderActualPerMin = 0;
   if (remainderPerMin > 1e-9) {
     const wished = perMinuteToWatt(fuel, remainderPerMin);
-    const matched = matchDenominator(fuel, wished, options);
+    // 第 1 步：零头向下取档，保证实际投料 belt/D ≤ 申请的零头（即总投料 ≤ maxPerMin）。
+    // 申请量低于最低可用档时 matched 为 null，零头整体不放（不再向上凑档超额投料）。
+    const matched = matchDenominator(fuel, wished, {
+      ...options,
+      mode: "down",
+    });
     if (matched) {
       remainderWatt = matched.watt;
       remainderDenominator = matched.denominator;
       remainderDeviceCost =
         deviceCostOfDenominator(matched.denominator)?.total ?? 0;
+      remainderActualPerMin =
+        (options.beltPerMinute ?? BELT_ITEMS_PER_MINUTE) / matched.denominator;
     }
   }
 
@@ -453,6 +474,7 @@ export function poolPowerForRate(
     watt: bands.watt + remainderWatt,
     bands,
     remainderPerMin,
+    remainderActualPerMin,
     remainderWatt,
     remainderDenominator,
     remainderDeviceCost,

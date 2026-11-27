@@ -38,6 +38,13 @@ import {
   getShareParamsFromUrl,
   type ShareParams,
 } from "./utils/shareParams";
+import {
+  isSolveCancelledError,
+  isSolveTimeoutError,
+  runWithSolveTimeout,
+  SOLVE_TIMEOUT_MS,
+  type SolveRun,
+} from "./utils/solveTimeout";
 
 const getRandomTargetPower = () => Math.floor(Math.random() * 4500) + 500;
 const PRIVACY_FOOTER_DISMISSED_KEY = "dige-privacy-footer-dismissed";
@@ -135,6 +142,8 @@ function AppContent({
   const lastCalcParamsRef = useRef<CalcParams | null>(null);
   const hasAutoCalculatedRef = useRef(false);
   const workerRef = useRef<Worker | null>(null);
+  /** 第 8 步：当前这一轮求解；新一轮开始时 cancel 掉，保证被 terminate 的旧 promise 一定 settle */
+  const solveRunRef = useRef<SolveRun<unknown> | null>(null);
   const skipNextAutosaveRef = useRef(true);
 
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -164,6 +173,8 @@ function AppContent({
 
       const calcParams = overrideParams || params;
 
+      // 第 8 步：先结束旧 promise（SolveCancelledError），再 terminate 旧 worker
+      solveRunRef.current?.cancel();
       workerRef.current?.terminate();
 
       const worker = new Worker(
@@ -176,25 +187,38 @@ function AppContent({
 
       try {
         type SolveResult = Extract<WorkerResponse, { type: "result" }>;
-        const payload = await new Promise<SolveResult>((resolve, reject) => {
-          worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-            const data = event.data;
-            if (data.type === "result") {
-              resolve(data);
-            } else {
-              reject(new Error(data.message));
-            }
-          };
-          worker.onerror = (error) => {
-            reject(new Error(error.message || "Worker error"));
-          };
-          worker.postMessage({ type: "solve", params: calcParams });
-        });
+        const run = runWithSolveTimeout<SolveResult>(
+          (resolve, reject) => {
+            worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+              const data = event.data;
+              if (data.type === "result") {
+                resolve(data);
+              } else {
+                reject(new Error(data.message));
+              }
+            };
+            worker.onerror = (error) => {
+              reject(new Error(error.message || "Worker error"));
+            };
+            worker.postMessage({ type: "solve", params: calcParams });
+          },
+          {
+            timeoutMs: SOLVE_TIMEOUT_MS,
+            // 超时：立刻停掉 worker，promise 随后以 SolveTimeoutError 结束，finally 照常执行
+            onTimeout: () => worker.terminate(),
+          },
+        );
+        solveRunRef.current = run as SolveRun<unknown>;
+        const payload = await run.promise;
 
         setIsLoading(false);
 
         if (!payload.solutions || payload.solutions.length === 0) {
-          const diagnosis = diagnoseNoSolution(calcParams, t);
+          const diagnosis = diagnoseNoSolution(
+            calcParams,
+            t,
+            payload.poolPrecheck ?? null,
+          );
           setLastDiagnosis(diagnosis);
           setShowError(true);
           setSolutions([]);
@@ -222,6 +246,24 @@ function AppContent({
         setDirtyDismissed(false);
         lastCalcParamsRef.current = { ...calcParams };
       } catch (error) {
+        if (isSolveCancelledError(error)) {
+          // 被新一轮取代：状态由新一轮负责，这里什么都不动
+          return;
+        }
+        if (isSolveTimeoutError(error)) {
+          // 第 8 步：超时只提示，不清空上一次的有效结果
+          console.warn("Calculation timed out:", error);
+          setIsLoading(false);
+          setLastDiagnosis({
+            title: t("solveTimeoutTitle"),
+            primaryHint: t("diagSolveTimeout", {
+              seconds: Math.round(error.timeoutMs / 1000),
+            }),
+            secondaryHints: [],
+          });
+          setShowError(true);
+          return;
+        }
         console.error("Calculation failed:", error);
         setIsLoading(false);
         setLastDiagnosis(null);
@@ -233,6 +275,9 @@ function AppContent({
         worker.terminate();
         if (workerRef.current === worker) {
           workerRef.current = null;
+        }
+        if (solveRunRef.current?.isSettled()) {
+          solveRunRef.current = null;
         }
       }
     },

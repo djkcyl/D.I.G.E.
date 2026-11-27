@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { GAME_CONFIG } from "../../../config/game";
 import { useI18n } from "../../../i18n";
 import type { CalcParams } from "../../../types/calc";
@@ -6,9 +6,14 @@ import type { Fuel } from "../../../utils/constants";
 import { FUEL_OPTIONS_DISPLAY, resolveFuel } from "../../../utils/constants";
 import {
   DEFAULT_DEVICE_LIMIT,
+  normalizeDeviceLimit,
   poolPowerForRate,
   singleBranchRange,
 } from "../../../utils/oscBudget";
+import {
+  computePoolBatteryNeed,
+  poolSurplusHintWatt,
+} from "../../../utils/poolBatteryPrecheck";
 import type { SelectOption } from "../../ui/Select";
 import Select from "../../ui/Select";
 import Toggle from "../../ui/Toggle";
@@ -50,6 +55,9 @@ export default function OscillationPoolField({
     (pool) => pool.enabled !== false && pool.fuelId && pool.fuelId !== "none",
   ).length;
   const enabled = enabledCount > 0;
+  // 第 3 步：求解前蓄电预检——池零头熄火段只能靠富余功率 + 蓄电池兜底
+  const poolNeed = computePoolBatteryNeed(params);
+  const surplusWatt = poolSurplusHintWatt(poolNeed);
 
   const fuel =
     active?.fuelId && active.fuelId !== "none"
@@ -83,7 +91,8 @@ export default function OscillationPoolField({
     </>
   );
 
-  const deviceLimit = active?.deviceLimit ?? DEFAULT_DEVICE_LIMIT;
+  // 第 7 步：0/非法 → 48，其余限制在 1..48
+  const deviceLimit = normalizeDeviceLimit(active?.deviceLimit);
   const maxPerMin = active?.maxPerMin ?? 0;
   const range = fuel ? singleBranchRange(fuel, { deviceLimit }) : null;
   const rated = fuel
@@ -234,6 +243,15 @@ export default function OscillationPoolField({
         </p>
       ) : null}
 
+      {surplusWatt != null && poolNeed ? (
+        <p className="text-xs text-endfield-yellow">
+          {t("oscPoolSurplusHint", {
+            watt: surplusWatt,
+            toff: Math.round(poolNeed.tOff),
+          })}
+        </p>
+      ) : null}
+
       {active ? (
         <>
           <div className="space-y-1">
@@ -279,11 +297,11 @@ export default function OscillationPoolField({
                   id="osc-pool-device-limit"
                   type="number"
                   min={1}
-                  max={999}
+                  max={DEFAULT_DEVICE_LIMIT}
                   value={deviceLimit}
                   onChange={(e) =>
                     updateActive({
-                      deviceLimit: Math.max(1, Number(e.target.value) || 1),
+                      deviceLimit: normalizeDeviceLimit(e.target.value),
                     })
                   }
                   className={INPUT_CLASS}
@@ -342,7 +360,13 @@ export default function OscillationPoolField({
                       <span>{t("oscPoolDerived")}</span>
                       <span className="text-endfield-text-light">
                         {fmt(rated.watt)} w · {rated.bands.generators}{" "}
-                        {t("oscPoolGenerators")}
+                        {t("oscPoolGenerators")} ·{" "}
+                        {(
+                          rated.bands.generators *
+                            (60 / Math.max(fuel?.burnTime ?? 1, 1e-9)) +
+                          rated.remainderActualPerMin
+                        ).toFixed(2)}
+                        {t("itemPerMin")}
                       </span>
                     </div>
                     <div className="flex justify-between">

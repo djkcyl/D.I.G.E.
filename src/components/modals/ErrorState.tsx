@@ -45,7 +45,7 @@ export default function ErrorState({
       titleId="error-state-title"
       icon="error"
       tone="danger"
-      title={t("noSolutionFound")}
+      title={diagnosis?.title ?? t("noSolutionFound")}
       message={message}
       actionLabel={t("dismiss")}
     />
