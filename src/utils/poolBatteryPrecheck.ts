@@ -28,7 +28,7 @@ import { MIN_BATTERY_CUTOFF, type SudokuDecisionMatrix } from "../types/matrix";
 import { CONSTANTS, resolveFuel } from "./constants";
 import { buildSudokuDecisionMatrix } from "./decisionMatrix";
 import { normalizeDeviceLimit, poolPowerForRate } from "./oscBudget";
-import { POOL_FEED_MAX_PER_MIN, splitPoolFeedForFuel } from "./poolFeedSplit";
+import { splitPoolFeedForFuel } from "./poolFeedSplit";
 
 /** 剔除阈值在 W_need 之上再留的裕量（W）：吸收电池初始相位与仿真取整误差 */
 export const POOL_SURPLUS_MARGIN_W = 20;
@@ -303,19 +303,16 @@ export interface ActivePool {
   index: number;
   fuel: PoolFuel;
   deviceLimit: number;
-  /** 截到 1.5/分 之后的投料量（降档起点） */
+  /** 归一化后的投料量（降档起点），不再截到一台满速 */
   requested: number;
-  /** 用户填的值超过 1.5/分 被截断 */
-  clamped: boolean;
 }
 
 const roundQty = (v: number) => Math.round(v * 1000) / 1000;
 
-/** 降一档：先截到 1.5/分、吸附到 0.1 网格再减 0.1，最低 0（2.3→1.4，1.5→1.4，1.45→1.4，0.05→0） */
+/** 兼容旧降档器：吸附到 0.1 网格再减 0.1，不再截到 1.5/分 */
 export function stepDownPoolRate(value: number): number {
   if (!(value > 0)) return 0;
-  const capped = Math.min(value, POOL_FEED_MAX_PER_MIN);
-  const tenths = Math.ceil(capped * 10 - 1e-6) - 1;
+  const tenths = Math.ceil(value * 10 - 1e-6) - 1;
   return Math.max(0, tenths / 10);
 }
 
@@ -330,7 +327,7 @@ function collectActivePools(
     if (!cfg.fuelId || cfg.fuelId === "none") return;
     const fuel = resolveFuel(cfg.fuelId, params.fuelOverrides);
     if (!fuel) return;
-    // 降档前先截到 1.5/分（十分位整数口径，与 FactoryDesigner / poolPowerForRate 一致）
+    // 十分位整数口径，与 FactoryDesigner / poolPowerForRate 一致
     const feed = splitPoolFeedForFuel(fuel, cfg.maxPerMin);
     if (!feed.active) return;
     out.push({
@@ -338,7 +335,6 @@ function collectActivePools(
       fuel,
       deviceLimit: normalizeDeviceLimit(cfg.deviceLimit),
       requested: feed.ratePerMin,
-      clamped: feed.clamped,
     });
   });
   return out;

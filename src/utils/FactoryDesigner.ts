@@ -5,7 +5,7 @@ import type {
   FactoryRegion,
   ManualBaseLine,
   OscillatingBranch,
-  PoolFeedClampInfo,
+  PoolFeedSplitInfo,
   SolutionResult,
   UnifiedFuelBOMItem,
 } from "../types/calc";
@@ -1051,8 +1051,8 @@ export class FactoryDesigner {
     fuel: Fuel;
     phaseOffsetCells: number;
   }>;
-  /** 自定义池投料超过 1.5/分 被截断的记录（空数组 = 没截断），随方案挂给 UI */
-  poolFeedClamp: PoolFeedClampInfo[];
+  /** 自定义池投料实际拆分明细（空数组 = 没有启用池），随方案挂给 UI */
+  poolFeedSplit: PoolFeedSplitInfo[];
   validDenominators: number[];
   simulator: PowerCycleSimulator;
 
@@ -1138,13 +1138,13 @@ export class FactoryDesigner {
     this.poolFuelStats = new Map();
     this.poolBandWatt = 0;
     this.poolBranches = [];
-    this.poolFeedClamp = [];
+    this.poolFeedSplit = [];
     for (const [poolIndex, poolCfg] of (params.oscPools ?? []).entries()) {
       if (!poolCfg || poolCfg.enabled === false) continue;
       if (!poolCfg.fuelId || poolCfg.fuelId === "none") continue;
       const poolFuel = resolveFuel(poolCfg.fuelId, params.fuelOverrides);
       if (!poolFuel) continue;
-      // 投料先过 splitPoolFeed：十分位取整 + 截到 1.5/分。
+      // 投料先过 splitPoolFeed：十分位取整后，按燃料满速拆多条常驻 + 零头。
       // 常驻台数只由 poolPowerForRate 记成满速带（constant），不写进 manualBaseLines，
       // 否则功率和 BOM 会重复计算。
       const feed = splitPoolFeed(
@@ -1153,19 +1153,22 @@ export class FactoryDesigner {
         params.fuelOverrides,
       );
       if (!feed.active) continue;
-      if (feed.clamped) {
-        this.poolFeedClamp.push({
-          index: poolIndex,
-          id: String(poolCfg.id ?? poolIndex),
-          fuelId: poolFuel.id,
-          requestedPerMin: Number(poolCfg.maxPerMin) || 0,
-          usedPerMin: feed.ratePerMin,
-        });
-      }
       const perMin = feed.ratePerMin;
+      const deviceLimit = normalizeDeviceLimit(poolCfg.deviceLimit);
       const rated = poolPowerForRate(poolFuel, perMin, {
         // deviceLimit=0/非法 → 按默认 48；其余限制在 1..48（第 7 步）
-        deviceLimit: normalizeDeviceLimit(poolCfg.deviceLimit),
+        deviceLimit,
+      });
+      this.poolFeedSplit.push({
+        index: poolIndex,
+        id: String(poolCfg.id ?? poolIndex),
+        fuelId: poolFuel.id,
+        requestedPerMin: feed.ratePerMin,
+        fullSpeedPerMin: feed.fullSpeedPerMin,
+        residentCount: feed.residentCount,
+        remainderPerMin: feed.remainderPerMin,
+        deviceCost: rated.deviceCost,
+        deviceLimit,
       });
       this.poolPower += rated.watt;
       this.poolDeviceCost += rated.deviceCost;
@@ -1916,7 +1919,7 @@ export class FactoryDesigner {
     out: SolutionResult,
     baseTotalPower: number,
   ): SolutionResult | null {
-    if (this.poolFeedClamp.length > 0) out.poolFeedClamp = this.poolFeedClamp;
+    if (this.poolFeedSplit.length > 0) out.poolFeedSplit = this.poolFeedSplit;
     // 未启用任何自定义池：原样返回，不能再按 maxWaste 二次过滤
     // （纯常驻方案允许超出 maxWaste 去覆盖硬顶档位，例如 matrix-7665 的 9800W 格）
     if (this.poolBranches.length === 0 && this.poolBandWatt === 0) return out;
@@ -2244,6 +2247,12 @@ export class FactoryDesigner {
       if (seenSignatures.has(signature)) continue;
       seenSignatures.add(signature);
       merged.push(sol);
+    }
+
+    for (const sol of merged) {
+      if (this.poolFeedSplit.length > 0) {
+        sol.poolFeedSplit = this.poolFeedSplit;
+      }
     }
 
     // 池功率已随仿真进入 powerLog / batteryLog；

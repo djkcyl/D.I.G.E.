@@ -443,7 +443,7 @@ export function poolPowerForRate(
     beltPerMinute?: number;
   } = {},
 ): PoolRatePower {
-  // 整数十分位口径（与 poolFeedSplit 一致）：先截到 1.5/分，再拆成满速台数 + 零头，
+  // 整数十分位口径（与 poolFeedSplit 一致）：拆成多条满速常驻 + 零头，
   // 避免 limit / fullRate 的浮点 floor 在 0.1 步进上抖动（例如 1.5/1.5 落到 0.9999…）。
   const split = splitPoolFeedForFuel(fuel, maxPerMin);
   const limit = split.ratePerMin;

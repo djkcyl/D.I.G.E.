@@ -14,6 +14,7 @@ import {
   computePoolBatteryNeed,
   poolSurplusHintWatt,
 } from "../../../utils/poolBatteryPrecheck";
+import { splitPoolFeed } from "../../../utils/poolFeedSplit";
 import type { SelectOption } from "../../ui/Select";
 import Select from "../../ui/Select";
 import Toggle from "../../ui/Toggle";
@@ -61,7 +62,7 @@ export default function OscillationPoolField({
 
   const fuel =
     active?.fuelId && active.fuelId !== "none"
-      ? resolveFuel(active.fuelId)
+      ? resolveFuel(active.fuelId, params.fuelOverrides)
       : undefined;
   const getFuelName = (item: { name?: Fuel["name"] } | undefined) =>
     item?.name?.[locale] || item?.name?.en || "";
@@ -94,6 +95,11 @@ export default function OscillationPoolField({
   // 第 7 步：0/非法 → 48，其余限制在 1..48
   const deviceLimit = normalizeDeviceLimit(active?.deviceLimit);
   const maxPerMin = active?.maxPerMin ?? 0;
+  const feed = splitPoolFeed(
+    active?.fuelId || "none",
+    maxPerMin,
+    params.fuelOverrides,
+  );
   const range = fuel ? singleBranchRange(fuel, { deviceLimit }) : null;
   const rated = fuel
     ? poolPowerForRate(fuel, maxPerMin, { deviceLimit })
@@ -194,7 +200,9 @@ export default function OscillationPoolField({
       <div className="flex flex-wrap items-center gap-1">
         {pools.map((pool, index) => {
           const poolFuel =
-            pool.fuelId !== "none" ? resolveFuel(pool.fuelId) : null;
+            pool.fuelId !== "none"
+              ? resolveFuel(pool.fuelId, params.fuelOverrides)
+              : null;
           const label = poolFuel
             ? `${index + 1}. ${getFuelName(poolFuel)}`
             : `${index + 1}. ${t("oscPoolNone")}`;
@@ -375,12 +383,34 @@ export default function OscillationPoolField({
                         {fmt(rated.deviceCost)} / {deviceLimit}
                       </span>
                     </div>
-                    {rated.bands.generators > 0 ? (
-                      <p className="text-endfield-text/60">
-                        {t("oscPoolBandBreakdown", {
-                          ports: rated.bands.ports,
-                          splitters: rated.bands.splitters,
-                          generators: rated.bands.generators,
+                    {feed.residentCount > 0 ? (
+                      <>
+                        <p className="text-endfield-text/60">
+                          {t(
+                            feed.needsOscillation
+                              ? "oscPoolFeedSplit"
+                              : "oscPoolFeedBandOnly",
+                            {
+                              count: feed.residentCount,
+                              rate: fmt(feed.fullSpeedPerMin, 2),
+                              remainder: fmt(feed.remainderPerMin, 2),
+                            },
+                          )}
+                        </p>
+                        <p className="text-endfield-text/60">
+                          {t("oscPoolBandBreakdown", {
+                            ports: rated.bands.ports,
+                            splitters: rated.bands.splitters,
+                            generators: rated.bands.generators,
+                          })}
+                        </p>
+                      </>
+                    ) : null}
+                    {rated.deviceCost > deviceLimit ? (
+                      <p className="text-endfield-yellow">
+                        {t("oscPoolDeviceBudgetExceeded", {
+                          used: rated.deviceCost,
+                          limit: deviceLimit,
                         })}
                       </p>
                     ) : null}

@@ -8,16 +8,11 @@
  * - 单台满速投料 = 60 / burnTime 个/分（与 oscBudget.fullSpeedPerMinute 同口径），
  *   40s 电池（谷地/武陵全系）= 1.5，源矿（8s）= 7.5；
  * - 投料量一律先四舍五入到整数十分位（tenths）再算，避免 0.1 步进的浮点误差；
- * - 用户可填范围 0 ~ 1.5 个/分，超出按 1.5 截断并标记 clamped；
+ * - 不按 1.5/分截断，每满一台单台满速就增加一条常驻热能池；
  * - 0 / 负数 / 非数字 / 燃料无效 → 不建池（active = false）。
  */
 import type { ManualBaseLine } from "../types/calc";
 import { type Fuel, resolveFuel } from "./constants";
-
-/** 投料量上限（十分位整数）：1.5 个/分 */
-export const POOL_FEED_MAX_TENTHS = 15;
-/** 投料量上限（个/分） */
-export const POOL_FEED_MAX_PER_MIN = POOL_FEED_MAX_TENTHS / 10;
 
 /** 1 分钟 = 60 s，换成十分位口径 = 600 */
 const TENTH_SECONDS_PER_MINUTE = 600;
@@ -26,9 +21,7 @@ export interface PoolFeedSplit {
   fuelId: string;
   /** 是否建池：投料量 > 0 且燃料有效 */
   active: boolean;
-  /** 申请量超过上限被截断（按十分位四舍五入后判断） */
-  clamped: boolean;
-  /** 实际采用的投料量（十分位整数，0 ~ 15） */
+  /** 实际采用的投料量（十分位整数，不限制为单台满速） */
   rateTenths: number;
   /** 实际采用的投料量（个/分）= rateTenths / 10 */
   ratePerMin: number;
@@ -46,23 +39,57 @@ export interface PoolFeedSplit {
   needsOscillation: boolean;
 }
 
+export interface PoolFeedBandBounds {
+  /** 保住当前常驻台数的最小十分位投料；不把常驻带误降到上一档 */
+  residentStartTenths: number;
+  /** 当前满速带的上界：再一台满速对应的十分位投料 */
+  nextResidentTenths: number;
+}
+
+/**
+ * 给调整链复用同一拆分结果：只在当前常驻带的零头附近上下调，不默认退回 0。
+ * 非整数十分位的满速：起点向上、终点向下取格，避免误减 / 误加常驻台数；
+ * 原始输入本身位于取整边缘时，至少保留原输入对应的档。
+ */
+export function poolFeedBandBounds(
+  split: Pick<
+    PoolFeedSplit,
+    "rateTenths" | "residentPerMin" | "fullSpeedPerMin"
+  >,
+): PoolFeedBandBounds {
+  if (!(split.fullSpeedPerMin > 0)) {
+    return { residentStartTenths: 0, nextResidentTenths: 0 };
+  }
+  const residentFloor = Math.max(
+    0,
+    Math.ceil(split.residentPerMin * 10 - 1e-9),
+  );
+  const nextFull = Math.max(
+    0,
+    Math.floor((split.residentPerMin + split.fullSpeedPerMin) * 10 + 1e-9),
+  );
+  return {
+    residentStartTenths: Math.min(split.rateTenths, residentFloor),
+    nextResidentTenths: Math.max(split.rateTenths, nextFull),
+  };
+}
+
 /** 任意输入 → 十分位整数（≥ 0）；toFixed 先消掉 1.45*10=14.4999… 这类误差再取整 */
 export function toFeedTenths(value: unknown): number {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return 0;
-  return Math.max(0, Math.round(Number((n * 10).toFixed(6))));
+  const tenths = Math.round(Number((n * 10).toFixed(6)));
+  return Number.isSafeInteger(tenths) && tenths > 0 ? tenths : 0;
 }
 
 function emptySplit(
   fuelId: string,
-  clamped: boolean,
   rateTenths: number,
   fullSpeedPerMin: number,
 ): PoolFeedSplit {
   return {
     fuelId,
     active: false,
-    clamped,
     rateTenths,
     ratePerMin: rateTenths / 10,
     fullSpeedPerMin,
@@ -79,18 +106,16 @@ export function splitPoolFeedForFuel(
   fuel: Fuel | null | undefined,
   ratePerMin: unknown,
 ): PoolFeedSplit {
-  const requestedTenths = toFeedTenths(ratePerMin);
-  const clamped = requestedTenths > POOL_FEED_MAX_TENTHS;
-  const rateTenths = Math.min(requestedTenths, POOL_FEED_MAX_TENTHS);
+  const rateTenths = toFeedTenths(ratePerMin);
   const fuelId = fuel?.id ?? "none";
   const burnTime = Number(fuel?.burnTime);
 
   if (!fuel || !Number.isFinite(burnTime) || burnTime <= 0) {
-    return emptySplit(fuelId, clamped, rateTenths, 0);
+    return emptySplit(fuelId, rateTenths, 0);
   }
   const fullSpeedPerMin = 60 / burnTime;
   if (rateTenths === 0) {
-    return emptySplit(fuelId, clamped, 0, fullSpeedPerMin);
+    return emptySplit(fuelId, 0, fullSpeedPerMin);
   }
 
   // 整数口径：投料 rateTenths/10 个/分 ≥ k 台满速 ⇔ rateTenths·burnTime ≥ k·600
@@ -108,7 +133,6 @@ export function splitPoolFeedForFuel(
   return {
     fuelId,
     active: true,
-    clamped,
     rateTenths,
     ratePerMin: rateTenths / 10,
     fullSpeedPerMin,
@@ -122,8 +146,8 @@ export function splitPoolFeedForFuel(
 
 /**
  * 按燃料 ID 拆分投料量。
- * @example splitPoolFeed("valleyLow", 1.5) → residentCount 1, remainderPerMin 0
- * @example splitPoolFeed("valleyLow", 1.4) → residentCount 0, remainderPerMin 1.4
+ * @example splitPoolFeed("valleyLow", 4.4) → 2 条满速常驻 + 1.4 个/分零头
+ * @example splitPoolFeed("valleyLow", 1.4) → 无常驻，零头 1.4 个/分
  */
 export function splitPoolFeed(
   fuelId: string,

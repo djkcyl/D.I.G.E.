@@ -216,8 +216,8 @@ export interface SolutionResult {
   timedOut?: boolean;
   /** 调度链采用那次预检给出的最低富余（W，向上取整） */
   requiredSurplusW?: number;
-  /** 自定义池投料超过 1.5/分 被截断（求解按截断后的值算）；没有截断时不写 */
-  poolFeedClamp?: PoolFeedClampInfo[];
+  /** 自定义池实际投料拆分：满速常驻台数 + 震荡零头；没有启用池时不写 */
+  poolFeedSplit?: PoolFeedSplitInfo[];
   /**
    * 方案 B：自定义池满速带（未钳制）≥ 目标 + 冗余上限的纯常驻解。
    * 物理成立但配置不优；UI 显示黄色警告条。peakW = 方案均值，overPercent = 超出目标的百分比。
@@ -226,16 +226,21 @@ export interface SolutionResult {
   [key: string]: unknown;
 }
 
-/** 自定义池投料截断记录（个/分） */
-export interface PoolFeedClampInfo {
+/** 自定义池实际拆分记录（个/分）；供 UI 和回归核对，不是截断告警 */
+export interface PoolFeedSplitInfo {
   /** 在 params.oscPools 里的下标 */
   index: number;
   id: string;
   fuelId: string;
-  /** 用户填的值 */
   requestedPerMin: number;
-  /** 实际采用的值（= 1.5） */
-  usedPerMin: number;
+  fullSpeedPerMin: number;
+  /** 满速常驻热能池台数 */
+  residentCount: number;
+  /** 申请投料的零头；实际震荡吸附另按 oscBudget 的档位计算 */
+  remainderPerMin: number;
+  /** 满速带 + 零头支路的设备占用及当前预算 */
+  deviceCost: number;
+  deviceLimit: number;
 }
 
 /** 冗余上限放宽信息（W） */

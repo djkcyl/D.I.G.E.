@@ -57,10 +57,16 @@ describe("方案 B：池满速带超出目标的纯常驻解", () => {
     assert.equal(kept.length, 1);
   });
 
-  it("valleyHigh 8/分 @ 4000 → 行为不变：8 解，无 poolOverSupply", () => {
-    const { solutions } = solveAll(mkParams(4000, "valleyHigh", 8));
-    assert.equal(solutions.length, 8);
-    for (const s of solutions) assert.equal(s.poolOverSupply, undefined);
+  it("valleyHigh 8/分 @ 7500 → 5 条常驻 + 0.5 零头能正常出解，不再套用旧的截断后 8 解", () => {
+    const designer = new FactoryDesigner(mkParams(7500, "valleyHigh", 8));
+    assert.equal(designer.poolBandWatt, 5500);
+    assert.ok(designer.poolPower > designer.poolBandWatt);
+    const { solutions } = designer.solve();
+    assert.ok(solutions.length > 0);
+    for (const s of solutions) {
+      assert.equal(s.poolOverSupply, undefined);
+      assert.equal(s.poolFeedSplit?.[0].residentCount, 5);
+    }
   });
 
   it("valley 5965 / 主 valleyHigh / 池 wulingHigh 0.5/分 → 仍为 1 解", () => {
@@ -84,9 +90,35 @@ describe("方案 B：池满速带超出目标的纯常驻解", () => {
     assert.equal(diag.surplusW, 1100, "surplusW = 6400 − 5300");
   });
 
-  it("wulingHigh 2.0/分 @ 70000：投料截到 1.5/分、池 6400 W ≪ 目标，不受影响（有解、无标记）", () => {
-    const { solutions } = solveAll(mkParams(70000, "wulingHigh", 2.0));
+  it("wulingHigh 2.0/分 @ 70000：保留 1 条常驻 + 0.5 零头，方案挂 poolFeedSplit", () => {
+    const p = mkParams(70000, "wulingHigh", 2.0);
+    const designer = new FactoryDesigner(p);
+    assert.equal(designer.poolBandWatt, 6400);
+    assert.equal(designer.poolBranches.length, 1);
+    assert.ok(Math.abs(designer.poolPower - 8400) < 1e-6);
+    const { solutions } = solveAll(p);
     assert.ok(solutions.length > 0);
-    for (const s of solutions) assert.equal(s.poolOverSupply, undefined);
+    for (const s of solutions) {
+      assert.equal(s.poolOverSupply, undefined);
+      const feed = s.poolFeedSplit?.[0];
+      assert.ok(feed, "方案必须携带实际拆分明细");
+      assert.equal(feed.residentCount, 1);
+      assert.ok(Math.abs(feed.remainderPerMin - 0.5) < 1e-9);
+      assert.equal(feed.requestedPerMin, 2);
+    }
+  });
+
+  it("valleyHigh 4.4/分：构造器保留 2 条满速常驻 + 1.4 零头，不再截成 1 条", () => {
+    const designer = new FactoryDesigner(mkParams(12000, "valleyHigh", 4.4));
+    assert.equal(designer.poolBandWatt, 2200);
+    assert.equal(designer.poolBranches.length, 1);
+    assert.ok(designer.poolPower > designer.poolBandWatt);
+    const [feed] = designer.poolFeedSplit;
+    assert.equal(feed.requestedPerMin, 4.4);
+    assert.equal(feed.fullSpeedPerMin, 1.5);
+    assert.equal(feed.residentCount, 2);
+    assert.ok(Math.abs(feed.remainderPerMin - 1.4) < 1e-9);
+    assert.equal(feed.deviceLimit, 48);
+    assert.ok(feed.deviceCost > 0);
   });
 });

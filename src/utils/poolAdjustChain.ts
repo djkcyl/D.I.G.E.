@@ -9,10 +9,10 @@
  * 1. 只在「有启用的自定义池」且「候选非空、被预检全部剔除」时进入；候选本来为空直接返回。
  * 2. 放宽冗余上限：投料保持原值；基准 = max(GAME_CONFIG.solver.maxWaste, params.maxWaste)；
  *    档位是绝对值 MAX_WASTE_RELAX_TIERS_W，基准 ≥ 某档则跳过该档。
- * 3. 降投料：冗余上限回到基准，从原值每次 −0.1/分 直到 0；降到 0 = 不用这个池，
- *    （没有别的启用池时）跳过预检直接普通求解。
- * 4. 升投料：冗余上限为基准，从原值每次 +0.1/分 直到目标池燃料的 1 台满速
- *    （splitPoolFeedForFuel().fullSpeedPerMin；40s 电池 = 1.5/分 → 1 台满速常驻、零头 0）。
+ * 3. 降投料：冗余上限回到基准，从原值每次 −0.1/分，优先只调零头；
+ *    原来没有常驻带时才允许降到 0（= 关闭该池），不把已有满速带拆掉。
+ * 4. 升投料：冗余上限为基准，从原值每次 +0.1/分，止于下一个满速带边界；
+ *    边界与 splitPoolFeedForFuel 共用，不默认回到 1.5/分。
  * 5. 投料一律经 poolFeedSplit.toFeedTenths 换成整数十分位（tenths）后整数步进，
  *    避免 0.1 累加的浮点漂移。
  * 6. 整条链共用一个 deadline（每次求解前检查），超时返回 { timedOut: true, lastStep }；
@@ -25,7 +25,7 @@ import { resolveFuel } from "./constants";
 import { buildSudokuDecisionMatrix, compareSolutions } from "./decisionMatrix";
 import type { PoolPrecheckReport } from "./poolBatteryPrecheck";
 import {
-  POOL_FEED_MAX_TENTHS,
+  poolFeedBandBounds,
   splitPoolFeedForFuel,
   toFeedTenths,
 } from "./poolFeedSplit";
@@ -153,14 +153,14 @@ export function toRateTenths(value: unknown): number {
 
 const tenthsToRate = (t: number) => t / 10;
 
-/**
- * 限幅**已经折算成十分位**的档位（不是把个/分再换算一次）。
- * 在构造步骤数组前收敛，避免异常大输入产生超长数组。
- */
-function clampAdjustTenths(value: unknown): number {
+/** 投料尝试预算；加两个冗余档后，计划仍最多 17 步（另加 initial）。 */
+const MAX_RATE_STEPS = 15;
+
+/** 归一化绝对十分位档位，不再把多台常驻输入截成一台满速。 */
+function normalizeAdjustTenths(value: unknown): number {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return 0;
-  return Math.min(POOL_FEED_MAX_TENTHS, Math.round(n));
+  return Math.min(Number.MAX_SAFE_INTEGER, Math.round(n));
 }
 
 /** 求解器实际生效的冗余上限 = max(1200, params.maxWaste) */
@@ -172,21 +172,31 @@ export function effectiveMaxWaste(params: CalcParams): number {
   );
 }
 
-/**
- * 升投料上限（十分位）= 目标池燃料的单台满速投料（splitPoolFeedForFuel().fullSpeedPerMin，
- * 燃料按 params.fuelOverrides 解析，与求解器同口径）。40s 电池 → 15（1.5/分，needsOscillation=false）。
- * 满速不是整十分位时退一档，保证不越过 1 台满速；再受 poolFeedSplit 的输入上限约束。
- * 燃料无效 → 0（不生成升档）。
- */
-export function poolUpMaxTenths(params: CalcParams, poolIndex: number): number {
+/** 读取目标池当前的满速带边界；燃料无效或没有投料时两侧都为 0。 */
+function poolFeedBounds(params: CalcParams, poolIndex: number) {
   const cfg = poolIndex >= 0 ? params?.oscPools?.[poolIndex] : undefined;
-  if (!cfg?.fuelId || cfg.fuelId === "none") return 0;
+  if (!cfg?.fuelId || cfg.fuelId === "none") {
+    return poolFeedBandBounds({
+      rateTenths: 0,
+      residentPerMin: 0,
+      fullSpeedPerMin: 0,
+    });
+  }
   const fuel = resolveFuel(cfg.fuelId, params.fuelOverrides);
-  const { fullSpeedPerMin } = splitPoolFeedForFuel(fuel, 0);
-  if (!(fullSpeedPerMin > 0)) return 0;
-  let t = toFeedTenths(fullSpeedPerMin);
-  if (t > 0 && t / 10 > fullSpeedPerMin + 1e-9) t -= 1;
-  return Math.min(t, POOL_FEED_MAX_TENTHS);
+  return poolFeedBandBounds(splitPoolFeedForFuel(fuel, cfg.maxPerMin));
+}
+
+/** 仅上调当前零头，止于下一个满速带边界；不是全局 1.5/分上限。 */
+export function poolUpMaxTenths(params: CalcParams, poolIndex: number): number {
+  return poolFeedBounds(params, poolIndex).nextResidentTenths;
+}
+
+/** 有常驻带时不降到上一带；原来全是零头时保留旧的降到 0 兜底。 */
+export function poolDownMinTenths(
+  params: CalcParams,
+  poolIndex: number,
+): number {
+  return poolFeedBounds(params, poolIndex).residentStartTenths;
 }
 
 function isPoolActive(cfg: OscPoolConfig | null | undefined): boolean {
@@ -281,26 +291,38 @@ interface PlannedStep {
 
 /**
  * 生成链上的全部步骤（顺序即尝试顺序）。
- * 档位全部是整数十分位步进；upMaxTenths 由 poolUpMaxTenths 给出，不写死。
- * 即使外部直接传入越界档位，也先截到全局上限，保证计划最多 17 步（不含 initial）。
+ * 降档与升档都在调用方给出的当前满速带附近，且合计最多 15 次投料尝试；
+ * 即使外部传入极大数，也不会构造超长数组。
  */
 export function planPoolAdjustSteps(
   base: number,
   fromTenths: number,
   upMaxTenths: number,
+  downMinTenths = 0,
 ): PlannedStep[] {
-  const from = clampAdjustTenths(fromTenths);
-  const upMax = clampAdjustTenths(upMaxTenths);
+  const from = normalizeAdjustTenths(fromTenths);
+  const upMax = Math.max(from, normalizeAdjustTenths(upMaxTenths));
+  const downMin = Math.min(from, normalizeAdjustTenths(downMinTenths));
   const steps: PlannedStep[] = [];
   for (const tier of MAX_WASTE_RELAX_TIERS_W) {
     if (base < tier) {
       steps.push({ kind: "wasteRelax", maxWaste: tier, tenths: from });
     }
   }
-  for (let t = from - 1; t >= 0; t -= 1) {
+  for (
+    let t = from - 1;
+    t >= downMin &&
+    steps.length < MAX_WASTE_RELAX_TIERS_W.length + MAX_RATE_STEPS;
+    t -= 1
+  ) {
     steps.push({ kind: "down", maxWaste: base, tenths: t });
   }
-  for (let t = from + 1; t <= upMax; t += 1) {
+  for (
+    let t = from + 1;
+    t <= upMax &&
+    steps.length < MAX_WASTE_RELAX_TIERS_W.length + MAX_RATE_STEPS;
+    t += 1
+  ) {
     steps.push({ kind: "up", maxWaste: base, tenths: t });
   }
   return steps;
@@ -332,7 +354,7 @@ export function solveWithPoolAdjustChain(
     : findAdjustTargetPool(params);
   const targetCfg = poolIndex >= 0 ? params.oscPools?.[poolIndex] : undefined;
   const fromTenths = isPoolActive(targetCfg)
-    ? Math.min(POOL_FEED_MAX_TENTHS, toRateTenths(targetCfg?.maxPerMin))
+    ? toRateTenths(targetCfg?.maxPerMin)
     : 0;
   const fromPerMin = tenthsToRate(fromTenths);
 
@@ -408,6 +430,7 @@ export function solveWithPoolAdjustChain(
       base,
       fromTenths,
       poolUpMaxTenths(params, poolIndex),
+      poolDownMinTenths(params, poolIndex),
     );
     const skipPrecheckAtZero = !hasOtherActivePool(params, poolIndex);
     for (const step of steps) {

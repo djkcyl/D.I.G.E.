@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  POOL_FEED_MAX_TENTHS,
+  poolFeedBandBounds,
   splitPoolFeed,
   toFeedTenths,
   toResidentBaseLine,
@@ -21,7 +21,16 @@ describe("toFeedTenths", () => {
     assert.equal(toFeedTenths("1.4"), 14);
   });
   it("非法输入 → 0", () => {
-    for (const v of [0, -1, Number.NaN, "abc", undefined, null, Infinity]) {
+    for (const v of [
+      0,
+      -1,
+      Number.NaN,
+      "abc",
+      undefined,
+      null,
+      Infinity,
+      Number.MAX_VALUE,
+    ]) {
       assert.equal(toFeedTenths(v), 0);
     }
   });
@@ -34,7 +43,6 @@ describe("splitPoolFeed：40s 电池（满速 1.5/分）", () => {
     assert.equal(s.residentCount, 0);
     assert.equal(s.remainderPerMin, 0);
     assert.equal(s.needsOscillation, false);
-    assert.equal(s.clamped, false);
   });
 
   it("满速单台投料 = 1.5", () => {
@@ -59,21 +67,27 @@ describe("splitPoolFeed：40s 电池（满速 1.5/分）", () => {
     assert.equal(s.needsOscillation, true);
   });
 
-  it("超过 1.5 → 截断到 1.5 并标记", () => {
-    const s = splitPoolFeed("valleyLow", 2.3);
-    assert.equal(s.clamped, true);
-    assert.equal(s.rateTenths, POOL_FEED_MAX_TENTHS);
-    assert.equal(s.residentCount, 1);
-    assert.equal(s.remainderPerMin, 0);
-  });
+  for (const [input, residents, remainder] of [
+    [2.3, 1, 0.8],
+    [4.4, 2, 1.4],
+    [3, 2, 0],
+  ] as const) {
+    it(`${input}/分 → ${residents} 条常驻 + ${remainder}/分零头`, () => {
+      const s = splitPoolFeed("valleyLow", input);
+      assert.equal(s.ratePerMin, input);
+      assert.equal(s.residentCount, residents);
+      close(s.remainderPerMin, remainder);
+      assert.equal(s.needsOscillation, remainder > 0);
+    });
+  }
 
-  it("0.1 ~ 1.5 每一档：常驻 + 零头 = 投料，零头为整数十分位", () => {
-    for (let t = 1; t <= POOL_FEED_MAX_TENTHS; t += 1) {
+  it("0.1 ~ 6.0 每一档都不截断，常驻 + 零头 = 投料，零头仍为整数十分位", () => {
+    for (let t = 1; t <= 60; t += 1) {
       const s = splitPoolFeed("wulingLow", t / 10);
       assert.equal(s.rateTenths, t);
+      assert.equal(s.residentCount, Math.floor(t / 15));
       assert.ok(Number.isInteger(s.remainderTenths));
       close(s.residentPerMin + s.remainderPerMin, t / 10);
-      assert.equal(s.residentCount, t === 15 ? 1 : 0);
     }
   });
 });
@@ -84,6 +98,12 @@ describe("splitPoolFeed：其他燃料 / 覆盖 burnTime", () => {
     close(s.fullSpeedPerMin, 7.5);
     assert.equal(s.residentCount, 0);
     close(s.remainderPerMin, 1.5);
+  });
+
+  it("源矿 10/分 → 1 台常驻 + 2.5/分零头，不能截到 1.5", () => {
+    const s = splitPoolFeed("ore", 10);
+    assert.equal(s.residentCount, 1);
+    close(s.remainderPerMin, 2.5);
   });
 
   it("自定义 burnTime=100（满速 0.6/分）→ 1.5 = 2 台 + 0.3", () => {
@@ -113,11 +133,43 @@ describe("splitPoolFeed：其他燃料 / 覆盖 burnTime", () => {
   });
 });
 
+describe("poolFeedBandBounds：调整链只动当前满速带附近", () => {
+  it("4.4 → 保住 2 条常驻，向下不越过 3.0，向上止于 4.5", () => {
+    assert.deepEqual(poolFeedBandBounds(splitPoolFeed("valleyLow", 4.4)), {
+      residentStartTenths: 30,
+      nextResidentTenths: 45,
+    });
+  });
+  it("全零头时保留降到 0 的兜底", () => {
+    assert.deepEqual(poolFeedBandBounds(splitPoolFeed("ore", 1.5)), {
+      residentStartTenths: 0,
+      nextResidentTenths: 75,
+    });
+  });
+  it("非整十分位满速不会把常驻带降掉：burnTime 400、0.5 时保住 3 台", () => {
+    const s = splitPoolFeed("customPrimary", 0.5, {
+      customPrimary: { burnTime: 400 },
+    });
+    assert.equal(s.residentCount, 3);
+    const bounds = poolFeedBandBounds(s);
+    assert.deepEqual(bounds, {
+      residentStartTenths: 5,
+      nextResidentTenths: 6,
+    });
+    assert.equal(
+      splitPoolFeed("customPrimary", bounds.residentStartTenths / 10, {
+        customPrimary: { burnTime: 400 },
+      }).residentCount,
+      3,
+    );
+  });
+});
+
 describe("toResidentBaseLine", () => {
-  it("有常驻 → manualBaseLines 同构行", () => {
+  it("有多条常驻 → manualBaseLines 同构行，台数完整保留", () => {
     assert.deepEqual(
-      toResidentBaseLine(splitPoolFeed("valleyHigh", 1.5), "pool_1_band"),
-      { id: "pool_1_band", fuelId: "valleyHigh", count: 1 },
+      toResidentBaseLine(splitPoolFeed("valleyHigh", 4.4), "pool_1_band"),
+      { id: "pool_1_band", fuelId: "valleyHigh", count: 2 },
     );
   });
   it("无常驻 → null", () => {
