@@ -86,7 +86,12 @@
           "Prise en charge du jeu 1.7 : ajout de la batterie Wuling haute capacité (6400 W / 40 s), utilisable en carburant principal ou secondaire.",
           "Dépôt, suivi des problèmes et métadonnées du site sont regroupés dans une seule configuration, plus simple à maintenir.",
           "Plafond de puissance cible porté à 65535 W ; le format des codes de partage reste identique, les valeurs supérieures passent par un nouveau champ de fin.",
-          "Ajout des pools thermiques permanents et d'oscillation personnalisés : placez vos générateurs permanents par carburant, ou choisissez une batterie avec un plafond d'objets par minute pour générer l'oscillation ; puissance et consommation sont intégrées aux statistiques."
+          "Ajout des pools thermiques permanents et d'oscillation personnalisés : placez vos générateurs permanents par carburant, ou choisissez une batterie avec un plafond d'objets par minute pour générer l'oscillation ; puissance et consommation sont intégrées aux statistiques.",
+          "Sur mobile, le tableau de décision et les profils restent fixés en haut pendant le défilement.",
+          "Le tableau mobile se déplace par son titre, avec un fond dépoli et une page arrière toujours défilable.",
+          "Ajout d’un bouton pour centrer le tableau après l’avoir déplacé.",
+          "Au-delà de la pleine vitesse d’un générateur, l’apport du pool est réparti en plusieurs générateurs et un reste, avec le détail affiché.",
+          "En cas d’échec du calcul, une cause probable s’affiche d’abord, avec le détail technique copiable."
         ]
       },
       {
