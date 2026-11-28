@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import Icon from './Icon';
+import { useEffect, useRef, useState } from "react";
+import Icon from "./Icon";
 
 export interface SelectOption<T = string> {
   value: T;
@@ -27,8 +27,8 @@ export default function Select<T = string>({
   id,
   ariaLabel,
   ariaLabelledby,
-  className = '',
-  buttonClassName = '',
+  className = "",
+  buttonClassName = "",
 }: SelectProps<T>) {
   const [open, setOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
@@ -36,16 +36,20 @@ export default function Select<T = string>({
   const listRef = useRef<HTMLDivElement>(null);
 
   const listboxId = id ? `${id}-listbox` : undefined;
-  const getOptionId = (index: number) => (id ? `${id}-option-${index}` : undefined);
+  const getOptionId = (index: number) =>
+    id ? `${id}-option-${index}` : undefined;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
         setOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Scroll highlighted item into view
@@ -55,17 +59,18 @@ export default function Select<T = string>({
     if (!list) return;
     const item = list.children[highlightedIndex] as HTMLElement | undefined;
     if (item) {
-      item.scrollIntoView({ block: 'nearest' });
+      item.scrollIntoView({ block: "nearest" });
     }
   }, [highlightedIndex, open]);
 
   const selectedIndex = options.findIndex((opt) => opt.value === value);
-  const selectedOption = selectedIndex >= 0 ? options[selectedIndex] : undefined;
+  const selectedOption =
+    selectedIndex >= 0 ? options[selectedIndex] : undefined;
   const displayLabel = selectedOption
     ? renderOption
       ? renderOption(selectedOption)
       : selectedOption.label
-    : '';
+    : "";
 
   const openList = () => {
     setHighlightedIndex(selectedIndex >= 0 ? selectedIndex : 0);
@@ -85,7 +90,7 @@ export default function Select<T = string>({
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     switch (event.key) {
-      case 'ArrowDown':
+      case "ArrowDown":
         event.preventDefault();
         if (!open) {
           openList();
@@ -93,7 +98,7 @@ export default function Select<T = string>({
           setHighlightedIndex((prev) => Math.min(prev + 1, options.length - 1));
         }
         break;
-      case 'ArrowUp':
+      case "ArrowUp":
         event.preventDefault();
         if (!open) {
           openList();
@@ -101,8 +106,8 @@ export default function Select<T = string>({
           setHighlightedIndex((prev) => Math.max(prev - 1, 0));
         }
         break;
-      case 'Enter':
-      case ' ':
+      case "Enter":
+      case " ":
         event.preventDefault();
         if (!open) {
           openList();
@@ -110,15 +115,15 @@ export default function Select<T = string>({
           selectHighlighted();
         }
         break;
-      case 'Escape':
+      case "Escape":
         event.preventDefault();
         closeList();
         break;
-      case 'Home':
+      case "Home":
         event.preventDefault();
         if (open) setHighlightedIndex(0);
         break;
-      case 'End':
+      case "End":
         event.preventDefault();
         if (open) setHighlightedIndex(options.length - 1);
         break;
@@ -145,7 +150,7 @@ export default function Select<T = string>({
         aria-activedescendant={activeDescendant}
       >
         <span className="flex items-center gap-2">{displayLabel}</span>
-        <Icon name={open ? 'expand_less' : 'expand_more'} />
+        <Icon name={open ? "expand_less" : "expand_more"} />
       </button>
 
       {open && (
@@ -168,7 +173,7 @@ export default function Select<T = string>({
                 closeList();
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
+                if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   onChange?.(opt);
                   closeList();
@@ -177,9 +182,9 @@ export default function Select<T = string>({
               onMouseEnter={() => setHighlightedIndex(index)}
               className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center gap-2 cursor-pointer ${
                 index === highlightedIndex
-                  ? 'bg-endfield-gray-light'
-                  : 'hover:bg-endfield-gray-light'
-              } ${value === opt.value ? 'text-endfield-yellow' : 'text-endfield-text-light'}`}
+                  ? "bg-endfield-gray-light"
+                  : "hover:bg-endfield-gray-light"
+              } ${value === opt.value ? "text-endfield-yellow" : "text-endfield-text-light"}`}
             >
               {renderOption ? renderOption(opt) : opt.label}
             </div>

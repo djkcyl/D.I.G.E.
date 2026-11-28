@@ -33,7 +33,7 @@
         "items": [
           "Définissez la puissance cible dans le panneau de gauche",
           "Sélectionnez le carburant principal (requis) et secondaire (optionnel)",
-          "Ajustez le niveau minimum de batterie et la limite de gaspillage",
+          "Choisissez le nombre de ports et la bande de redondance sur le plateau 3×3 à droite",
           "Cliquez sur « Calculer » pour obtenir les solutions optimales",
           "Consultez les détails et schémas à droite"
         ]
@@ -79,9 +79,63 @@
   "changelog": {
     "sections": [
       {
+        "version": "v1.12.1.0",
+        "title": "Nouveautés v1.12.1.0",
+        "defaultOpen": true,
+        "items": [
+          "Sur mobile, le tableau de décision et les profils restent fixés en haut, avec puissance et batterie sur une deuxième ligne dédiée.",
+          "Le tableau mobile se déplace par son titre, sans masquer la page environnante, qui reste défilable.",
+          "Ajout d’un bouton pour centrer le tableau après l’avoir déplacé.",
+          "Au-delà de la pleine vitesse d’un générateur, l’apport du pool est réparti en plusieurs générateurs et un reste, avec le détail affiché.",
+          "En cas d’échec du calcul, une cause probable s’affiche d’abord, avec le détail technique copiable."
+        ]
+      },
+      {
+        "version": "v1.12.0",
+        "title": "Nouveautés v1.12.0",
+        "defaultOpen": false,
+        "items": [
+          "Prise en charge du jeu 1.7 : ajout de la batterie Wuling haute capacité (6400 W / 40 s), utilisable en carburant principal ou secondaire.",
+          "Dépôt, suivi des problèmes et métadonnées du site sont regroupés dans une seule configuration, plus simple à maintenir.",
+          "Plafond de puissance cible porté à 65535 W ; le format des codes de partage reste identique, les valeurs supérieures passent par un nouveau champ de fin.",
+          "Ajout des pools thermiques permanents et d'oscillation personnalisés : placez vos générateurs permanents par carburant, ou choisissez une batterie avec un plafond d'objets par minute pour générer l'oscillation ; puissance et consommation sont intégrées aux statistiques."
+        ]
+      },
+      {
+        "version": "v1.11.1",
+        "title": "v1.11.1 Mises à jour",
+        "defaultOpen": false,
+        "items": [
+          "Jeu 1.5 : le solveur cherche automatiquement 1–4 ports de ramassage avec une fenêtre de 1000W et un plancher batterie de 5% — plus besoin de deviner maxWaste / maxBranches / minBattery.",
+          "Un seul calcul lance deux pistes : complément auto de base et oscillation pure / base manuelle, puis seaux Pareto à cinq niveaux.",
+          "Plateau 3×3 : lignes = ports 1–3, colonnes = dizaines / centaines / kilowatts ; cases vides en barre rouge, coin bas-droit non sélectionnable.",
+          "Sur PC, la grille 3×3 est à gauche du tableau de bord ; sur mobile, le bandeau ouvre un modal centré translucide (plus de tiroir bas).",
+          "Les curseurs de contraintes de la barre latérale disparaissent ; restent puissance cible, carburant, base et autres réglages.",
+          "Thèmes blanc industriel / nuit polaire. Bascule en haut à droite ; sans choix manuel, le thème clair s'applique de 6:00 à 18:00 (heure locale)."
+        ]
+      },
+      {
+        "version": "v1.11.0",
+        "title": "v1.11.0 Mises à jour",
+        "defaultOpen": false,
+        "items": [
+          "Le solveur peut appliquer automatiquement des limites de débit item-gate sur les branches oscillantes pour réduire les splitters multi-étages.",
+          "Ajout d’une alimentation de base en couches (cœur / manuel / auto) avec statistiques unifiées de consommation de carburant.",
+          "Prise en charge du mélange primaire/secondaire sur branches indépendantes, avec stratégies comme le mix intelligent.",
+          "Classement plus pragmatique : moins de gaspillage, moins d’équipements et de branches, réseau plus stable.",
+          "Les contraintes avancées sont repliées dans la barre latérale ; en cas d’échec, des conseils actionnables s’affichent.",
+          "Stabilité renforcée sur paramètres extrêmes pour éviter freezes/crashs dus aux périodes ultra-longues.",
+          "Réglages par défaut plus mid-game : 5800 W, Wuling moyen + Valley élevé, base auto et mix intelligent activés.",
+          "Codes réseau : copiez un code DIGE depuis Partager, ou collez un code/lien dans le menu des profils pour l’enregistrer localement.",
+          "Profils locaux multi-emplacements avec sauvegarde auto, préréglages Vallée IV / Wuling, Enregistrer sous et bascule rapide.",
+          "Choix de la zone d’usine (Vallée IV / Wuling / Libre) ; en Vallée, les batteries Wuling n’utilisent pas le limiteur item-gate, avec un rappel.",
+          "Correction des en-têtes de carburants mixtes qui n’affichaient qu’un seul nom ; branches plus claires. Textes latéraux allégés."
+        ]
+      },
+      {
         "version": "v1.10.0",
         "title": "v1.10.0 Mises à jour",
-        "defaultOpen": true,
+        "defaultOpen": false,
         "items": [
           "Cette version se concentre surtout sur une refonte interne et des améliorations de stabilité ; les fonctions principales et le flux d’utilisation restent inchangés.",
           "Navigation clavier améliorée : le menu des langues, le menu « Plus » et l’aperçu d’image prennent en charge un parcours clavier plus complet.",

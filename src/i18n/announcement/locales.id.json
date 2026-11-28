@@ -33,7 +33,7 @@
         "items": [
           "Atur daya target di panel kontrol sebelah kiri",
           "Pilih bahan bakar utama (wajib) dan bahan bakar sekunder (opsional)",
-          "Sesuaikan batas minimum baterai dan batas maksimum limbah",
+          "Pilih jumlah port dan pita redundansi di papan 3×3 sebelah kanan",
           "Klik \"Hitung\" untuk mendapatkan solusi optimal",
           "Lihat detail dan diagram solusi di sisi kanan"
         ]
@@ -79,9 +79,63 @@
   "changelog": {
     "sections": [
       {
+        "version": "v1.12.1.0",
+        "title": "Yang baru di v1.12.1.0",
+        "defaultOpen": true,
+        "items": [
+          "Di perangkat seluler, papan keputusan dan arsip tetap di atas saat menggulir, dengan daya dan baterai ditampilkan lengkap di baris kedua.",
+          "Papan keputusan seluler dapat digeser lewat judul tanpa menutupi halaman sekitar, yang tetap dapat digulir.",
+          "Ditambahkan tombol untuk memusatkan kembali papan keputusan yang digeser.",
+          "Jika umpan pool kustom melebihi kecepatan penuh satu generator, umpan dipecah menjadi beberapa generator penuh dan sisa, lalu rinciannya ditampilkan.",
+          "Jika perhitungan gagal, kemungkinan penyebab ditampilkan lebih dulu beserta detail teknis yang dapat disalin."
+        ]
+      },
+      {
+        "version": "v1.12.0",
+        "title": "Yang baru di v1.12.0",
+        "defaultOpen": false,
+        "items": [
+          "Dukungan game 1.7: menambahkan Baterai KT Wuling (6400W / 40s) sebagai bahan bakar utama atau sekunder.",
+          "Repositori, pelacak masalah, dan metadata situs kini terpusat dalam satu konfigurasi agar mudah dipelihara.",
+          "Batas daya target dinaikkan ke 65535W; format kode berbagi tetap sama, nilai lebih besar memakai slot ekor baru.",
+          "Menambahkan kumpulan termal dasar dan osilasi kustom: atur generator dasar per bahan bakar, atau pilih satu baterai dengan batas item per menit untuk menyusun osilasi; daya dan konsumsi bahan bakar ikut dihitung."
+        ]
+      },
+      {
+        "version": "v1.11.1",
+        "title": "Pembaruan v1.11.1",
+        "defaultOpen": false,
+        "items": [
+          "Siap game 1.5: solver mencari 1–4 port pengambilan dengan jendela 1000W dan lantai baterai 5% — tidak perlu menebak maxWaste / maxBranches / minBattery.",
+          "Satu kalkulasi menjalankan dua jalur: isi otomatis basis dan osilasi murni/manual, lalu ember Pareto lima tingkat.",
+          "Papan 3×3: baris = port 1–3, kolom = puluhan / ratusan / kilowatt; sel kosong bergaris merah, sudut kanan bawah tidak bisa dipilih.",
+          "Di PC papan 3×3 di kiri dan dasbor di kanan; di seluler, ketuk chip atas untuk modal 3×3 di tengah layar, bukan bottom sheet.",
+          "Slider batasan di sidebar dihapus; tersisa daya target, bahan bakar, daya dasar, dan pengaturan lain.",
+          "Tema putih industri / malam kutub. Bisa diganti di kanan atas; tanpa pilihan manual, tema terang dipakai pukul 6:00–18:00 waktu lokal."
+        ]
+      },
+      {
+        "version": "v1.11.0",
+        "title": "Pembaruan v1.11.0",
+        "defaultOpen": false,
+        "items": [
+          "Solver dapat menerapkan batas laju item-gate otomatis pada cabang osilasi untuk mengurangi atau menghilangkan splitter bertingkat.",
+          "Menambah daya dasar berlapis (inti / manual / isi otomatis) dengan statistik konsumsi bahan bakar seluruh jaringan.",
+          "Mendukung campuran bahan bakar utama/sekunder di cabang terpisah, dengan strategi seperti smart mix.",
+          "Peringkat solusi lebih praktis: utamakan limbah rendah, lebih sedikit perangkat/cabang, dan jaringan lebih stabil.",
+          "Batasan lanjutan disimpan di panel samping yang dapat dilipat; jika tak ada solusi, saran penyesuaian ditampilkan.",
+          "Stabilitas parameter ekstrem diperkuat agar tidak freeze/crash karena periode simulasi sangat panjang.",
+          "Default lebih mid-game: 5800W, Wuling menengah + Valley tinggi, perencanaan basis otomatis dan smart mix aktif.",
+          "Kode jaringan: salin kode DIGE dari Bagikan, atau tempel kode/tautan di menu profil untuk menyimpan arsip lokal.",
+          "Profil jaringan multi-slot lokal dengan simpan otomatis, preset Lembah IV / Wuling, Simpan sebagai, dan ganti cepat.",
+          "Pilih wilayah pabrik (Lembah IV / Wuling / Bebas); di Lembah, baterai Wuling tidak memakai pembatas item-gate, dengan petunjuk.",
+          "Perbaikan header bahan bakar campuran yang hanya menampilkan satu nama; cabang lebih jelas. Teks bilah sisi dipersingkat."
+        ]
+      },
+      {
         "version": "v1.10.0",
         "title": "Pembaruan v1.10.0",
-        "defaultOpen": true,
+        "defaultOpen": false,
         "items": [
           "Rilis ini berfokus pada refaktor internal dan peningkatan stabilitas; fitur dan alur kerja inti tetap sama.",
           "Peningkatan penggunaan keyboard: menu bahasa, menu Lainnya, dan pratinjau gambar kini mendukung navigasi keyboard yang lebih lengkap.",

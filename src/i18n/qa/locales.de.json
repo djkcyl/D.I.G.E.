@@ -5,8 +5,8 @@
       "answer": "Zielleistung ist die gewünschte Leistungsabgabe (in kW) für Ihr Thermal-Pool-System. Das Tool berechnet automatisch die optimale Brennstoffkonfiguration, Verzweigungsstufen und Speicheranzahl."
     },
     {
-      "question": "Wofür sind die Einschränkungen? Warum wird keine Lösung gefunden?",
-      "answer": "Einschränkungen steuern die Plangenerierung. Höherer Mindestbatteriestand, niedrigere Redundanzgrenze oder weniger Zweige machen sie strenger und können gültige Lösungen verhindern. Versuchen Sie, sie zu lockern."
+      "question": "Wie nutze ich das Entscheidungsboard? Warum wird keine Lösung gefunden?",
+      "answer": "Das Board ersetzt die alten Constraint-Schieberegler: Zeilen sind Abholpunkte, Spalten Redundanzstufen. Der Solver sucht automatisch in einem weiten Fenster. Ist eine Zelle leer, wählen Sie weniger/mehr Ports oder eine lockerere Stufe. Das Dashboard rechts zeigt den besten Plan der Zelle."
     },
     {
       "question": "Was ist der Unterschied zwischen Primär- und Sekundärbrennstoff?",
@@ -51,6 +51,22 @@
     {
       "question": "Warum fällt der Strom aus, nachdem ich offline gehe?",
       "answer": "Laut Spielerberichten und Tests kann der Server die Berechnung von Förderbändern und zugehörigen Geräten (Logistikbrücke, Objekteingang) offline vereinfachen, was zu Stopps bei Förderbandrouten führt. Wir können das nicht bestätigen. Die Option « Förderbänder ausschließen » wurde hinzugefügt, um Förderbänder und zugehörige Geräte aus dem Blueprint zu entfernen. Bei Stromausfällen oder Überlauf offline trotz normalem Betrieb online probieren Sie diese Option."
+    },
+    {
+      "question": "Das Entscheidungsfenster ist aus dem Bild verschwunden. Was nun?",
+      "answer": "Doppelklicke oben auf die Schaltfläche „aktuell N Zweige…“, um das Fenster wieder in die Bildschirmmitte zu holen — oder doppelklicke auf die Titelleiste des Fensters selbst. Danach kannst du es an der Titelleiste verschieben (die Position wird automatisch gemerkt)."
+    },
+    {
+      "question": "Was ist der benutzerdefinierte Schwingungspool und wie nutze ich ihn?",
+      "answer": "Eine Batterie wählen und eine Obergrenze in Stück/Minute setzen: Das Tool behandelt sie als feste Zufuhr. Jede volle 1,5/min (bei Erz 7,5/min) ergibt einen Generator mit Vollgas, der Rest eine Schwingungsverzweigung. Ausschalten behält die Einstellungen; dieselbe Batterie darf auch in den Grundlastpools stehen."
+    },
+    {
+      "question": "Was passiert bei 3,3 Stück/Minute?",
+      "answer": "Es entstehen zwei Generatoren mit Vollgas (je 1,5/min) und eine Schwingungsverzweigung mit 0,3/min. Ein Vollgasband ist Entnahme → Dreiwegverteiler → Generatoren ohne Lagerports; nur der Rest braucht Lagerports und Verteiler."
+    },
+    {
+      "question": "Warum wird die Poolleistung vom Ziel abgezogen?",
+      "answer": "Der Pool ist bereits festgelegte Zufuhr und nimmt nicht an der Enumeration von Haupt-/Zweitbrennstoff teil. Das Tool rechnet den Restbedarf als „Ziel − Poolleistung“ und addiert die Poolleistung für die Anzeige wieder. Die gelbe gestrichelte Linie im Diagramm ist die Poolkurve: flach bei Vollgasbändern, pulsierend beim Rest."
     }
   ]
 }

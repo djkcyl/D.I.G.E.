@@ -1,5 +1,5 @@
-import { useI18n } from '../../../i18n';
-import AlertModal from '../../ui/AlertModal';
+import { useI18n } from "../../../i18n";
+import AlertModal from "../../ui/AlertModal";
 
 export interface WarningModalProps {
   show: boolean;
@@ -26,9 +26,9 @@ export default function WarningModal({
       titleId="warning-modal-title"
       icon="warning"
       tone="warning"
-      title={title || t('importantNote')}
+      title={title || t("importantNote")}
       message={message}
-      actionLabel={t('close')}
+      actionLabel={t("close")}
     />
   );
 }

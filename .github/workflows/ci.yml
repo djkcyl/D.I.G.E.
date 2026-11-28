@@ -1,0 +1,63 @@
+name: quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.13.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: i18n sync (8 languages)
+        run: pnpm run i18n translate
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint (Biome)
+        run: pnpm run lint
+
+      - name: Self tests
+        run: |
+          pnpm exec tsx scripts/selftest-grid-code.mjs
+          pnpm exec tsx scripts/selftest-region-limiter.mjs
+          pnpm exec tsx scripts/selftest-i18n-grid-keys.mjs
+          pnpm exec tsx scripts/selftest-osc-budget.mjs
+          pnpm exec tsx scripts/selftest-osc-scenarios.mjs
+          pnpm exec tsx scripts/selftest-matrix-7665.mjs
+          pnpm exec tsx scripts/selftest-stage-matrix.mjs
+          pnpm exec tsx scripts/selftest-gate-burst.mjs
+          pnpm exec tsx scripts/selftest-power-integration.mjs
+          pnpm exec tsx scripts/selftest-pool-precheck.mjs
+          pnpm exec tsx scripts/selftest-solve-timeout.mjs
+          pnpm exec tsx scripts/selftest-pool-adjust-chain.mjs
+
+      - name: TypeScript regression tests
+        run: |
+          pnpm exec tsx --test \
+            src/components/ui/useDraggablePanel.test.ts \
+            src/utils/failureDiagnose.test.ts \
+            src/utils/poolFeedSplit.test.ts \
+            src/utils/poolAdjustChain.test.ts \
+            src/utils/poolChartSegments.test.ts \
+            src/utils/poolPulseRegression.test.ts \
+            src/utils/poolOverSupplyRegression.test.ts
+
+      - name: Build
+        run: pnpm build

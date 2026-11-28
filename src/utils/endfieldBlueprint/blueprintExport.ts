@@ -1,9 +1,13 @@
 /**
  * 蓝图导出：下载、ZIP 打包、完整图
  */
-import { strToU8, zipSync } from 'fflate';
-import type { CalcParams, SolutionResult } from '../../types/calc';
-import type { BranchBlueprint, BuildExportParamsPayloadOptions } from './blueprintCore';
+import { strToU8, zipSync } from "fflate";
+import type { CalcParams, SolutionResult } from "../../types/calc";
+import { buildPoolSegments } from "../poolChartSegments";
+import type {
+  BranchBlueprint,
+  BuildExportParamsPayloadOptions,
+} from "./blueprintCore";
 import {
   buildEndfieldBlueprint,
   buildExportParamsPayload,
@@ -11,18 +15,22 @@ import {
   getBranchPowerToken,
   getExportTargetPower,
   getIndexedBranchStem,
-} from './blueprintCore';
-import { buildBranchPngBlob } from './drawBranchPng';
-import { buildCompleteExportImageBlob } from './drawCompleteExport';
-import { buildPreciseChartPngBlob } from './drawPreciseChart';
+} from "./blueprintCore";
+import { buildBranchPngBlob } from "./drawBranchPng";
+import { buildCompleteExportImageBlob } from "./drawCompleteExport";
+import { buildPreciseChartPngBlob } from "./drawPreciseChart";
 
-function getDefaultFileName(branch: BranchBlueprint | null | undefined): string {
-  const stem = `dige_branch_1_${branch ? getBranchDenominatorToken(branch) : 'unknown'}_${branch ? getBranchPowerToken(branch) : 'unknownw'}`;
+function getDefaultFileName(
+  branch: BranchBlueprint | null | undefined,
+): string {
+  const stem = `dige_branch_1_${branch ? getBranchDenominatorToken(branch) : "unknown"}_${branch ? getBranchPowerToken(branch) : "unknownw"}`;
   return `${stem}_blueprint.json`;
 }
 
-function getDefaultPngFileName(branch: BranchBlueprint | null | undefined): string {
-  const stem = `dige_branch_1_${branch ? getBranchDenominatorToken(branch) : 'unknown'}_${branch ? getBranchPowerToken(branch) : 'unknownw'}`;
+function getDefaultPngFileName(
+  branch: BranchBlueprint | null | undefined,
+): string {
+  const stem = `dige_branch_1_${branch ? getBranchDenominatorToken(branch) : "unknown"}_${branch ? getBranchPowerToken(branch) : "unknownw"}`;
   return `${stem}.png`;
 }
 
@@ -39,7 +47,7 @@ function getDefaultZipFileName(branches: BranchBlueprint[]): string {
   if (count > 0) {
     return `dige_branches_all_${count}_${powerToken}.zip`;
   }
-  return 'dige_branches_all.zip';
+  return "dige_branches_all.zip";
 }
 
 function getDefaultCompleteImageFileName(branches: BranchBlueprint[]): string {
@@ -56,10 +64,10 @@ function getDefaultCompleteImageFileName(branches: BranchBlueprint[]): string {
 
 function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
+  const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = fileName;
-  anchor.rel = 'noopener';
+  anchor.rel = "noopener";
   document.body.appendChild(anchor);
   try {
     anchor.click();
@@ -102,32 +110,33 @@ export interface BlueprintExportOptions {
 
 export function downloadEndfieldBlueprint(
   branch: BranchBlueprint,
-  options: BlueprintExportOptions = {}
+  options: BlueprintExportOptions = {},
 ): Record<string, unknown> {
   const output = buildEndfieldBlueprint(branch, options);
   const fileName =
-    typeof options.filename === 'string' && options.filename.trim()
+    typeof options.filename === "string" && options.filename.trim()
       ? options.filename.trim()
       : getDefaultFileName(branch);
 
   const json = JSON.stringify(output, null, 4);
-  const blob = new Blob([json], { type: 'application/json' });
+  const blob = new Blob([json], { type: "application/json" });
   downloadBlob(blob, fileName);
   return output;
 }
 
 export async function downloadEndfieldBlueprintZip(
   branches: BranchBlueprint[],
-  options: BlueprintExportOptions = {}
+  options: BlueprintExportOptions = {},
 ): Promise<Record<string, unknown>[]> {
   const items = Array.isArray(branches) ? branches.filter(Boolean) : [];
   if (items.length === 0) {
-    throw new Error('No branch blueprint data provided.');
+    throw new Error("No branch blueprint data provided.");
   }
 
   const includePng = options.includePng !== false;
   const includeParams = options.includeParams !== false;
-  const includePreciseChart = options.includePreciseChart !== false && Boolean(options.solution);
+  const includePreciseChart =
+    options.includePreciseChart !== false && Boolean(options.solution);
   const targetPower = getExportTargetPower(options.solution ?? undefined, {
     targetPower: options.targetPower,
   });
@@ -159,7 +168,9 @@ export async function downloadEndfieldBlueprintZip(
       includePreciseChart,
       targetPower,
     } as BuildExportParamsPayloadOptions);
-    files['export_params.json'] = strToU8(JSON.stringify(paramsPayload, null, 2));
+    files["export_params.json"] = strToU8(
+      JSON.stringify(paramsPayload, null, 2),
+    );
   }
 
   if (includePreciseChart && options.solution) {
@@ -171,27 +182,28 @@ export async function downloadEndfieldBlueprintZip(
       fontFamily: options.fontFamily,
       chartWidth: options.chartWidth,
       chartHeight: options.chartHeight,
+      poolSegments: buildPoolSegments(options.params),
     });
-    files['chart_precise.png'] = await blobToU8(preciseChartBlob);
+    files["chart_precise.png"] = await blobToU8(preciseChartBlob);
   }
 
   const zipBytes = zipSync(files, { level: 6 });
   const fileName =
-    typeof options.filename === 'string' && options.filename.trim()
+    typeof options.filename === "string" && options.filename.trim()
       ? options.filename.trim()
       : getDefaultZipFileName(items);
 
-  const blob = new Blob([zipBytes as BlobPart], { type: 'application/zip' });
+  const blob = new Blob([zipBytes as BlobPart], { type: "application/zip" });
   downloadBlob(blob, fileName);
   return outputs;
 }
 
 export async function buildEndfieldBlueprintPng(
   branch: BranchBlueprint,
-  options: BlueprintExportOptions = {}
+  options: BlueprintExportOptions = {},
 ): Promise<{ fileName: string; blob: Blob }> {
   const fileName =
-    typeof options.filename === 'string' && options.filename.trim()
+    typeof options.filename === "string" && options.filename.trim()
       ? options.filename.trim()
       : getDefaultPngFileName(branch);
   const blob = await buildBranchPngBlob(branch, options);
@@ -200,7 +212,7 @@ export async function buildEndfieldBlueprintPng(
 
 export async function downloadEndfieldBlueprintPng(
   branch: BranchBlueprint,
-  options: BlueprintExportOptions = {}
+  options: BlueprintExportOptions = {},
 ): Promise<Blob> {
   const { fileName, blob } = await buildEndfieldBlueprintPng(branch, options);
   downloadBlob(blob, fileName);
@@ -209,15 +221,15 @@ export async function downloadEndfieldBlueprintPng(
 
 export async function buildEndfieldCompleteImage(
   branches: BranchBlueprint[],
-  options: BlueprintExportOptions & { shareUrl?: string } = {}
+  options: BlueprintExportOptions & { shareUrl?: string } = {},
 ): Promise<{ fileName: string; blob: Blob }> {
   const items = Array.isArray(branches) ? branches.filter(Boolean) : [];
   if (items.length === 0) {
-    throw new Error('No branch blueprint data provided.');
+    throw new Error("No branch blueprint data provided.");
   }
 
   const fileName =
-    typeof options.filename === 'string' && options.filename.trim()
+    typeof options.filename === "string" && options.filename.trim()
       ? options.filename.trim()
       : getDefaultCompleteImageFileName(items);
   const blob = await buildCompleteExportImageBlob(items, options);

@@ -1,3 +1,4 @@
+import { GAME_CONFIG } from "../config/game";
 // 燃料类型配置
 export interface FuelName {
   en: string;
@@ -21,131 +22,149 @@ export interface Fuel {
 
 const CUSTOM_FUEL_BASE = {
   name: {
-    en: 'Custom Fuel',
-    zh: '自定义燃料',
-    ja: 'カスタム燃料',
-    ko: '사용자 지정 연료',
-    ru: 'Своё топливо',
-    fr: 'Carburant perso.',
-    de: 'Eigener Brennstoff',
-    id: 'Bahan Bakar Kustom',
+    en: "Custom Fuel",
+    zh: "自定义燃料",
+    ja: "カスタム燃料",
+    ko: "사용자 지정 연료",
+    ru: "Своё топливо",
+    fr: "Carburant perso.",
+    de: "Eigener Brennstoff",
+    id: "Bahan Bakar Kustom",
   },
   power: 100,
   burnTime: 10,
-  image: '',
+  image: "",
 };
 
 export const FUELS: Record<string, Fuel> = {
   ore: {
-    id: 'ore',
+    id: "ore",
     name: {
-      en: 'Originium Ore',
-      zh: '源矿',
-      ja: '源石鉱物',
-      ko: '오리지늄광물',
-      ru: 'Ориджиниевая руда',
+      en: "Originium Ore",
+      zh: "源矿",
+      ja: "源石鉱物",
+      ko: "오리지늄광물",
+      ru: "Ориджиниевая руда",
       fr: "Minerai d'Originium",
-      de: 'Originium-Erz',
-      id: 'Bijih Originium',
+      de: "Originium-Erz",
+      id: "Bijih Originium",
     },
     power: 50, // w
     burnTime: 8, // s
-    image: '/fuels/ore.webp',
+    image: "/fuels/ore.webp",
   },
   valleyLow: {
-    id: 'valleyLow',
+    id: "valleyLow",
     name: {
-      en: 'LC Valley Battery',
-      zh: '低容谷地电池',
-      ja: '小容量谷地バッテリー',
-      ko: '소용량협곡배터리',
-      ru: 'Батарея МЕ Долины',
-      fr: 'Batterie Vallée (faible)',
-      de: 'NK Tal-Batterie',
-      id: 'Baterai KR Lembah',
+      en: "LC Valley Battery",
+      zh: "低容谷地电池",
+      ja: "小容量谷地バッテリー",
+      ko: "소용량협곡배터리",
+      ru: "Батарея МЕ Долины",
+      fr: "Batterie Vallée (faible)",
+      de: "NK Tal-Batterie",
+      id: "Baterai KR Lembah",
     },
     power: 220,
     burnTime: 40,
-    image: '/fuels/valleyLow.webp',
+    image: "/fuels/valleyLow.webp",
   },
   valleyMid: {
-    id: 'valleyMid',
+    id: "valleyMid",
     name: {
-      en: 'SC Valley Battery',
-      zh: '中容谷地电池',
-      ja: '中容量谷地バッテリー',
-      ko: '중용량협곡배터리',
-      ru: 'Батарея СЕ Долины',
-      fr: 'Batterie Vallée (moy.)',
-      de: 'SK Tal-Batterie',
-      id: 'Baterai KS Lembah',
+      en: "SC Valley Battery",
+      zh: "中容谷地电池",
+      ja: "中容量谷地バッテリー",
+      ko: "중용량협곡배터리",
+      ru: "Батарея СЕ Долины",
+      fr: "Batterie Vallée (moy.)",
+      de: "SK Tal-Batterie",
+      id: "Baterai KS Lembah",
     },
     power: 420,
     burnTime: 40,
-    image: '/fuels/valleyMid.webp',
+    image: "/fuels/valleyMid.webp",
   },
   valleyHigh: {
-    id: 'valleyHigh',
+    id: "valleyHigh",
     name: {
-      en: 'HC Valley Battery',
-      zh: '高容谷地电池',
-      ja: '大容量谷地バッテリー',
-      ko: '대용량협곡배터리',
-      ru: 'Батарея ВЕ Долины',
-      fr: 'Batterie Vallée (haute)',
-      de: 'HK Tal-Batterie',
-      id: 'Baterai KT Lembah',
+      en: "HC Valley Battery",
+      zh: "高容谷地电池",
+      ja: "大容量谷地バッテリー",
+      ko: "대용량협곡배터리",
+      ru: "Батарея ВЕ Долины",
+      fr: "Batterie Vallée (haute)",
+      de: "HK Tal-Batterie",
+      id: "Baterai KT Lembah",
     },
     power: 1100,
     burnTime: 40,
-    image: '/fuels/valleyHigh.webp',
+    image: "/fuels/valleyHigh.webp",
   },
   wulingLow: {
-    id: 'wulingLow',
+    id: "wulingLow",
     name: {
-      en: 'LC Wuling Battery',
-      zh: '低容武陵电池',
-      ja: '小容量武陵バッテリー',
-      ko: '저용량무릉배터리',
-      ru: 'Батарея МЕ Улина',
-      fr: 'Batterie Wuling (faible)',
-      de: 'NK Wuling-Batterie',
-      id: 'Baterai KR Wuling',
+      en: "LC Wuling Battery",
+      zh: "低容武陵电池",
+      ja: "小容量武陵バッテリー",
+      ko: "저용량무릉배터리",
+      ru: "Батарея МЕ Улина",
+      fr: "Batterie Wuling (faible)",
+      de: "NK Wuling-Batterie",
+      id: "Baterai KR Wuling",
     },
     power: 1600,
     burnTime: 40,
-    image: '/fuels/wulingLow.webp',
+    image: "/fuels/wulingLow.webp",
   },
   wulingMid: {
-    id: 'wulingMid',
+    id: "wulingMid",
     name: {
-      en: 'SC Wuling Battery',
-      zh: '中容武陵电池',
-      ja: '中容量武陵バッテリー',
-      ko: '중용량무릉배터리',
-      ru: 'Батарея СЕ Улина',
-      fr: 'Batterie Wuling (moy.)',
-      de: 'SK Wuling-Batterie',
-      id: 'Baterai KS Wuling',
+      en: "SC Wuling Battery",
+      zh: "中容武陵电池",
+      ja: "中容量武陵バッテリー",
+      ko: "중용량무릉배터리",
+      ru: "Батарея СЕ Улина",
+      fr: "Batterie Wuling (moy.)",
+      de: "SK Wuling-Batterie",
+      id: "Baterai KS Wuling",
     },
     power: 3200,
     burnTime: 40,
-    image: '/fuels/wulingMid.webp',
+    image: "/fuels/wulingMid.webp",
   },
   customPrimary: {
-    id: 'customPrimary',
+    id: "customPrimary",
     ...CUSTOM_FUEL_BASE,
   },
   customSecondary: {
-    id: 'customSecondary',
+    id: "customSecondary",
     ...CUSTOM_FUEL_BASE,
+  },
+  // ⚠️ 只能在末尾追加：shareParams 用「数组下标」编码燃料（5 bit）。
+  // 插到中间会让老分享码静默解成别的燃料；UI 顺序见下方 FUEL_DISPLAY_ORDER。
+  wulingHigh: {
+    id: "wulingHigh",
+    name: {
+      en: "HC Wuling Battery",
+      zh: "高容武陵电池",
+      ja: "大容量武陵バッテリー",
+      ko: "대용량무릉배터리",
+      ru: "Батарея ВЕ Улина",
+      fr: "Batterie Wuling (haute)",
+      de: "HK Wuling-Batterie",
+      id: "Baterai KT Wuling",
+    },
+    power: 6400,
+    burnTime: 40,
+    image: "/fuels/wulingHigh.webp",
   },
 };
 
 // 根据覆盖值解析燃料
 export function resolveFuel(
   fuelId: string,
-  overrides?: Record<string, { power?: number; burnTime?: number }>
+  overrides?: Record<string, { power?: number; burnTime?: number }>,
 ): Fuel | undefined {
   const base = FUELS[fuelId];
   if (!base) return undefined;
@@ -159,51 +178,111 @@ export function resolveFuel(
 }
 
 export function isCustomFuel(fuelId: string): boolean {
-  return fuelId === 'customPrimary' || fuelId === 'customSecondary';
+  return fuelId === "customPrimary" || fuelId === "customSecondary";
 }
 
 // 燃料选项列表（用于下拉菜单）
-export const FUEL_OPTIONS = Object.values(FUELS).filter((f) => f.id !== 'customSecondary');
+export const FUEL_OPTIONS = Object.values(FUELS).filter(
+  (f) => f.id !== "customSecondary",
+);
 
 // 副燃料选项（包含"无"）
-export const SECONDARY_FUEL_OPTIONS = [
+// 显式标注 name: FuelName，避免字面量推断导致 name[locale:string] 类型错误
+export const SECONDARY_FUEL_OPTIONS: Array<
+  | Fuel
+  | {
+      id: string;
+      name: FuelName;
+      power: number;
+      burnTime: number;
+      image?: string;
+    }
+> = [
   {
-    id: 'none',
+    id: "none",
     name: {
-      en: 'None',
-      zh: '无',
-      ja: 'なし',
-      ko: '없음',
-      ru: 'Нет',
-      fr: 'Aucun',
-      de: 'Keiner',
-      id: 'Kosong',
+      en: "None",
+      zh: "无",
+      ja: "なし",
+      ko: "없음",
+      ru: "Нет",
+      fr: "Aucun",
+      de: "Keiner",
+      id: "Kosong",
     },
     power: 0,
     burnTime: 0,
   },
-  ...Object.values(FUELS).filter((f) => f.id !== 'customPrimary'),
+  ...Object.values(FUELS).filter((f) => f.id !== "customPrimary"),
 ];
+
+/**
+ * 燃料下拉显示顺序（仅 UI 用）。
+ *
+ * 与 FUELS 定义顺序刻意解耦：
+ * - FUELS 顺序 = 分享码/电网码的编码下标，只允许末尾追加；
+ * - 本数组顺序 = 人看到的档位顺序（源矿 → 谷地低中高 → 武陵低中高 → 自定义）。
+ *
+ * 新增燃料：先在 FUELS 末尾追加，再插到本数组想要的位置。
+ */
+export const FUEL_DISPLAY_ORDER: readonly string[] = [
+  "none",
+  "ore",
+  "valleyLow",
+  "valleyMid",
+  "valleyHigh",
+  "wulingLow",
+  "wulingMid",
+  "wulingHigh",
+  "customPrimary",
+  "customSecondary",
+];
+
+/** 按 FUEL_DISPLAY_ORDER 排序；未登记的燃料排最后，保持原有先后 */
+function applyFuelDisplayOrder<T extends { id: string }>(options: T[]): T[] {
+  const rank = new Map(FUEL_DISPLAY_ORDER.map((id, index) => [id, index]));
+  return options
+    .map((option, index) => ({ option, index }))
+    .sort((a, b) => {
+      const rankA = rank.get(a.option.id) ?? Number.MAX_SAFE_INTEGER;
+      const rankB = rank.get(b.option.id) ?? Number.MAX_SAFE_INTEGER;
+      if (rankA !== rankB) return rankA - rankB;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.option);
+}
+
+/** 主燃料下拉显示序列（编码仍以 FUEL_OPTIONS 为准） */
+export const FUEL_OPTIONS_DISPLAY = applyFuelDisplayOrder(FUEL_OPTIONS);
+
+/** 主/副燃料下拉显示序列（含"无"） */
+export const SECONDARY_FUEL_OPTIONS_DISPLAY = applyFuelDisplayOrder(
+  SECONDARY_FUEL_OPTIONS,
+);
 
 // 参数范围限制（用于 UI 滑块、分享编码等）
 export const PARAM_LIMITS = {
-  MAX_TARGET_POWER: 32767,
+  /** 目标功率上限；旧分享码 15 bit 槽上限 32767，超出的值走尾部扩展字段 */
+  MAX_TARGET_POWER: 65535,
   MAX_BURN_TIME: 511,
   MAX_MAX_WASTE: 4095,
   MAX_BATTERY_PERCENT: 100,
   MIN_BRANCHES: 1,
-  MAX_BRANCHES: 3,
+  MAX_BRANCHES: GAME_CONFIG.solver.maxBranches,
   MIN_PHASE_OFFSET_CELLS: 0,
   MAX_PHASE_OFFSET_CELLS: 16,
 } as const;
 
 // 系统常量
 export const CONSTANTS = {
-  BASE_POWER: 200, // 基地自带发电功率 (w)
-  BELT_SPEED: 0.5, // 传送带速度 (个/s)
-  BELT_INTERVAL: 2, // 传送带间隔 (s) = 1/BELT_SPEED
-  BATTERY_CAPACITY: 100000, // 默认蓄电池容量 (J)
+  BASE_POWER: GAME_CONFIG.grid.basePower, // 基地自带发电功率 (w)
+  BELT_SPEED: GAME_CONFIG.grid.beltSpeed, // 传送带速度 (个/s)
+  BELT_INTERVAL: GAME_CONFIG.grid.beltInterval, // 传送带间隔 (s)
+  BATTERY_CAPACITY: GAME_CONFIG.grid.batteryCapacity, // 蓄电池容量 (J)
 } as const;
+
+/** 热能池入口缓存格数：入口最多先缓存 50 个物品，缓存满了传送带才会堵住 */
+export const POOL_INPUT_BUFFER = 50;
 
 // 计算满带发电功率
 // 满带时，发电机持续工作，输出功率 = 燃料发电功率
@@ -218,7 +297,7 @@ export function getFullBeltPower(fuel: Fuel): number {
 export function getOscillatingPower(
   fuel: Fuel,
   denominator: number,
-  baseInterval: number = CONSTANTS.BELT_INTERVAL
+  baseInterval: number = CONSTANTS.BELT_INTERVAL,
 ): number {
   const inputInterval = baseInterval * denominator;
   if (inputInterval <= fuel.burnTime) {
@@ -233,7 +312,7 @@ export function getOscillatingPower(
 // 发电机数量 = 传送带速率 / 消耗速率 = BELT_SPEED * 燃烧时间
 export function getGeneratorsPerBelt(
   fuel: Fuel,
-  inputSpeed: number = CONSTANTS.BELT_SPEED
+  inputSpeed: number = CONSTANTS.BELT_SPEED,
 ): number {
   return inputSpeed * fuel.burnTime;
 }
@@ -245,9 +324,13 @@ export function formatTime(seconds: number): string {
   const secs = Math.floor(seconds % 60);
 
   if (hrs > 0) {
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${hrs.toString().padStart(2, "0")}:${mins
+      .toString()
+      .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   }
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  return `${mins.toString().padStart(2, "0")}:${secs
+    .toString()
+    .padStart(2, "0")}`;
 }
 
 // 有效的分流分母（2和3的幂次组合）
@@ -289,7 +372,7 @@ export function analyzeSplitterComplexity(denominator: number): {
   };
 }
 
-export const DEFAULT_INPUT_SOURCE_ID = 'warehouse';
+export const DEFAULT_INPUT_SOURCE_ID = "warehouse";
 
 export interface InputSource {
   id: string;
@@ -300,31 +383,31 @@ export interface InputSource {
 
 export const INPUT_SOURCES: Record<string, InputSource> = {
   warehouse: {
-    id: 'warehouse',
+    id: "warehouse",
     name: {
-      en: 'Warehouse',
-      zh: '仓库',
-      ja: '倉庫',
-      ko: '창고',
-      ru: 'Склад',
-      fr: 'Entrepôt',
-      de: 'Lager',
-      id: 'Gudang',
+      en: "Warehouse",
+      zh: "仓库",
+      ja: "倉庫",
+      ko: "창고",
+      ru: "Склад",
+      fr: "Entrepôt",
+      de: "Lager",
+      id: "Gudang",
     },
     speed: CONSTANTS.BELT_SPEED,
     interval: CONSTANTS.BELT_INTERVAL,
   },
   packer: {
-    id: 'packer',
+    id: "packer",
     name: {
-      en: 'Packaging Unit',
-      zh: '封装机',
-      ja: '包装機',
-      ko: '포장기',
-      ru: 'Упаковщик',
+      en: "Packaging Unit",
+      zh: "封装机",
+      ja: "包装機",
+      ko: "포장기",
+      ru: "Упаковщик",
       fr: "Unité d'emballage",
-      de: 'Verpackungseinheit',
-      id: 'Mesin Pengemas',
+      de: "Verpackungseinheit",
+      id: "Mesin Pengemas",
     },
     speed: 0.1,
     interval: 10,

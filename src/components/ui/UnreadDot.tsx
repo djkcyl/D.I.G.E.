@@ -2,7 +2,7 @@ export interface UnreadDotProps {
   className?: string;
 }
 
-export default function UnreadDot({ className = '' }: UnreadDotProps) {
+export default function UnreadDot({ className = "" }: UnreadDotProps) {
   return (
     <span
       aria-hidden="true"

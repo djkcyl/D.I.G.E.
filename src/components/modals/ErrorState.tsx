@@ -1,14 +1,81 @@
-import { useI18n } from '../../i18n';
-import AlertModal from '../ui/AlertModal';
+import { useI18n } from "../../i18n";
+import type { PoolAdjustSummary } from "../../utils/factoryDesigner.worker";
+import type { DiagnosisResult } from "../../utils/failureDiagnose";
+import PoolAdjustTrace from "../PoolAdjustTrace";
+import AlertModal from "../ui/AlertModal";
 
 export interface ErrorStateProps {
   show: boolean;
   onDismiss: () => void;
   closeOnBackdrop?: boolean;
+  diagnosis?: DiagnosisResult | null;
+  /** 调整链摘要；有 trace 或 outcome 时在弹窗里列出「已尝试」 */
+  poolAdjust?: PoolAdjustSummary | null;
 }
 
-export default function ErrorState({ show, onDismiss, closeOnBackdrop = false }: ErrorStateProps) {
+export default function ErrorState({
+  show,
+  onDismiss,
+  closeOnBackdrop = false,
+  diagnosis = null,
+  poolAdjust = null,
+}: ErrorStateProps) {
   const { t } = useI18n();
+
+  const trace =
+    poolAdjust && (poolAdjust.trace.length > 0 || poolAdjust.outcome) ? (
+      <PoolAdjustTrace
+        trace={poolAdjust.trace}
+        outcome={poolAdjust.outcome}
+        stoppedAtStep={poolAdjust.stoppedAtStep}
+      />
+    ) : null;
+
+  const errorDetail = poolAdjust?.error ? (
+    <div className="space-y-1 border-t border-current/15 pt-2 text-xs">
+      <p className="opacity-75">{t("diagTechnicalErrorHeader")}</p>
+      <pre className="whitespace-pre-wrap break-all font-mono select-text">
+        {poolAdjust.error}
+      </pre>
+    </div>
+  ) : null;
+
+  const message = diagnosis ? (
+    <div className="space-y-3">
+      {diagnosis.inferredCause ? (
+        <p
+          className="text-xs opacity-75 truncate"
+          title={diagnosis.inferredCause}
+        >
+          <span className="font-semibold">{t("diagCauseHeader")}</span>{" "}
+          {diagnosis.inferredCause}
+        </p>
+      ) : null}
+      <p>{diagnosis.primaryHint}</p>
+      {diagnosis.secondaryHints.length > 0 ? (
+        <div className="space-y-1.5">
+          <p className="text-xs uppercase tracking-wider opacity-80">
+            {t("diagSuggestionsHeader")}
+          </p>
+          <ul className="list-disc pl-5 space-y-1">
+            {diagnosis.secondaryHints.map((hint) => (
+              <li key={hint}>{hint}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {trace}
+      {errorDetail}
+    </div>
+  ) : trace || errorDetail ? (
+    <div className="space-y-3">
+      <p>{t("errorSuggestion")}</p>
+      {trace}
+      {errorDetail}
+    </div>
+  ) : (
+    t("errorSuggestion")
+  );
 
   return (
     <AlertModal
@@ -18,9 +85,9 @@ export default function ErrorState({ show, onDismiss, closeOnBackdrop = false }:
       titleId="error-state-title"
       icon="error"
       tone="danger"
-      title={t('noSolutionFound')}
-      message={t('errorSuggestion')}
-      actionLabel={t('dismiss')}
+      title={diagnosis?.title ?? t("noSolutionFound")}
+      message={message}
+      actionLabel={t("dismiss")}
     />
   );
 }

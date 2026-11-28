@@ -1,4 +1,4 @@
-import Icon from './Icon';
+import Icon from "./Icon";
 
 export interface CloseButtonProps {
   onClick?: () => void;
@@ -10,8 +10,8 @@ export interface CloseButtonProps {
 export default function CloseButton({
   onClick,
   label,
-  className = '',
-  sizeClass = 'w-6 h-6',
+  className = "",
+  sizeClass = "w-6 h-6",
 }: CloseButtonProps) {
   return (
     <button

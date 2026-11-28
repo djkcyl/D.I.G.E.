@@ -1,0 +1,29 @@
+# PWA: never long-cache the service worker, Workbox runtime, or manifest.
+# vite-plugin-pwa emits /sw.js + /workbox-*.js (injectRegister is false, no registerSW.js).
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/workbox-*.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/manifest.json
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# HTML must revalidate so PWA clients pick up new hashed assets.
+/*.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Vite hashed bundles: long-lived cache.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Source maps (emitted when Sentry upload is not configured).
+/*.map
+  Cache-Control: no-store
+  X-Robots-Tag: noindex
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()

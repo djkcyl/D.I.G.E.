@@ -1,4 +1,4 @@
-import Icon from './Icon';
+import Icon from "./Icon";
 
 export interface ModalHeaderProps {
   id?: string;
@@ -15,9 +15,9 @@ export default function ModalHeader({
   icon,
   title,
   bordered = true,
-  className = '',
-  iconClassName = 'text-endfield-yellow',
-  titleClassName = '',
+  className = "",
+  iconClassName = "text-endfield-yellow",
+  titleClassName = "",
 }: ModalHeaderProps) {
   const content = (
     <>

@@ -1,6 +1,6 @@
-import { useI18n } from '../../i18n';
-import Button from '../ui/Button';
-import Icon from '../ui/Icon';
+import { useI18n } from "../../i18n";
+import Button from "../ui/Button";
+import Icon from "../ui/Icon";
 
 export interface DirtyOverlayProps {
   show: boolean;
@@ -22,12 +22,14 @@ export default function DirtyOverlay({
   if (!show) return null;
 
   return (
-    <div className="absolute inset-0 z-40 bg-endfield-black/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+    <div className="absolute inset-0 z-40 bg-[var(--ef-scrim)] backdrop-blur-sm flex flex-col items-center justify-center gap-4">
       <Icon name="sync_problem" className="text-endfield-yellow" />
       <p className="text-lg font-bold text-endfield-text-light tracking-wider">
-        {t('paramsChanged')}
+        {t("paramsChanged")}
       </p>
-      <p className="text-sm text-endfield-text">{t('clickCalculateToUpdate')}</p>
+      <p className="text-sm text-endfield-text">
+        {t("clickCalculateToUpdate")}
+      </p>
       <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 w-72 sm:w-md">
         <Button
           onClick={onCalculate}
@@ -36,7 +38,7 @@ export default function DirtyOverlay({
         >
           <span className="inline-flex items-center gap-2">
             <Icon name="calculate" />
-            {t('calculate')}
+            {t("calculate")}
           </span>
         </Button>
         {canRestore && (
@@ -47,7 +49,7 @@ export default function DirtyOverlay({
           >
             <span className="inline-flex items-center gap-2">
               <Icon name="undo" />
-              {t('restoreParams')}
+              {t("restoreParams")}
             </span>
           </Button>
         )}
@@ -57,7 +59,7 @@ export default function DirtyOverlay({
         onClick={onDismiss}
         className="text-xs text-endfield-text hover:text-endfield-text-light transition-colors tracking-wider"
       >
-        {t('ignoreWarning')}
+        {t("ignoreWarning")}
       </button>
     </div>
   );

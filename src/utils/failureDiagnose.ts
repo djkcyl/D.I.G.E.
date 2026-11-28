@@ -1,0 +1,284 @@
+/**
+ * 客户端无解诊断（纯 UI 层启发式，不触碰求解内核）
+ */
+import type { CalcParams } from "../types/calc";
+import { SEARCH_MAX_WASTE } from "../types/matrix";
+import { CONSTANTS, resolveFuel } from "./constants";
+import { normalizeDeviceLimit, poolPowerForRate } from "./oscBudget";
+import {
+  computePoolBatteryNeed,
+  type PoolPrecheckReport,
+} from "./poolBatteryPrecheck";
+import { splitPoolFeed } from "./poolFeedSplit";
+
+export interface DiagnosisResult {
+  /** 第 8 步：弹窗标题覆盖（如「计算超时」）；缺省为「未找到解决方案」 */
+  title?: string;
+  primaryHint: string;
+  secondaryHints: string[];
+  /** 根据失败场景推断用户可能做过的操作；不确定时不显示 */
+  inferredCause?: string;
+  /** 方案 B：poolExceedsTarget 场景下 Σ未钳制池额定功率 − 目标（W）；其它场景缺省 */
+  surplusW?: number;
+}
+
+type TranslateFn = (
+  key: string,
+  vars?: Record<string, string | number>,
+) => string;
+
+/** 估算当前常驻功率（对齐 M1 calculateBasePower 语义，不含震荡） */
+export function estimateBasePower(params: CalcParams): number {
+  const corePower = CONSTANTS.BASE_POWER;
+  const overrides = params.fuelOverrides;
+  const lines = Array.isArray(params.manualBaseLines)
+    ? params.manualBaseLines
+    : [];
+
+  let manualPower = 0;
+  let hasManual = false;
+  for (const line of lines) {
+    if (!line || typeof line !== "object") continue;
+    const fuel = resolveFuel(String(line.fuelId || ""), overrides);
+    if (!fuel || !Number.isFinite(fuel.power) || fuel.power <= 0) continue;
+    const count = Math.max(0, Math.floor(Number(line.count) || 0));
+    if (count <= 0) continue;
+    hasManual = true;
+    manualPower += count * fuel.power;
+  }
+
+  const isLegacyDefault = !hasManual && params.autoPlanBasePools === undefined;
+  const enableAuto = params.autoPlanBasePools === true || isLegacyDefault;
+
+  let autoPower = 0;
+  if (enableAuto) {
+    const primary = resolveFuel(params.primaryFuelId || "wulingLow", overrides);
+    const remaining = params.targetPower - corePower - manualPower;
+    if (primary && primary.power > 0 && remaining > 0) {
+      autoPower = Math.floor(remaining / primary.power) * primary.power;
+    }
+  }
+
+  return corePower + manualPower + autoPower;
+}
+
+function maxOscFuelPower(params: CalcParams): number {
+  const overrides = params.fuelOverrides;
+  const primary = resolveFuel(params.primaryFuelId || "wulingLow", overrides);
+  const secondaryId = params.secondaryFuelId;
+  const secondary =
+    secondaryId && secondaryId !== "none"
+      ? resolveFuel(secondaryId, overrides)
+      : undefined;
+  const p = primary?.power && primary.power > 0 ? primary.power : 0;
+  const s = secondary?.power && secondary.power > 0 ? secondary.power : 0;
+  return Math.max(p, s, 0);
+}
+
+function hasManualBase(params: CalcParams): boolean {
+  return (
+    Array.isArray(params.manualBaseLines) &&
+    params.manualBaseLines.some(
+      (l) => l && Math.max(0, Math.floor(Number(l.count) || 0)) > 0,
+    )
+  );
+}
+
+function isAutoBaseEnabled(params: CalcParams, hasManual: boolean): boolean {
+  if (params.autoPlanBasePools === true) return true;
+  if (params.autoPlanBasePools === false) return false;
+  // undefined: legacy default = auto floor when no manual lines
+  return !hasManual;
+}
+
+/** 自定义池额定总功率（未按目标钳制），与 FactoryDesigner 同口径：splitPoolFeed → poolPowerForRate */
+function poolRatedWatt(params: CalcParams): number {
+  let sum = 0;
+  for (const cfg of params.oscPools ?? []) {
+    if (!cfg || cfg.enabled === false) continue;
+    if (!cfg.fuelId || cfg.fuelId === "none") continue;
+    const fuel = resolveFuel(cfg.fuelId, params.fuelOverrides);
+    if (!fuel) continue;
+    const feed = splitPoolFeed(cfg.fuelId, cfg.maxPerMin, params.fuelOverrides);
+    if (!feed.active) continue;
+    sum += poolPowerForRate(fuel, feed.ratePerMin, {
+      deviceLimit: normalizeDeviceLimit(cfg.deviceLimit),
+    }).watt;
+  }
+  return sum;
+}
+
+/** 与 FactoryDesigner.maxWaste 同口径：只有显式放宽（> SEARCH_MAX_WASTE）才采用 params.maxWaste */
+function solverWasteCap(params: CalcParams): number {
+  const requested = Number(params.maxWaste);
+  return Number.isFinite(requested) && requested > SEARCH_MAX_WASTE
+    ? requested
+    : SEARCH_MAX_WASTE;
+}
+
+function uniqueHints(hints: string[]): string[] {
+  const seen = new Set<string>();
+  return hints.filter((h) => {
+    if (!h || seen.has(h)) return false;
+    seen.add(h);
+    return true;
+  });
+}
+
+/** 功率缺口分支的推断；单独可测，不引入内部状态或随机猜测。 */
+export function inferGapCause(
+  t: TranslateFn,
+  autoBaseEnabled: boolean,
+): string {
+  return t(autoBaseEnabled ? "diagCauseGapFuelCap" : "diagCauseGapAutoOff");
+}
+
+/**
+ * 无解诊断：场景 A 功率缺口过大；场景 B 约束/配置偏紧。
+ */
+export function diagnoseNoSolution(
+  params: CalcParams,
+  t: TranslateFn,
+  /** 第 3 步：worker 回传的池蓄电预检结果；null/undefined = 未触发或预检出错 */
+  precheck?: PoolPrecheckReport | null,
+  /** 调整链内部错误；只用于补充推断，不改变原主诊断与 fail-open 语义 */
+  adjustmentError?: string | null,
+): DiagnosisResult {
+  const rawAdjustmentError =
+    typeof adjustmentError === "string" ? adjustmentError.trim() : "";
+  const adjustmentCause = rawAdjustmentError
+    ? t("diagCauseAdjustError", { error: rawAdjustmentError })
+    : undefined;
+  // 场景 D（第 3 步）：候选解本来有，但富余都不够让蓄电池兜住池零头的熄火段，被预检全部剔除
+  if (precheck?.allRemoved) {
+    return {
+      primaryHint: t("diagPoolSurplusNeeded", {
+        need: Math.ceil(precheck.requiredWaste),
+        toff: Math.round(precheck.tOff),
+        remW: Math.round(precheck.remW),
+      }),
+      secondaryHints: uniqueHints([
+        t("diagPoolBatteryDrain"),
+        t("diagCheckDecisionMatrix"),
+        t("diagAddManualBase"),
+      ]),
+      inferredCause:
+        adjustmentCause ??
+        (precheck.requiredWaste > 0 &&
+        (params.oscPools ?? []).some(
+          (cfg) =>
+            cfg.enabled !== false &&
+            splitPoolFeed(cfg.fuelId, cfg.maxPerMin, params.fuelOverrides)
+              .needsOscillation,
+        )
+          ? t("diagCausePoolRemainder")
+          : undefined),
+    };
+  }
+
+  // 场景 E（方案 B）：池额定功率单独就 ≥ 目标，求解缺口被压成 0，最少也要叠上基地供电，
+  // 所有候选的冗余都 > 上限 → 真无解。本函数只在 solutions = 0 时调用；
+  // 「池满速带 ≥ 目标 + 上限」的纯常驻解已由 FactoryDesigner 放出（poolOverSupply），不会走到这里。
+  let poolRated = 0;
+  try {
+    poolRated = poolRatedWatt(params);
+  } catch {
+    poolRated = 0;
+  }
+  const target = Number(params.targetPower) || 0;
+  const wasteCap = solverWasteCap(params);
+  if (
+    target > 0 &&
+    poolRated >= target &&
+    poolRated + CONSTANTS.BASE_POWER - target > wasteCap + 0.5
+  ) {
+    const surplusW = Math.round(poolRated - target);
+    return {
+      primaryHint: t("diagPoolExceedsTarget", {
+        pool: Math.round(poolRated),
+        target: Math.round(target),
+        surplus: surplusW,
+        cap: Math.round(wasteCap),
+      }),
+      secondaryHints: uniqueHints([t("diagCheckDecisionMatrix")]),
+      inferredCause: adjustmentCause ?? t("diagCausePoolOverTarget"),
+      surplusW,
+    };
+  }
+
+  const maxBranches = 4;
+  const basePower = estimateBasePower(params);
+  const gapPower = Math.max(0, params.targetPower - basePower);
+  const unitPower = maxOscFuelPower(params);
+  const maxCap = maxBranches * unitPower;
+  const manual = hasManualBase(params);
+  const autoOn = isAutoBaseEnabled(params, manual);
+  const hasSecondary =
+    Boolean(params.secondaryFuelId) && params.secondaryFuelId !== "none";
+
+  // 场景 A：缺口超过分支理论最大补齐
+  if (unitPower > 0 && gapPower > maxCap + 1e-6) {
+    const primaryHint = t("diagGapTooLarge", {
+      gap: Math.round(gapPower),
+      branches: maxBranches,
+      maxCap: Math.round(maxCap),
+    });
+    const secondaryHints: string[] = [];
+    if (!autoOn) {
+      secondaryHints.push(t("diagEnableAutoBase"));
+    }
+    secondaryHints.push(t("diagAddManualBase"));
+    secondaryHints.push(t("diagUpgradeFuel"));
+    return {
+      primaryHint,
+      secondaryHints: uniqueHints(secondaryHints),
+      inferredCause: adjustmentCause ?? inferGapCause(t, autoOn),
+    };
+  }
+
+  // 场景 C：自定义震荡热能池的零头确实有熄火段，且蓄电池可用电量兜不住（wNeed > 0）。
+  // 只「开了池」不算：整档无零头、熄火段为 0、或电池够兜底时都落到场景 B，避免把别的无解原因误判成掉电。
+  let poolDrainsBattery = false;
+  try {
+    const need = computePoolBatteryNeed(params);
+    poolDrainsBattery = Boolean(need && need.wNeed > 0);
+  } catch {
+    poolDrainsBattery = false;
+  }
+  if (poolDrainsBattery) {
+    return {
+      primaryHint: t("diagPoolBatteryDrain"),
+      secondaryHints: uniqueHints([
+        t("diagCheckDecisionMatrix"),
+        t("diagAddManualBase"),
+        t("diagEnableAutoBase"),
+      ]),
+      inferredCause: adjustmentCause ?? t("diagCauseBatteryShort"),
+    };
+  }
+
+  // 场景 B：综合约束
+  const secondaryHints: string[] = [];
+  secondaryHints.push(t("diagCheckDecisionMatrix"));
+  if (!hasSecondary) {
+    secondaryHints.push(t("diagTrySecondaryFuel"));
+  }
+  if (!manual && !autoOn) {
+    secondaryHints.push(t("diagEnableAutoBase"));
+    secondaryHints.push(t("diagAddManualBase"));
+  }
+
+  if (secondaryHints.length === 0) {
+    return {
+      primaryHint: t("diagGeneralFailure"),
+      secondaryHints: [t("errorSuggestion")],
+      inferredCause: adjustmentCause ?? t("diagCauseConstraintsTight"),
+    };
+  }
+
+  return {
+    primaryHint: t("diagGeneralFailure"),
+    secondaryHints: uniqueHints(secondaryHints),
+    inferredCause: adjustmentCause ?? t("diagCauseConstraintsTight"),
+  };
+}

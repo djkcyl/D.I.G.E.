@@ -1,0 +1,22 @@
+{
+  "name": "D.I.G.E. Dev Environment",
+  "dockerComposeFile": "../docker-compose.dev.yml",
+  "service": "dige-dev",
+  "workspaceFolder": "/app",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "Vite Dev Server",
+      "onAutoForward": "notify"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss"
+      ]
+    }
+  }
+}

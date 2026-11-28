@@ -1,3 +1,5 @@
+import { GAME_CONFIG } from "../config/game";
+import { SITE_CONFIG } from "../config/site";
 import {
   DEFAULT_INPUT_SOURCE_ID,
   FUEL_OPTIONS,
@@ -6,34 +8,63 @@ import {
   isCustomFuel,
   PARAM_LIMITS,
   SECONDARY_FUEL_OPTIONS,
-} from './constants';
+} from "./constants";
 
-const SHARE_PARAM_KEY = 'p';
-const BASE52_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-const BASE52_LOOKUP = new Map(BASE52_ALPHABET.split('').map((char, idx) => [char, idx]));
+const SHARE_PARAM_KEY = "p";
+const BASE52_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+const BASE52_LOOKUP = new Map(
+  BASE52_ALPHABET.split("").map((char, idx) => [char, idx]),
+);
 
 const PRIMARY_FUEL_BITS = 5;
 const SECONDARY_FUEL_BITS = 5;
 const MAX_WASTE_BITS = 12;
 const MIN_BATTERY_BITS = 7;
 const TARGET_POWER_BITS = 15;
+/** 历史 targetPower 槽位的上限；更大的值走尾部 targetPowerWide 扩展字段 */
+const LEGACY_TARGET_POWER_MAX = 32767;
+/** 尾部扩展：目标功率超过 32767 时写入（16 bit，最大 65535） */
+const TARGET_POWER_WIDE_BITS = 16;
+/** 自定义震荡热能池：最多分享 4 条；投料量按 0.1 个/分精度编码 */
+const POOL_SLOTS = GAME_CONFIG.share.poolSlots;
+const BASE_SLOTS = GAME_CONFIG.share.baseSlots;
+
+/**
+ * 池设备上限规范化（与 oscBudget.normalizeDeviceLimit 同口径，这里内联以免循环依赖）：
+ * 0 / 负数 / 空值 / NaN → 默认 48；其余取整后限制在 1..48（第 7 步）。
+ */
+function clampPoolDeviceLimit(value: unknown): number {
+  const max = GAME_CONFIG.device.budget;
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n) || n <= 0) return max;
+  return Math.min(max, Math.max(1, n));
+}
 const INPUT_SOURCE_BITS = 2;
 const MAX_BRANCHES_BITS = 3;
 const EXCLUDE_BELT_BITS = 2;
+/** 排除物品准入口限速器：可选布尔；缺失/false=限速求解，true=忽略限速 */
+const EXCLUDE_ITEM_GATE_LIMITER_BITS = 2;
 const PHASE_OFFSET_BITS = 5;
 const HAS_OVERRIDES_BITS = 2;
 const OVERRIDE_POWER_BITS = 15;
 const OVERRIDE_BURN_TIME_BITS = 9;
+/** 准入口限速：0=不限速(缺失)；合法档 0/6/12/18/24/30 编码为 value+1 */
+const INPUT_RATE_LIMIT_BITS = 6;
+const INPUT_RATE_LIMIT_MISSING = 0;
+const INPUT_RATE_LIMIT_STEPS = new Set([0, 6, 12, 18, 24, 30]);
+/** Legacy SHARE_FIELDS middle slots: only branches 1–3. Branch 4 is appended at the tail. */
+const LEGACY_PHASE_OFFSET_BRANCH_COUNT = 3;
 const PHASE_OFFSET_FIELD_KEYS = Array.from(
-  { length: PARAM_LIMITS.MAX_BRANCHES },
-  (_, index) => `phaseOffsetBranch${index + 1}`
+  { length: LEGACY_PHASE_OFFSET_BRANCH_COUNT },
+  (_, index) => `phaseOffsetBranch${index + 1}`,
 );
+const PHASE_OFFSET_BRANCH4_KEY = "phaseOffsetBranch4";
 
 const toBase52 = (value: bigint | number): string | null => {
   let num = BigInt(value);
   if (num < 0n) return null;
   if (num === 0n) return BASE52_ALPHABET[0];
-  let out = '';
+  let out = "";
   while (num > 0n) {
     const idx = Number(num % 52n);
     out = BASE52_ALPHABET[idx] + out;
@@ -43,7 +74,7 @@ const toBase52 = (value: bigint | number): string | null => {
 };
 
 const fromBase52 = (value: unknown): bigint | null => {
-  if (!value || typeof value !== 'string') return null;
+  if (!value || typeof value !== "string") return null;
   let num = 0n;
   for (let i = 0; i < value.length; i++) {
     const idx = BASE52_LOOKUP.get(value[i]);
@@ -57,7 +88,7 @@ const isValidNonNegativeInt = (value: unknown): value is number =>
   Number.isInteger(value) && (value as number) >= 0;
 
 const defaultInputIndex = INPUT_SOURCE_OPTIONS.findIndex(
-  (source) => source.id === DEFAULT_INPUT_SOURCE_ID
+  (source) => source.id === DEFAULT_INPUT_SOURCE_ID,
 );
 
 const maxValueFromBits = (bits: number): number => (1 << bits) - 1;
@@ -66,22 +97,29 @@ const bitMaskFromBits = (bits: number): bigint => (1n << BigInt(bits)) - 1n;
 const encodeOptionIndex = (
   options: { id: string }[],
   id: unknown,
-  fallbackIndex: number = -1
+  fallbackIndex: number = -1,
 ): number => {
-  const resolvedId = typeof id === 'string' && id ? id : null;
+  const resolvedId = typeof id === "string" && id ? id : null;
   const index = options.findIndex((item) => item.id === resolvedId);
   if (index >= 0) return index;
   return fallbackIndex;
 };
 
-const decodeOptionId = (options: { id: string }[], index: number): string | null => {
+const decodeOptionId = (
+  options: { id: string }[],
+  index: number,
+): string | null => {
   if (!isValidNonNegativeInt(index)) return null;
   if (index >= options.length) return null;
   const id = options[index]?.id;
-  return typeof id === 'string' && id ? id : null;
+  return typeof id === "string" && id ? id : null;
 };
 
-const assertOptionsFitBits = (name: string, options: unknown[], bits: number): void => {
+const assertOptionsFitBits = (
+  name: string,
+  options: unknown[],
+  bits: number,
+): void => {
   if (options.length - 1 > maxValueFromBits(bits)) {
     throw new Error(`Share field "${name}" exceeds bit capacity`);
   }
@@ -146,7 +184,7 @@ const createNumberField = ({
     optional,
     missingRawValue,
     encode: (value) => {
-      if (optional && (value === undefined || value === null || value === '')) {
+      if (optional && (value === undefined || value === null || value === "")) {
         return missingRawValue;
       }
       const rounded = Math.round(Number(value));
@@ -184,7 +222,8 @@ const createOptionField = ({
     missingRawValue,
     encode: (value) => {
       const encoded = encodeOptionIndex(options, value, fallbackIndex);
-      if (!isValidNonNegativeInt(encoded) || encoded > maxEncodedValue) return null;
+      if (!isValidNonNegativeInt(encoded) || encoded > maxEncodedValue)
+        return null;
       return encoded;
     },
     decode: (value) => decodeOptionId(options, value),
@@ -210,7 +249,8 @@ const createBooleanField = ({
     encode: (value) => {
       if (value === true) return 1;
       if (value === false) return 2;
-      if (optional && (value === undefined || value === null)) return missingRawValue;
+      if (optional && (value === undefined || value === null))
+        return missingRawValue;
       return null;
     },
     decode: (value) => {
@@ -227,7 +267,10 @@ const assignFieldIndices = (fields: ShareField[]): ShareField[] =>
 const clampMaxBranches = (value: unknown): number => {
   const numeric = Math.round(Number(value));
   if (!Number.isFinite(numeric)) return PARAM_LIMITS.MAX_BRANCHES;
-  return Math.min(PARAM_LIMITS.MAX_BRANCHES, Math.max(PARAM_LIMITS.MIN_BRANCHES, numeric));
+  return Math.min(
+    PARAM_LIMITS.MAX_BRANCHES,
+    Math.max(PARAM_LIMITS.MIN_BRANCHES, numeric),
+  );
 };
 
 const getPhaseOffsetBranchIndex = (key: string): number | null => {
@@ -239,31 +282,40 @@ const getPhaseOffsetBranchIndex = (key: string): number | null => {
 
 // Keep field order stable for backward compatibility; add new fields only at the end.
 const SHARE_FIELDS = assignFieldIndices([
-  createOptionField({ key: 'primaryFuelId', bits: PRIMARY_FUEL_BITS, options: FUEL_OPTIONS }),
   createOptionField({
-    key: 'secondaryFuelId',
+    key: "primaryFuelId",
+    bits: PRIMARY_FUEL_BITS,
+    options: FUEL_OPTIONS,
+  }),
+  createOptionField({
+    key: "secondaryFuelId",
     bits: SECONDARY_FUEL_BITS,
     options: SECONDARY_FUEL_OPTIONS,
   }),
-  createNumberField({ key: 'maxWaste', bits: MAX_WASTE_BITS, max: PARAM_LIMITS.MAX_MAX_WASTE }),
   createNumberField({
-    key: 'minBatteryPercent',
+    key: "maxWaste",
+    bits: MAX_WASTE_BITS,
+    max: PARAM_LIMITS.MAX_MAX_WASTE,
+  }),
+  createNumberField({
+    key: "minBatteryPercent",
     bits: MIN_BATTERY_BITS,
     max: PARAM_LIMITS.MAX_BATTERY_PERCENT,
   }),
   createNumberField({
-    key: 'targetPower',
+    key: "targetPower",
     bits: TARGET_POWER_BITS,
-    max: PARAM_LIMITS.MAX_TARGET_POWER,
+    // 历史 15 bit 槽位：超过 32767 的目标功率写进尾部 targetPowerWide
+    max: LEGACY_TARGET_POWER_MAX,
   }),
   createOptionField({
-    key: 'inputSourceId',
+    key: "inputSourceId",
     bits: INPUT_SOURCE_BITS,
     options: INPUT_SOURCE_OPTIONS,
     fallbackIndex: defaultInputIndex,
   }),
   createNumberField({
-    key: 'maxBranches',
+    key: "maxBranches",
     bits: MAX_BRANCHES_BITS,
     min: PARAM_LIMITS.MIN_BRANCHES,
     max: PARAM_LIMITS.MAX_BRANCHES,
@@ -271,7 +323,7 @@ const SHARE_FIELDS = assignFieldIndices([
     missingRawValue: 0,
   }),
   createBooleanField({
-    key: 'excludeBelt',
+    key: "excludeBelt",
     bits: EXCLUDE_BELT_BITS,
     optional: true,
     missingRawValue: 0,
@@ -284,43 +336,229 @@ const SHARE_FIELDS = assignFieldIndices([
       max: PARAM_LIMITS.MAX_PHASE_OFFSET_CELLS,
       optional: true,
       missingRawValue: 0,
-    })
+    }),
   ),
   createNumberField({
-    key: '_hasOverrides',
+    key: "_hasOverrides",
     bits: HAS_OVERRIDES_BITS,
     max: 3,
     optional: true,
     missingRawValue: 0,
   }),
   createNumberField({
-    key: '_primaryPowerOverride',
+    key: "_primaryPowerOverride",
     bits: OVERRIDE_POWER_BITS,
-    max: PARAM_LIMITS.MAX_TARGET_POWER,
+    max: LEGACY_TARGET_POWER_MAX,
     optional: true,
     missingRawValue: 0,
   }),
   createNumberField({
-    key: '_primaryBurnTimeOverride',
+    key: "_primaryBurnTimeOverride",
     bits: OVERRIDE_BURN_TIME_BITS,
     max: PARAM_LIMITS.MAX_BURN_TIME,
     optional: true,
     missingRawValue: 0,
   }),
   createNumberField({
-    key: '_secondaryPowerOverride',
+    key: "_secondaryPowerOverride",
     bits: OVERRIDE_POWER_BITS,
-    max: PARAM_LIMITS.MAX_TARGET_POWER,
+    max: LEGACY_TARGET_POWER_MAX,
     optional: true,
     missingRawValue: 0,
   }),
   createNumberField({
-    key: '_secondaryBurnTimeOverride',
+    key: "_secondaryBurnTimeOverride",
     bits: OVERRIDE_BURN_TIME_BITS,
     max: PARAM_LIMITS.MAX_BURN_TIME,
     optional: true,
     missingRawValue: 0,
   }),
+  // 末尾追加：物品准入口限速档位（遗留可选字段，求解不再读取）
+  {
+    index: 0,
+    key: "inputRateLimitPerMin",
+    bits: INPUT_RATE_LIMIT_BITS,
+    mask: bitMaskFromBits(INPUT_RATE_LIMIT_BITS),
+    maxEncodedValue: maxValueFromBits(INPUT_RATE_LIMIT_BITS),
+    optional: true,
+    missingRawValue: INPUT_RATE_LIMIT_MISSING,
+    encode: (value: unknown): number | null => {
+      if (value === undefined || value === null || value === "") {
+        return INPUT_RATE_LIMIT_MISSING;
+      }
+      const rounded = Math.round(Number(value));
+      if (!isValidNonNegativeInt(rounded)) return null;
+      if (!INPUT_RATE_LIMIT_STEPS.has(rounded)) return null;
+      const encoded = rounded + 1;
+      if (encoded > maxValueFromBits(INPUT_RATE_LIMIT_BITS)) return null;
+      return encoded;
+    },
+    decode: (value: number): number | null => {
+      if (!isValidNonNegativeInt(value)) return null;
+      if (value === INPUT_RATE_LIMIT_MISSING) return null;
+      const perMin = value - 1;
+      if (!INPUT_RATE_LIMIT_STEPS.has(perMin)) return null;
+      return perMin;
+    },
+  } as ShareField,
+  // 排除物品准入口限速器（缺失→合并默认 false=限速求解；true=忽略限速）
+  createBooleanField({
+    key: "excludeItemGateLimiter",
+    bits: EXCLUDE_ITEM_GATE_LIMITER_BITS,
+    optional: true,
+    missingRawValue: 0,
+  }),
+  // 自动规划常驻供电（缺失→undefined→旧默认 floor；true/false 显式）
+  createBooleanField({
+    key: "autoPlanBasePools",
+    bits: 2,
+    optional: true,
+    missingRawValue: 0,
+  }),
+  // 多燃料震荡模式：0=missing→省略（App 默认 auto）；1=auto 2=legacy 3=mixed 4=primaryOnly 5=secondaryOnly
+  {
+    index: 0,
+    key: "multiFuelMode",
+    bits: 3,
+    mask: bitMaskFromBits(3),
+    maxEncodedValue: maxValueFromBits(3),
+    optional: true,
+    missingRawValue: 0,
+    encode: (value: unknown): number | null => {
+      if (value === undefined || value === null || value === "") return 0;
+      if (typeof value !== "string") return null;
+      const map: Record<string, number> = {
+        auto: 1,
+        legacy: 2,
+        mixed: 3,
+        primaryOnly: 4,
+        secondaryOnly: 5,
+      };
+      const raw = map[value];
+      return raw == null ? null : raw;
+    },
+    decode: (value: number): string | null => {
+      if (!isValidNonNegativeInt(value)) return null;
+      if (value === 0) return null; // missing → omit → DEFAULT auto
+      const rev: Record<number, string> = {
+        1: "auto",
+        2: "legacy",
+        3: "mixed",
+        4: "primaryOnly",
+        5: "secondaryOnly",
+      };
+      return rev[value] ?? null;
+    },
+  } as ShareField,
+  // 建设地区：0=missing→omit→App 默认 free；1=valley 2=wuling 3=free(显式)
+  {
+    index: 0,
+    key: "factoryRegion",
+    bits: 2,
+    mask: bitMaskFromBits(2),
+    maxEncodedValue: maxValueFromBits(2),
+    optional: true,
+    missingRawValue: 0,
+    encode: (value: unknown): number | null => {
+      if (value === undefined || value === null || value === "") return 0;
+      if (typeof value !== "string") return null;
+      const map: Record<string, number> = {
+        valley: 1,
+        wuling: 2,
+        free: 3,
+      };
+      const raw = map[value];
+      return raw == null ? null : raw;
+    },
+    decode: (value: number): string | null => {
+      if (!isValidNonNegativeInt(value)) return null;
+      if (value === 0) return null; // missing → omit → DEFAULT free
+      const rev: Record<number, string> = {
+        1: "valley",
+        2: "wuling",
+        3: "free",
+      };
+      return rev[value] ?? null;
+    },
+  } as ShareField,
+  // v1.11.1: branch-4 phase is OPTIONAL and appended at the tail only.
+  createNumberField({
+    key: PHASE_OFFSET_BRANCH4_KEY,
+    bits: PHASE_OFFSET_BITS,
+    min: PARAM_LIMITS.MIN_PHASE_OFFSET_CELLS,
+    max: PARAM_LIMITS.MAX_PHASE_OFFSET_CELLS,
+    optional: true,
+    missingRawValue: 0,
+  }),
+  // 目标功率扩展槽（>32767 时写入；0=缺失→用历史 15 bit 槽）
+  createNumberField({
+    key: "targetPowerWide",
+    bits: TARGET_POWER_WIDE_BITS,
+    max: PARAM_LIMITS.MAX_TARGET_POWER,
+    optional: true,
+    missingRawValue: 0,
+  }),
+  // 自定义震荡热能池（可选组）：1 + 4×(燃料5 + 投料量0.1×10bit + 设备7 + 启用1)
+  createBooleanField({
+    key: "_hasPools",
+    bits: 2,
+    optional: true,
+    missingRawValue: 0,
+  }),
+  ...Array.from({ length: POOL_SLOTS }, (_, i) => [
+    createOptionField({
+      key: `pool${i + 1}Fuel`,
+      bits: PRIMARY_FUEL_BITS,
+      options: FUEL_OPTIONS,
+      fallbackIndex: 0,
+      optional: true,
+      missingRawValue: 0,
+    }),
+    createNumberField({
+      key: `pool${i + 1}Rate`,
+      bits: 10,
+      max: 1023,
+      optional: true,
+      missingRawValue: 0,
+    }),
+    createNumberField({
+      key: `pool${i + 1}Limit`,
+      bits: 7,
+      max: 127,
+      optional: true,
+      missingRawValue: 0,
+    }),
+    createBooleanField({
+      key: `pool${i + 1}Enabled`,
+      bits: 2,
+      optional: true,
+      missingRawValue: 0,
+    }),
+  ]).flat(),
+  // 手动常驻行（可选组）：1 + 4×(燃料5 + 台数4)
+  createBooleanField({
+    key: "_hasBase",
+    bits: 2,
+    optional: true,
+    missingRawValue: 0,
+  }),
+  ...Array.from({ length: BASE_SLOTS }, (_, i) => [
+    createOptionField({
+      key: `base${i + 1}Fuel`,
+      bits: PRIMARY_FUEL_BITS,
+      options: FUEL_OPTIONS,
+      fallbackIndex: 0,
+      optional: true,
+      missingRawValue: 0,
+    }),
+    createNumberField({
+      key: `base${i + 1}Count`,
+      bits: 4,
+      max: 15,
+      optional: true,
+      missingRawValue: 0,
+    }),
+  ]).flat(),
 ]);
 
 const LAYOUT_FIELDS = [...SHARE_FIELDS].sort((a, b) => a.index - b.index);
@@ -331,7 +569,19 @@ export interface ShareParams {
   maxWaste?: number;
   minBatteryPercent?: number;
   targetPower?: number;
+  /** 内部：目标功率扩展槽（>32767），编解码时与 targetPower 互换 */
+  targetPowerWide?: number;
   inputSourceId?: string;
+  /** 物品准入口限速（个/分钟）；null/undefined = 不限速（遗留） */
+  inputRateLimitPerMin?: 0 | 6 | 12 | 18 | 24 | 30 | null;
+  /** 排除物品准入口限速器：缺失/false=限速求解，true=忽略限速 */
+  excludeItemGateLimiter?: boolean;
+  /** 自动规划常驻供电；缺失=旧默认 floor 兼容 */
+  autoPlanBasePools?: boolean;
+  /** 多燃料震荡模式；缺失=App 默认 auto */
+  multiFuelMode?: "auto" | "legacy" | "mixed" | "primaryOnly" | "secondaryOnly";
+  /** 建设地区；缺失=App 默认 free */
+  factoryRegion?: "free" | "valley" | "wuling";
   maxBranches?: number;
   excludeBelt?: boolean;
   fuelOverrides?: Record<string, { power?: number; burnTime?: number }>;
@@ -346,7 +596,8 @@ function flattenOverrides(params: ShareParams): ShareParams {
   const primaryId = params.primaryFuelId;
   const secondaryId = params.secondaryFuelId;
   const primaryBase = primaryId ? FUELS[primaryId] : null;
-  const secondaryBase = secondaryId && secondaryId !== 'none' ? FUELS[secondaryId] : null;
+  const secondaryBase =
+    secondaryId && secondaryId !== "none" ? FUELS[secondaryId] : null;
 
   const pOv = primaryId ? ov?.[primaryId] : undefined;
   const sOv = secondaryId ? ov?.[secondaryId] : undefined;
@@ -358,14 +609,16 @@ function flattenOverrides(params: ShareParams): ShareParams {
     (isCustomFuel(primaryId) ||
       (pOv &&
         ((pOv.power !== undefined && pOv.power !== primaryBase.power) ||
-          (pOv.burnTime !== undefined && pOv.burnTime !== primaryBase.burnTime))));
+          (pOv.burnTime !== undefined &&
+            pOv.burnTime !== primaryBase.burnTime))));
   const hasSecondary =
     secondaryId &&
     secondaryBase &&
     (isCustomFuel(secondaryId) ||
       (sOv &&
         ((sOv.power !== undefined && sOv.power !== secondaryBase.power) ||
-          (sOv.burnTime !== undefined && sOv.burnTime !== secondaryBase.burnTime))));
+          (sOv.burnTime !== undefined &&
+            sOv.burnTime !== secondaryBase.burnTime))));
 
   const flags = (hasPrimary ? 1 : 0) | (hasSecondary ? 2 : 0);
   flat._hasOverrides = flags;
@@ -390,7 +643,9 @@ function unflattenOverrides(decoded: ShareParams): void {
   const primaryPower = decoded._primaryPowerOverride as number | undefined;
   const primaryBurn = decoded._primaryBurnTimeOverride as number | undefined;
   const secondaryPower = decoded._secondaryPowerOverride as number | undefined;
-  const secondaryBurn = decoded._secondaryBurnTimeOverride as number | undefined;
+  const secondaryBurn = decoded._secondaryBurnTimeOverride as
+    | number
+    | undefined;
   delete decoded._primaryPowerOverride;
   delete decoded._primaryBurnTimeOverride;
   delete decoded._secondaryPowerOverride;
@@ -402,13 +657,18 @@ function unflattenOverrides(decoded: ShareParams): void {
   const primaryId = decoded.primaryFuelId;
   const secondaryId = decoded.secondaryFuelId;
 
-  if (flags & 1 && primaryId && primaryPower !== undefined && primaryBurn !== undefined) {
+  if (
+    flags & 1 &&
+    primaryId &&
+    primaryPower !== undefined &&
+    primaryBurn !== undefined
+  ) {
     overrides[primaryId] = { power: primaryPower, burnTime: primaryBurn };
   }
   if (
     flags & 2 &&
     secondaryId &&
-    secondaryId !== 'none' &&
+    secondaryId !== "none" &&
     secondaryPower !== undefined &&
     secondaryBurn !== undefined
   ) {
@@ -423,15 +683,65 @@ function unflattenOverrides(decoded: ShareParams): void {
 export function encodeShareParams(params: ShareParams | null): string | null {
   if (!params) return null;
   const flat = flattenOverrides(params);
+  // v1.11.1: keep historical bit slots but always encode the wide-window values.
+  flat.maxWaste = 1000;
+  flat.minBatteryPercent = 5;
+  flat.maxBranches = 4;
+  // 目标功率超过历史 15 bit 上限时，历史槽写 32767，真值写尾部扩展槽
+  if (Number(flat.targetPower) > LEGACY_TARGET_POWER_MAX) {
+    flat.targetPowerWide = Number(flat.targetPower);
+    flat.targetPower = LEGACY_TARGET_POWER_MAX;
+  } else {
+    flat.targetPowerWide = 0;
+  }
   const activeBranchCount = clampMaxBranches(flat.maxBranches);
+
+  // 自定义震荡热能池
+  const pools = Array.isArray((params as { oscPools?: unknown[] }).oscPools)
+    ? (
+        (params as { oscPools?: unknown[] }).oscPools as Array<
+          Record<string, unknown>
+        >
+      ).slice(0, POOL_SLOTS)
+    : [];
+  flat._hasPools = pools.length > 0;
+  for (let i = 0; i < POOL_SLOTS; i += 1) {
+    const slot = pools[i];
+    const idx = i + 1;
+    flat[`pool${idx}Fuel`] = slot?.fuelId ?? FUEL_OPTIONS[0].id;
+    flat[`pool${idx}Rate`] = Math.round((Number(slot?.maxPerMin) || 0) * 10);
+    flat[`pool${idx}Limit`] = clampPoolDeviceLimit(slot?.deviceLimit);
+    flat[`pool${idx}Enabled`] = slot ? slot.enabled !== false : false;
+  }
+
+  // 手动常驻行
+  const baseLines = Array.isArray(
+    (params as { manualBaseLines?: unknown[] }).manualBaseLines,
+  )
+    ? (
+        (params as { manualBaseLines?: unknown[] }).manualBaseLines as Array<
+          Record<string, unknown>
+        >
+      ).slice(0, BASE_SLOTS)
+    : [];
+  flat._hasBase = baseLines.length > 0;
+  for (let i = 0; i < BASE_SLOTS; i += 1) {
+    const slot = baseLines[i];
+    const idx = i + 1;
+    flat[`base${idx}Fuel`] = slot?.fuelId ?? FUEL_OPTIONS[0].id;
+    flat[`base${idx}Count`] = Math.max(0, Math.round(Number(slot?.count) || 0));
+  }
 
   let packed = 0n;
   let offset = 0n;
 
   for (const field of LAYOUT_FIELDS) {
     const phaseOffsetIndex = getPhaseOffsetBranchIndex(field.key);
-    const isInactivePhaseOffset = phaseOffsetIndex != null && phaseOffsetIndex > activeBranchCount;
-    const sourceValue = isInactivePhaseOffset ? field.missingRawValue : flat[field.key];
+    const isInactivePhaseOffset =
+      phaseOffsetIndex != null && phaseOffsetIndex > activeBranchCount;
+    const sourceValue = isInactivePhaseOffset
+      ? field.missingRawValue
+      : flat[field.key];
     const encodedValue = field.encode(sourceValue);
     if (!isValidNonNegativeInt(encodedValue)) return null;
     if (encodedValue > field.maxEncodedValue) return null;
@@ -444,7 +754,7 @@ export function encodeShareParams(params: ShareParams | null): string | null {
 }
 
 export function decodeShareParams(value: unknown): ShareParams | null {
-  if (!value || typeof value !== 'string') return null;
+  if (!value || typeof value !== "string") return null;
   let cursor = fromBase52(value);
   if (cursor === null) return null;
 
@@ -471,23 +781,111 @@ export function decodeShareParams(value: unknown): ShareParams | null {
     }
   }
 
+  // 自定义震荡热能池
+  if (decoded._hasPools === true) {
+    const pools: Array<Record<string, unknown>> = [];
+    for (let i = 1; i <= POOL_SLOTS; i += 1) {
+      const fuel = decoded[`pool${i}Fuel`];
+      const rate = Number(decoded[`pool${i}Rate`]) || 0;
+      const limit = clampPoolDeviceLimit(decoded[`pool${i}Limit`]);
+      const enabled = decoded[`pool${i}Enabled`] !== false;
+      if (typeof fuel === "string" && rate > 0) {
+        pools.push({
+          id: `pool_${i}`,
+          fuelId: fuel,
+          enabled,
+          deviceLimit: limit,
+          maxPerMin: rate / 10,
+        });
+      }
+    }
+    if (pools.length > 0) decoded.oscPools = pools;
+  }
+  for (let i = 1; i <= POOL_SLOTS; i += 1) {
+    delete decoded[`pool${i}Fuel`];
+    delete decoded[`pool${i}Rate`];
+    delete decoded[`pool${i}Limit`];
+    delete decoded[`pool${i}Enabled`];
+  }
+  delete decoded._hasPools;
+
+  // 手动常驻行
+  if (decoded._hasBase === true) {
+    const lines: Array<Record<string, unknown>> = [];
+    for (let i = 1; i <= BASE_SLOTS; i += 1) {
+      const fuel = decoded[`base${i}Fuel`];
+      const count = Number(decoded[`base${i}Count`]) || 0;
+      if (typeof fuel === "string" && count > 0) {
+        lines.push({ id: `mbl_${i}`, fuelId: fuel, count });
+      }
+    }
+    if (lines.length > 0) decoded.manualBaseLines = lines;
+  }
+  for (let i = 1; i <= BASE_SLOTS; i += 1) {
+    delete decoded[`base${i}Fuel`];
+    delete decoded[`base${i}Count`];
+  }
+  delete decoded._hasBase;
+
   unflattenOverrides(decoded);
+  // 目标功率扩展槽：有值就覆盖历史 15 bit 槽
+  const widePower = Number(decoded.targetPowerWide);
+  delete decoded.targetPowerWide;
+  if (Number.isFinite(widePower) && widePower > LEGACY_TARGET_POWER_MAX) {
+    decoded.targetPower = widePower;
+  }
+  // v1.11.1: keep historical bit slots on the wire, but lock solver-window values.
+  decoded.maxWaste = 1000;
+  decoded.minBatteryPercent = 5;
+  decoded.maxBranches = 4;
   return decoded;
 }
 
+/** Official public site of this fork; used when running in Capacitor / localhost shells. */
+export const CANONICAL_WEB_ORIGIN = SITE_CONFIG.canonicalOrigin;
+
+/**
+ * Base origin for shareable HTTPS links.
+ * Native WebView (localhost / capacitor://) must not produce unusable URLs.
+ */
+export function getShareBaseUrl(): string {
+  if (typeof window === "undefined") return CANONICAL_WEB_ORIGIN;
+  const { protocol, origin, hostname } = window.location;
+  if (
+    protocol === "capacitor:" ||
+    protocol === "ionic:" ||
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname.endsWith(".localhost")
+  ) {
+    return CANONICAL_WEB_ORIGIN;
+  }
+  return origin;
+}
+
 export function getShareParamsFromUrl(): ShareParams | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
+
   const params = new URLSearchParams(window.location.search);
   const token = params.get(SHARE_PARAM_KEY);
   return decodeShareParams(token);
 }
 
 export function buildShareUrl(params: ShareParams): string | null {
-  if (typeof window === 'undefined') return null;
   const token = encodeShareParams(params);
   if (!token) return null;
-  const url = new URL(window.location.href);
+  const base = getShareBaseUrl();
+  const url = new URL(base.endsWith("/") ? base : `${base}/`);
   url.searchParams.set(SHARE_PARAM_KEY, token);
+  // Preserve non-share query keys (e.g. lang) when on real web origin
+  if (typeof window !== "undefined") {
+    const current = new URLSearchParams(window.location.search);
+    current.forEach((value, key) => {
+      if (key !== SHARE_PARAM_KEY && !url.searchParams.has(key)) {
+        url.searchParams.set(key, value);
+      }
+    });
+  }
   return url.toString();
 }
 

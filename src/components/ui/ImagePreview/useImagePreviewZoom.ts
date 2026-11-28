@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const IMAGE_PREVIEW_SCALE_MIN = 1;
 const IMAGE_PREVIEW_SCALE_MAX = 6;
@@ -8,7 +8,7 @@ function clampValue(value: number, min: number, max: number): number {
 }
 
 function getTouchDistance(
-  touches: { length: number; 0?: Touch; 1?: Touch } | null | undefined
+  touches: { length: number; 0?: Touch; 1?: Touch } | null | undefined,
 ): number {
   if (!touches || touches.length < 2) return 0;
   const t0 = touches[0];
@@ -17,7 +17,9 @@ function getTouchDistance(
   return Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
 }
 
-function getTouchCenter(touches: { length: number; 0?: Touch; 1?: Touch } | null | undefined): {
+function getTouchCenter(
+  touches: { length: number; 0?: Touch; 1?: Touch } | null | undefined,
+): {
   x: number;
   y: number;
 } {
@@ -33,7 +35,7 @@ function getTouchCenter(touches: { length: number; 0?: Touch; 1?: Touch } | null
   };
 }
 
-type TouchMode = 'none' | 'pan' | 'pinch';
+type TouchMode = "none" | "pan" | "pinch";
 
 function createInitialTouchState(): {
   mode: TouchMode;
@@ -45,7 +47,7 @@ function createInitialTouchState(): {
   panOrigin: { x: number; y: number };
 } {
   return {
-    mode: 'none',
+    mode: "none",
     startDistance: 0,
     startScale: 1,
     startOffset: { x: 0, y: 0 },
@@ -77,8 +79,9 @@ export default function useImagePreviewZoom({
   const touchRef = useRef(createInitialTouchState());
 
   const clampZoomScale = useCallback(
-    (scale: number) => clampValue(scale, IMAGE_PREVIEW_SCALE_MIN, IMAGE_PREVIEW_SCALE_MAX),
-    []
+    (scale: number) =>
+      clampValue(scale, IMAGE_PREVIEW_SCALE_MIN, IMAGE_PREVIEW_SCALE_MAX),
+    [],
   );
 
   const getZoomMetrics = useCallback(() => {
@@ -104,7 +107,10 @@ export default function useImagePreviewZoom({
       };
     }
 
-    const fitRatio = Math.min(viewportWidth / natural.width, viewportHeight / natural.height);
+    const fitRatio = Math.min(
+      viewportWidth / natural.width,
+      viewportHeight / natural.height,
+    );
     return {
       viewportWidth,
       viewportHeight,
@@ -122,13 +128,16 @@ export default function useImagePreviewZoom({
       const scaledWidth = metrics.baseWidth * scale;
       const scaledHeight = metrics.baseHeight * scale;
       const maxOffsetX = Math.max(0, (scaledWidth - metrics.viewportWidth) / 2);
-      const maxOffsetY = Math.max(0, (scaledHeight - metrics.viewportHeight) / 2);
+      const maxOffsetY = Math.max(
+        0,
+        (scaledHeight - metrics.viewportHeight) / 2,
+      );
       return {
         x: clampValue(offset.x, -maxOffsetX, maxOffsetX),
         y: clampValue(offset.y, -maxOffsetY, maxOffsetY),
       };
     },
-    [getZoomMetrics]
+    [getZoomMetrics],
   );
 
   const resetZoomInteraction = useCallback(() => {
@@ -163,7 +172,7 @@ export default function useImagePreviewZoom({
     (
       nextScale: number,
       focusClient: { x: number; y: number } | null,
-      baseState?: { scale?: number; offset?: { x: number; y: number } }
+      baseState?: { scale?: number; offset?: { x: number; y: number } },
     ) => {
       const safeScale = clampZoomScale(nextScale);
       const previousScale = baseState?.scale ?? zoomScale;
@@ -187,10 +196,13 @@ export default function useImagePreviewZoom({
       setZoomOffset(clampedOffset);
       return { scale: safeScale, offset: clampedOffset };
     },
-    [clampZoomOffset, clampZoomScale, zoomOffset, zoomScale]
+    [clampZoomOffset, clampZoomScale, zoomOffset, zoomScale],
   );
 
-  const getViewportCenterFocus = useCallback((): { x: number; y: number } | null => {
+  const getViewportCenterFocus = useCallback((): {
+    x: number;
+    y: number;
+  } | null => {
     const viewport = viewportRef.current;
     if (!viewport || viewport.clientWidth <= 0 || viewport.clientHeight <= 0) {
       return null;
@@ -217,29 +229,29 @@ export default function useImagePreviewZoom({
     const onResize = () => {
       setZoomOffset((prev) => clampZoomOffset(prev, zoomScale));
     };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, [clampZoomOffset, zoomOpen, zoomScale]);
 
   useEffect(() => {
     if (!zoomOpen) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         event.preventDefault();
         closeZoom();
-      } else if (event.key === '+' || event.key === '=') {
+      } else if (event.key === "+" || event.key === "=") {
         event.preventDefault();
         zoomIn();
-      } else if (event.key === '-' || event.key === '_') {
+      } else if (event.key === "-" || event.key === "_") {
         event.preventDefault();
         zoomOut();
-      } else if (event.key === '0') {
+      } else if (event.key === "0") {
         event.preventDefault();
         resetZoomTransform();
       }
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [closeZoom, resetZoomTransform, zoomIn, zoomOpen, zoomOut]);
 
   const handleZoomImageLoad = useCallback(
@@ -250,7 +262,7 @@ export default function useImagePreviewZoom({
       };
       setZoomOffset((prev) => clampZoomOffset(prev, zoomScale));
     },
-    [clampZoomOffset, zoomScale]
+    [clampZoomOffset, zoomScale],
   );
 
   const handleZoomWheel = useCallback(
@@ -258,9 +270,12 @@ export default function useImagePreviewZoom({
       if (!zoomOpen || !previewUrl) return;
       event.preventDefault();
       const factor = Math.exp(-event.deltaY * 0.0015);
-      updateZoomScale(zoomScale * factor, { x: event.clientX, y: event.clientY });
+      updateZoomScale(zoomScale * factor, {
+        x: event.clientX,
+        y: event.clientY,
+      });
     },
-    [previewUrl, updateZoomScale, zoomOpen, zoomScale]
+    [previewUrl, updateZoomScale, zoomOpen, zoomScale],
   );
 
   const finishDragging = useCallback(() => {
@@ -281,7 +296,7 @@ export default function useImagePreviewZoom({
       };
       setZoomDragging(true);
     },
-    [canPan, zoomOffset.x, zoomOffset.y]
+    [canPan, zoomOffset.x, zoomOffset.y],
   );
 
   const handleMouseMove = useCallback(
@@ -296,11 +311,11 @@ export default function useImagePreviewZoom({
           x: dragState.originX + dx,
           y: dragState.originY + dy,
         },
-        zoomScale
+        zoomScale,
       );
       setZoomOffset(nextOffset);
     },
-    [clampZoomOffset, zoomScale]
+    [clampZoomOffset, zoomScale],
   );
 
   const handleTouchStart = useCallback(
@@ -308,7 +323,7 @@ export default function useImagePreviewZoom({
       if (!zoomOpen || !previewUrl) return;
       if (event.touches.length === 2) {
         touchRef.current = {
-          mode: 'pinch',
+          mode: "pinch",
           startDistance: getTouchDistance(event.touches),
           startScale: zoomScale,
           startOffset: { ...zoomOffset },
@@ -322,19 +337,19 @@ export default function useImagePreviewZoom({
         const touch = event.touches[0];
         touchRef.current = {
           ...touchRef.current,
-          mode: 'pan',
+          mode: "pan",
           panStart: { x: touch.clientX, y: touch.clientY },
           panOrigin: { ...zoomOffset },
         };
       }
     },
-    [previewUrl, zoomOffset, zoomOpen, zoomScale]
+    [previewUrl, zoomOffset, zoomOpen, zoomScale],
   );
 
   const handleTouchMove = useCallback(
     (event: React.TouchEvent) => {
       const touchState = touchRef.current;
-      if (touchState.mode === 'pan' && event.touches.length === 1) {
+      if (touchState.mode === "pan" && event.touches.length === 1) {
         if (!canPan) return;
         event.preventDefault();
         const touch = event.touches[0];
@@ -346,19 +361,19 @@ export default function useImagePreviewZoom({
               x: touchState.panOrigin.x + dx,
               y: touchState.panOrigin.y + dy,
             },
-            zoomScale
-          )
+            zoomScale,
+          ),
         );
         return;
       }
 
-      if (touchState.mode === 'pinch' && event.touches.length === 2) {
+      if (touchState.mode === "pinch" && event.touches.length === 2) {
         event.preventDefault();
         const distance = getTouchDistance(event.touches);
         if (!touchState.startDistance) return;
 
         const nextScale = clampZoomScale(
-          touchState.startScale * (distance / touchState.startDistance)
+          touchState.startScale * (distance / touchState.startDistance),
         );
         const center = getTouchCenter(event.touches);
         const viewport = viewportRef.current;
@@ -383,7 +398,7 @@ export default function useImagePreviewZoom({
         setZoomOffset(clampedOffset);
       }
     },
-    [canPan, clampZoomOffset, clampZoomScale, zoomScale]
+    [canPan, clampZoomOffset, clampZoomScale, zoomScale],
   );
 
   const handleTouchEnd = useCallback(
@@ -392,7 +407,7 @@ export default function useImagePreviewZoom({
         const touch = event.touches[0];
         touchRef.current = {
           ...touchRef.current,
-          mode: 'pan',
+          mode: "pan",
           panStart: { x: touch.clientX, y: touch.clientY },
           panOrigin: { ...zoomOffset },
         };
@@ -400,7 +415,7 @@ export default function useImagePreviewZoom({
       }
       if (event.touches.length === 2) {
         touchRef.current = {
-          mode: 'pinch',
+          mode: "pinch",
           startDistance: getTouchDistance(event.touches),
           startScale: zoomScale,
           startOffset: { ...zoomOffset },
@@ -413,7 +428,7 @@ export default function useImagePreviewZoom({
       touchRef.current = createInitialTouchState();
       finishDragging();
     },
-    [finishDragging, zoomOffset, zoomScale]
+    [finishDragging, zoomOffset, zoomScale],
   );
 
   const handleDoubleClick = useCallback(
@@ -422,7 +437,7 @@ export default function useImagePreviewZoom({
       const targetScale = zoomScale > 1.5 ? 1 : 2;
       updateZoomScale(targetScale, { x: event.clientX, y: event.clientY });
     },
-    [previewUrl, updateZoomScale, zoomScale]
+    [previewUrl, updateZoomScale, zoomScale],
   );
 
   return {

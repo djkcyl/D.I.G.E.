@@ -1,5 +1,5 @@
-import Icon from '../../ui/Icon';
-import LegendItem from './LegendItem';
+import Icon from "../../ui/Icon";
+import LegendItem from "./LegendItem";
 
 export interface SimpleLegendProps {
   t: (key: string) => string;
@@ -14,23 +14,23 @@ export default function SimpleLegend({ t }: SimpleLegendProps) {
             <Icon name="input" className="text-[14px]" />
           </div>
         }
-        label={t('legendInputSource')}
+        label={t("legendInputSource")}
       />
       <LegendItem
         marker={
           <div className="min-w-[30px] h-6 border border-endfield-yellow/30 text-endfield-yellow bg-endfield-yellow/10 flex items-center justify-center font-bold">
-            2{t('waySplit')}
+            2{t("waySplit")}
           </div>
         }
-        label={t('legendSplit2')}
+        label={t("legendSplit2")}
       />
       <LegendItem
         marker={
           <div className="min-w-[30px] h-6 border border-endfield-text-light/30 text-endfield-text-light bg-endfield-gray/80 flex items-center justify-center font-bold">
-            3{t('waySplit')}
+            3{t("waySplit")}
           </div>
         }
-        label={t('legendSplit3')}
+        label={t("legendSplit3")}
       />
       <LegendItem
         marker={
@@ -38,11 +38,13 @@ export default function SimpleLegend({ t }: SimpleLegendProps) {
             <Icon name="bolt" className="text-[13px]" />
           </div>
         }
-        label={t('legendGenerator')}
+        label={t("legendGenerator")}
       />
       <LegendItem
-        marker={<Icon name="arrow_right_alt" className="text-endfield-text/70" />}
-        label={t('legendFlowDirection')}
+        marker={
+          <Icon name="arrow_right_alt" className="text-endfield-text/70" />
+        }
+        label={t("legendFlowDirection")}
       />
     </div>
   );

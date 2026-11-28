@@ -1,19 +1,140 @@
-import { useEffect, useState } from 'react';
-import { useI18n } from '../../i18n';
-import type { CalcParams, SolutionResult } from '../../types/calc';
-import CollapsibleSection from '../ui/CollapsibleSection';
-import Icon from '../ui/Icon';
-import SolutionDiagram from './SolutionDiagram';
-import ChartSection from './SolutionList/ChartSection';
-import FuelConsumptionTable from './SolutionList/FuelConsumptionTable';
-import SolutionSelector from './SolutionList/SolutionSelector';
-import SolutionSummary from './SolutionList/SolutionSummary';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "../../i18n";
+import type { CalcParams, SolutionResult } from "../../types/calc";
+import type { DecisionMatrixGrid, MatrixSelection } from "../../types/matrix";
+import { MIN_BATTERY_CUTOFF } from "../../types/matrix";
+import type { PowerGridProfile } from "../../types/profile";
+import { findSelectionForSolution } from "../../utils/decisionMatrix";
+import type { DiagnosisResult } from "../../utils/failureDiagnose";
+import { buildPoolSegments } from "../../utils/poolChartSegments";
+import PoolAdjustNotice from "../PoolAdjustNotice";
+import CollapsibleSection from "../ui/CollapsibleSection";
+import FloatingPanel from "../ui/FloatingPanel";
+import Icon from "../ui/Icon";
+import SolutionDiagram from "./SolutionDiagram";
+import ChartSection from "./SolutionList/ChartSection";
+import FuelConsumptionTable from "./SolutionList/FuelConsumptionTable";
+import ProfileToolbar from "./SolutionList/ProfileToolbar";
+import SolutionSummary from "./SolutionList/SolutionSummary";
+import DecisionMatrixCard from "./SudokuDecisionMatrix/DecisionMatrixCard";
+import DecisionMatrixDashboard from "./SudokuDecisionMatrix/DecisionMatrixDashboard";
+import DecisionMatrixModal from "./SudokuDecisionMatrix/DecisionMatrixModal";
+
+export interface SolutionListProfileProps {
+  profiles: PowerGridProfile[];
+  activeProfileId: string;
+  isUrlSession?: boolean;
+  onSelectProfile: (id: string) => void;
+  onSaveAs: () => void;
+  onRename: (id: string) => void;
+  onDelete: (id: string) => void;
+  onSaveUrlSessionToLocal?: () => void;
+  onImportCode?: () => void;
+}
 
 export interface SolutionListProps {
   solutions: SolutionResult[];
   selectedIndex: number;
   onSelectSolution: (index: number) => void;
   params: CalcParams;
+  diagnosis?: DiagnosisResult | null;
+  profile?: SolutionListProfileProps | null;
+  matrix?: DecisionMatrixGrid | null;
+  defaultSelection?: MatrixSelection | null;
+  /** 调整提示条「套用到参数」：把放宽后的冗余上限写回参数 */
+  onApplyMaxWaste?: (used: number) => void;
+  /** 调整提示条「套用到参数」：把降低后的投料速率写回参数 */
+  onApplyPoolRate?: (toPerMin: number) => void;
+}
+
+function formatWaste(value: number): string {
+  if (!Number.isFinite(value)) return "—";
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function StickyHud({
+  selectedSolution,
+  selection,
+  isMobile,
+  onOpenPicker,
+  onOpenPickerCentered,
+  profile,
+}: {
+  selectedSolution?: SolutionResult;
+  selection: MatrixSelection | null;
+  isMobile: boolean;
+  onOpenPicker: () => void;
+  onOpenPickerCentered?: () => void;
+  profile?: SolutionListProfileProps | null;
+}) {
+  const { t } = useI18n();
+  const row =
+    selection?.row ?? Math.max(0, (selectedSolution?.branchCount ?? 1) - 1);
+  const col = selection?.col ?? 0;
+  const wasteLabel = t(`wasteCol${col}`);
+  const waste = selectedSolution ? formatWaste(selectedSolution.waste) : "—";
+  const power = selectedSolution ? formatWaste(selectedSolution.avgPower) : "—";
+  const minBat = selectedSolution
+    ? Math.round(selectedSolution.minBatteryPercent)
+    : 0;
+
+  const triggerLabel = isMobile
+    ? t("mobilePlanTrigger", { count: row + 1, waste })
+    : t("hudPlanTrigger", { count: row + 1, band: wasteLabel, waste });
+
+  return (
+    <div
+      className={`${isMobile ? "min-h-[38px] py-1 flex-wrap gap-y-1" : "h-[38px]"} px-2 sm:px-3 border-b border-endfield-gray-light bg-endfield-dark/90 backdrop-blur-[6px] flex items-center gap-2 min-w-0`}
+    >
+      <button
+        type="button"
+        onClick={onOpenPicker}
+        onDoubleClick={onOpenPickerCentered}
+        className="shrink-0 h-7 px-2 text-xs border border-endfield-yellow/60 text-endfield-yellow bg-endfield-yellow/10 hover:bg-endfield-yellow/20 whitespace-nowrap"
+      >
+        {triggerLabel} ▾
+      </button>
+      {onOpenPickerCentered ? (
+        <button
+          type="button"
+          onClick={onOpenPickerCentered}
+          title={t("hudRecenterPicker")}
+          aria-label={t("hudRecenterPicker")}
+          className="shrink-0 h-7 px-2 text-xs border border-green-400/60 text-green-400 bg-green-400/10 hover:bg-green-400/20 hover:border-green-400 whitespace-nowrap"
+        >
+          {isMobile ? (
+            <Icon name="recenter" className="w-4 h-4" />
+          ) : (
+            t("hudRecenterPicker")
+          )}
+        </button>
+      ) : null}
+      <div
+        className={`text-xs text-endfield-text-light ${
+          isMobile
+            ? "order-last w-full shrink-0 leading-4"
+            : "flex-1 min-w-0 truncate"
+        }`}
+      >
+        {t("currentPower")}: {power}w · {t("minBatteryShort")}: {minBat}%
+      </div>
+      {profile ? (
+        <div className="shrink-0">
+          <ProfileToolbar
+            profiles={profile.profiles}
+            activeProfileId={profile.activeProfileId}
+            isUrlSession={profile.isUrlSession}
+            onSelectProfile={profile.onSelectProfile}
+            onSaveAs={profile.onSaveAs}
+            onRename={profile.onRename}
+            onDelete={profile.onDelete}
+            onSaveUrlSessionToLocal={profile.onSaveUrlSessionToLocal}
+            onImportCode={profile.onImportCode}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export default function SolutionList({
@@ -21,6 +142,12 @@ export default function SolutionList({
   selectedIndex,
   onSelectSolution,
   params,
+  diagnosis = null,
+  profile = null,
+  matrix = null,
+  defaultSelection = null,
+  onApplyMaxWaste,
+  onApplyPoolRate,
 }: SolutionListProps) {
   const { t, locale } = useI18n();
   const [hideHoverDetails, setHideHoverDetails] = useState(false);
@@ -30,103 +157,316 @@ export default function SolutionList({
     fuel: false,
     diagram: false,
   });
+  const [isMobile, setIsMobile] = useState(false);
+  const [hudPinned, setHudPinned] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerRecenter, setPickerRecenter] = useState(0);
+  const scrollRootRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mql = window.matchMedia('(max-width: 768px)');
-    setHideHoverDetails(mql.matches);
-    const handler = (e: MediaQueryListEvent) => setHideHoverDetails(e.matches);
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia("(max-width: 768px)");
+    const apply = () => {
+      setHideHoverDetails(mql.matches);
+      setIsMobile(mql.matches);
+    };
+    apply();
+    const handler = (e: MediaQueryListEvent) => {
+      setHideHoverDetails(e.matches);
+      setIsMobile(e.matches);
+    };
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
   }, []);
 
-  const toggleSection = (key: 'chart' | 'fuel' | 'diagram') => {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 只在候选方案/矩阵变化时重建观察器，body 内不再引用这些值
+  useEffect(() => {
+    const root = scrollRootRef.current;
+    const sentinel = sentinelRef.current;
+    if (!root || !sentinel || typeof IntersectionObserver === "undefined")
+      return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        setHudPinned(!entry.isIntersecting);
+      },
+      { root, threshold: 0 },
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
+  }, [solutions.length, matrix]);
+
+  const toggleSection = (key: "chart" | "fuel" | "diagram") => {
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  if (!solutions || solutions.length === 0) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-endfield-text">
+  const hasSolutions = Boolean(solutions && solutions.length > 0);
+  const selectedSolution = hasSolutions ? solutions[selectedIndex] : undefined;
+  const preferred = solutions[0] ?? null;
+  const selection =
+    (matrix && selectedSolution
+      ? findSelectionForSolution(matrix, selectedSolution)
+      : null) ?? defaultSelection;
+
+  const openPicker = (centered: boolean) => {
+    setPickerOpen(true);
+    // 双击：把悬浮窗拉回屏幕居中；单击：沿用上次拖动的位置
+    if (centered) setPickerRecenter((n) => n + 1);
+  };
+
+  /** 自定义震荡热能池分段：与 FactoryDesigner.poolSegments 同口径（亮灯段 = 燃料瞬时功率） */
+  const poolSegments = useMemo(
+    () =>
+      buildPoolSegments({
+        oscPools: params.oscPools,
+        fuelOverrides: params.fuelOverrides,
+      }),
+    [params.oscPools, params.fuelOverrides],
+  );
+
+  const handleSelectCell = (
+    _row: number,
+    _col: number,
+    sol: SolutionResult,
+  ) => {
+    const idx = solutions.indexOf(sol);
+    if (idx >= 0) onSelectSolution(idx);
+    // PC 悬浮窗常驻，切换策略后不自动关闭；移动端弹层在外部处理
+  };
+
+  const matrixCard = (
+    <DecisionMatrixCard
+      matrix={matrix}
+      selection={selection}
+      preferred={preferred}
+      onSelectCell={handleSelectCell}
+    />
+  );
+
+  const emptyBody = (
+    <div className="flex-1 flex items-center justify-center text-endfield-text min-h-[12rem] py-8">
+      {diagnosis ? (
+        <div className="text-left max-w-md px-4 space-y-3 border border-endfield-gray-light/80 bg-endfield-dark/60 p-4">
+          <div className="flex items-center gap-2 text-red-300">
+            <Icon name="error" className="leading-none" />
+            <span className="text-sm font-bold uppercase tracking-widest">
+              {t("noSolutionFound")}
+            </span>
+          </div>
+          <p className="text-sm text-endfield-text-light">
+            {diagnosis.primaryHint}
+          </p>
+          {diagnosis.secondaryHints.length > 0 ? (
+            <div className="space-y-1.5">
+              <p className="text-xs uppercase tracking-wider text-endfield-text/70">
+                {t("diagSuggestionsHeader")}
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-sm text-endfield-text-light">
+                {diagnosis.secondaryHints.map((hint) => (
+                  <li key={hint}>{hint}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          <p className="text-xs text-endfield-text/60">
+            {t("adjustParamsHint")}
+          </p>
+        </div>
+      ) : (
         <div className="text-center max-w-sm px-4">
           <Icon name="calculate" className="mb-2" />
-          <p className="mb-2">{t('clickCalculate')}</p>
-          <p className="text-xs text-endfield-text/60">{t('adjustParamsHint')}</p>
+          <p className="mb-2">{t("clickCalculate")}</p>
+          <p className="text-xs text-endfield-text/60">
+            {t("adjustParamsHint")}
+          </p>
         </div>
-      </div>
-    );
-  }
-
-  const selectedSolution = solutions[selectedIndex];
+      )}
+    </div>
+  );
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden notranslate" translate="no">
-      <div className="flex-1 overflow-auto scrollbar-gutter-stable">
-        <div className="p-2 sm:p-4 border-b border-endfield-gray-light bg-endfield-dark/50 md:sticky md:top-0 md:z-20 md:bg-endfield-dark/80 md:backdrop-blur-[6px] md:shadow-[0_4px_12px_rgba(0,0,0,0.28)]">
-          <SolutionSelector
-            solutions={solutions}
-            selectedIndex={selectedIndex}
-            onSelectSolution={onSelectSolution}
-          />
-          <SolutionSummary solution={selectedSolution} />
-        </div>
+    <div
+      className="flex-1 flex flex-col overflow-hidden notranslate"
+      translate="no"
+    >
+      <div
+        ref={scrollRootRef}
+        className="flex-1 overflow-auto scrollbar-gutter-stable"
+      >
+        <div ref={sentinelRef} className="h-px w-full" aria-hidden="true" />
 
-        <div
-          className={`${collapsedSections.chart ? 'px-2 sm:px-4 pt-2 sm:pt-4 pb-2 sm:pb-3' : 'p-2 sm:p-4'} border-b border-endfield-gray-light`}
-        >
-          <CollapsibleSection
-            title={t('cycleChart')}
-            collapsed={collapsedSections.chart}
-            onToggle={() => toggleSection('chart')}
-            icon="monitoring"
-            expandLabel={t('expandSection')}
-            collapseLabel={t('collapseSection')}
-          >
-            <ChartSection
-              solution={selectedSolution}
-              targetPower={params.targetPower}
-              minBatteryThreshold={params.minBatteryPercent}
-              preciseValues={preciseValues}
-              setPreciseValues={setPreciseValues}
-              hideHoverDetails={hideHoverDetails}
-              setHideHoverDetails={setHideHoverDetails}
+        {isMobile ? (
+          <div className="sticky top-0 z-20">
+            <StickyHud
+              selectedSolution={selectedSolution}
+              selection={selection}
+              isMobile
+              onOpenPicker={() => setPickerOpen((prev) => !prev)}
+              onOpenPickerCentered={() => openPicker(true)}
+              profile={profile}
             />
-          </CollapsibleSection>
-        </div>
+          </div>
+        ) : (
+          <>
+            <div className="p-2 sm:p-4 border-b border-endfield-gray-light bg-endfield-dark/50">
+              <div className="text-sm font-bold text-endfield-text uppercase tracking-widest mb-2">
+                {t("decisionMatrixTitle")}
+              </div>
+              <div className="flex flex-col lg:flex-row gap-4 items-stretch">
+                <div className="w-full lg:w-[380px] lg:shrink-0">
+                  {matrixCard}
+                </div>
+                <div className="flex-1 min-w-0 min-h-[190px]">
+                  <DecisionMatrixDashboard
+                    solution={selectedSolution}
+                    params={params}
+                    selection={selection}
+                    profile={profile}
+                  />
+                </div>
+              </div>
+            </div>
+            {hudPinned ? (
+              <div className="sticky top-0 z-20">
+                <StickyHud
+                  selectedSolution={selectedSolution}
+                  selection={selection}
+                  isMobile={false}
+                  onOpenPicker={() => openPicker(false)}
+                  onOpenPickerCentered={() => openPicker(true)}
+                  profile={profile}
+                />
+              </div>
+            ) : null}
+          </>
+        )}
 
-        {selectedSolution?.fuelConsumption ? (
-          <div
-            className={`${collapsedSections.fuel ? 'px-2 sm:px-4 pt-2 sm:pt-4 pb-2 sm:pb-3' : 'p-2 sm:p-4'} border-b border-endfield-gray-light`}
-          >
-            <CollapsibleSection
-              title={String(t('fuelConsumption'))}
-              collapsed={collapsedSections.fuel}
-              onToggle={() => toggleSection('fuel')}
-              icon="local_fire_department"
-              expandLabel={t('expandSection')}
-              collapseLabel={t('collapseSection')}
-            >
-              <FuelConsumptionTable solution={selectedSolution} locale={locale} />
-            </CollapsibleSection>
+        {isMobile && hasSolutions && selectedSolution ? (
+          <div className="px-2 sm:px-4 pt-2">
+            <SolutionSummary solution={selectedSolution} />
           </div>
         ) : null}
 
-        <div
-          className={
-            collapsedSections.diagram ? 'px-2 sm:px-4 pt-2 sm:pt-4 pb-2 sm:pb-3' : 'p-2 sm:p-4'
-          }
-        >
-          <CollapsibleSection
-            title={t('solutionDiagram')}
-            collapsed={collapsedSections.diagram}
-            onToggle={() => toggleSection('diagram')}
-            icon="account_tree"
-            expandLabel={t('expandSection')}
-            collapseLabel={t('collapseSection')}
-          >
-            <SolutionDiagram solution={selectedSolution} params={params} />
-          </CollapsibleSection>
-        </div>
+        {!hasSolutions ? emptyBody : null}
+
+        {hasSolutions && selectedSolution ? (
+          <>
+            {selectedSolution.poolOverSupply ? (
+              <div className="px-2 sm:px-4 pt-2 sm:pt-4">
+                <div
+                  role="alert"
+                  className="border-l-2 border-endfield-yellow bg-endfield-yellow/10 px-3 py-2 text-sm text-endfield-yellow leading-relaxed"
+                >
+                  {t("poolOverSupplyWarning", {
+                    overPercent: selectedSolution.poolOverSupply.overPercent,
+                    peak: Math.round(selectedSolution.poolOverSupply.peakW),
+                    target: Math.round(selectedSolution.poolOverSupply.targetW),
+                  })}
+                </div>
+              </div>
+            ) : null}
+            <PoolAdjustNotice
+              className="px-2 sm:px-4 pt-2 sm:pt-4"
+              wasteRelax={selectedSolution.wasteRelax}
+              poolAdjust={selectedSolution.poolAdjust}
+              requiredSurplusW={selectedSolution.requiredSurplusW}
+              onApplyMaxWaste={onApplyMaxWaste}
+              onApplyPoolRate={onApplyPoolRate}
+            />
+            <div
+              className={`${
+                collapsedSections.chart
+                  ? "px-2 sm:px-4 pt-2 sm:pt-4 pb-2 sm:pb-3"
+                  : "p-2 sm:p-4"
+              } border-b border-endfield-gray-light`}
+            >
+              <CollapsibleSection
+                title={t("cycleChart")}
+                collapsed={collapsedSections.chart}
+                onToggle={() => toggleSection("chart")}
+                icon="monitoring"
+                expandLabel={t("expandSection")}
+                collapseLabel={t("collapseSection")}
+              >
+                <ChartSection
+                  solution={selectedSolution}
+                  targetPower={params.targetPower}
+                  minBatteryThreshold={MIN_BATTERY_CUTOFF}
+                  preciseValues={preciseValues}
+                  setPreciseValues={setPreciseValues}
+                  hideHoverDetails={hideHoverDetails}
+                  setHideHoverDetails={setHideHoverDetails}
+                  poolSegments={poolSegments}
+                />
+              </CollapsibleSection>
+            </div>
+
+            {selectedSolution.fuelConsumption ? (
+              <div
+                className={`${
+                  collapsedSections.fuel
+                    ? "px-2 sm:px-4 pt-2 sm:pt-4 pb-2 sm:pb-3"
+                    : "p-2 sm:p-4"
+                } border-b border-endfield-gray-light`}
+              >
+                <CollapsibleSection
+                  title={String(t("fuelConsumption"))}
+                  collapsed={collapsedSections.fuel}
+                  onToggle={() => toggleSection("fuel")}
+                  icon="local_fire_department"
+                  expandLabel={t("expandSection")}
+                  collapseLabel={t("collapseSection")}
+                >
+                  <FuelConsumptionTable
+                    solution={selectedSolution}
+                    locale={locale}
+                  />
+                </CollapsibleSection>
+              </div>
+            ) : null}
+
+            <div
+              className={
+                collapsedSections.diagram
+                  ? "px-2 sm:px-4 pt-2 sm:pt-4 pb-2 sm:pb-3"
+                  : "p-2 sm:p-4"
+              }
+            >
+              <CollapsibleSection
+                title={t("solutionDiagram")}
+                collapsed={collapsedSections.diagram}
+                onToggle={() => toggleSection("diagram")}
+                icon="account_tree"
+                expandLabel={t("expandSection")}
+                collapseLabel={t("collapseSection")}
+              >
+                <SolutionDiagram solution={selectedSolution} params={params} />
+              </CollapsibleSection>
+            </div>
+          </>
+        ) : null}
       </div>
+
+      {isMobile ? (
+        <DecisionMatrixModal
+          show={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          title={t("decisionMatrixTitle")}
+          recenterSignal={pickerRecenter}
+        >
+          {matrixCard}
+        </DecisionMatrixModal>
+      ) : pickerOpen ? (
+        <FloatingPanel
+          title={t("decisionMatrixTitle")}
+          onClose={() => setPickerOpen(false)}
+          storageKey="dige_matrix_panel_pos"
+          closeLabel={t("close")}
+          recenterSignal={pickerRecenter}
+        >
+          {matrixCard}
+        </FloatingPanel>
+      ) : null}
     </div>
   );
 }

@@ -1,16 +1,16 @@
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-import * as ts from 'typescript';
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import * as ts from "typescript";
 
 // ─── Shared Config ───────────────────────────────────────────────────────────
 
 const ROOT = process.cwd();
-const SRC_DIR = path.join(ROOT, 'src');
-const LOCALES_DIR = path.join(SRC_DIR, 'i18n');
-const ANNOUNCEMENT_LOCALES_DIR = path.join(LOCALES_DIR, 'announcement');
+const SRC_DIR = path.join(ROOT, "src");
+const LOCALES_DIR = path.join(SRC_DIR, "i18n");
+const ANNOUNCEMENT_LOCALES_DIR = path.join(LOCALES_DIR, "announcement");
 
-const SOURCE_LOCALE = 'zh';
-const TARGET_LOCALES = ['en', 'ja', 'ko', 'ru', 'fr', 'de', 'id'];
+const SOURCE_LOCALE = "zh";
+const TARGET_LOCALES = ["en", "ja", "ko", "ru", "fr", "de", "id"];
 const ALL_LOCALES = [SOURCE_LOCALE, ...TARGET_LOCALES];
 
 // ─── Shared Locale Helpers ───────────────────────────────────────────────────
@@ -29,18 +29,23 @@ function getLocaleFilePath(locale: string): string {
 
 async function readLocaleFile(locale: string): Promise<Record<string, string>> {
   const filePath = getLocaleFilePath(locale);
-  const text = await fs.readFile(filePath, 'utf8');
-  const sanitized = text.replace(/^\uFEFF/, '');
+  const text = await fs.readFile(filePath, "utf8");
+  const sanitized = text.replace(/^\uFEFF/, "");
   return JSON.parse(sanitized) as Record<string, string>;
 }
 
-async function writeLocaleFile(locale: string, data: Record<string, string>): Promise<void> {
+async function writeLocaleFile(
+  locale: string,
+  data: Record<string, string>,
+): Promise<void> {
   const filePath = getLocaleFilePath(locale);
   const output = `${JSON.stringify(sortKeys(data), null, 2)}\n`;
-  await fs.writeFile(filePath, output, 'utf8');
+  await fs.writeFile(filePath, output, "utf8");
 }
 
-async function readAllLocaleData(): Promise<Record<string, Record<string, string>>> {
+async function readAllLocaleData(): Promise<
+  Record<string, Record<string, string>>
+> {
   const out: Record<string, Record<string, string>> = {};
   for (const locale of ALL_LOCALES) {
     out[locale] = await readLocaleFile(locale);
@@ -66,19 +71,21 @@ function getAnnouncementLocaleFilePath(locale: string): string {
   return path.join(ANNOUNCEMENT_LOCALES_DIR, `locales.${locale}.json`);
 }
 
-async function readAnnouncementLocaleFile(locale: string): Promise<AnnouncementLocaleFile> {
+async function readAnnouncementLocaleFile(
+  locale: string,
+): Promise<AnnouncementLocaleFile> {
   const filePath = getAnnouncementLocaleFilePath(locale);
-  const text = await fs.readFile(filePath, 'utf8');
-  const sanitized = text.replace(/^\uFEFF/, '');
+  const text = await fs.readFile(filePath, "utf8");
+  const sanitized = text.replace(/^\uFEFF/, "");
   return JSON.parse(sanitized) as AnnouncementLocaleFile;
 }
 
 async function writeAnnouncementLocaleFile(
   locale: string,
-  data: AnnouncementLocaleFile
+  data: AnnouncementLocaleFile,
 ): Promise<void> {
   const filePath = getAnnouncementLocaleFilePath(locale);
-  await fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+  await fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
 }
 
 function parseLocaleFlagArgs(args: string[]): Record<string, string> {
@@ -87,7 +94,7 @@ function parseLocaleFlagArgs(args: string[]): Record<string, string> {
   let i = 0;
   while (i < args.length) {
     const arg = args[i];
-    if (arg === '--') {
+    if (arg === "--") {
       i++;
       continue;
     }
@@ -122,11 +129,13 @@ interface AddEntry {
 type TranslationTemplate = Record<string, Record<string, string>>;
 
 function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function getMissingLocales(translations: Record<string, string>): string[] {
-  return ALL_LOCALES.filter((locale) => !isNonEmptyString(translations[locale]));
+  return ALL_LOCALES.filter(
+    (locale) => !isNonEmptyString(translations[locale]),
+  );
 }
 
 async function checkSync(): Promise<boolean> {
@@ -168,11 +177,11 @@ async function checkSync(): Promise<boolean> {
       }
     }
 
-    console.log('');
+    console.log("");
   }
 
   if (allSynced) {
-    console.log('\n  All locale files are in sync.');
+    console.log("\n  All locale files are in sync.");
   }
 
   return allSynced;
@@ -186,7 +195,7 @@ function parseAddArgs(args: string[]): AddEntry[] {
   while (i < args.length) {
     const arg = args[i];
 
-    if (arg === 'add') {
+    if (arg === "add") {
       if (current) entries.push(current);
       i++;
       if (i >= args.length) {
@@ -215,7 +224,7 @@ function parseAddArgs(args: string[]): AddEntry[] {
       continue;
     }
 
-    if (arg === '--') {
+    if (arg === "--") {
       i++;
       continue;
     }
@@ -228,9 +237,12 @@ function parseAddArgs(args: string[]): AddEntry[] {
   return entries;
 }
 
-async function addEntries(entries: AddEntry[], sourceLabel: string): Promise<void> {
+async function addEntries(
+  entries: AddEntry[],
+  sourceLabel: string,
+): Promise<void> {
   if (entries.length === 0) {
-    console.error('Error: 没有需要添加的翻译');
+    console.error("Error: 没有需要添加的翻译");
     process.exit(1);
   }
 
@@ -238,7 +250,7 @@ async function addEntries(entries: AddEntry[], sourceLabel: string): Promise<voi
     const missing = getMissingLocales(entry.translations);
     if (missing.length > 0) {
       console.error(
-        `Error: key "${entry.key}" 缺少以下语言的翻译: ${missing.map((l) => `--${l}`).join(' ')}`
+        `Error: key "${entry.key}" 缺少以下语言的翻译: ${missing.map((l) => `--${l}`).join(" ")}`,
       );
       process.exit(1);
     }
@@ -246,11 +258,11 @@ async function addEntries(entries: AddEntry[], sourceLabel: string): Promise<voi
 
   const localeData = await readAllLocaleData();
 
-  console.log('');
+  console.log("");
   for (const entry of entries) {
     const isNew = localeData[SOURCE_LOCALE][entry.key] === undefined;
     console.log(
-      `  ${isNew ? 'ADD' : 'UPDATE'} "${entry.key}"${sourceLabel ? ` (${sourceLabel})` : ''}`
+      `  ${isNew ? "ADD" : "UPDATE"} "${entry.key}"${sourceLabel ? ` (${sourceLabel})` : ""}`,
     );
     for (const locale of ALL_LOCALES) {
       localeData[locale][entry.key] = entry.translations[locale].trim();
@@ -264,33 +276,35 @@ async function addEntries(entries: AddEntry[], sourceLabel: string): Promise<voi
     await writeLocaleFile(locale, localeData[locale]);
   }
 
-  console.log(`\n  Done. ${entries.length} key(s) × ${ALL_LOCALES.length} locales.\n`);
-  console.log('--- Sync check ---\n');
+  console.log(
+    `\n  Done. ${entries.length} key(s) × ${ALL_LOCALES.length} locales.\n`,
+  );
+  console.log("--- Sync check ---\n");
   await checkSync();
 }
 
 async function addTranslations(args: string[]): Promise<void> {
   const entries = parseAddArgs(args);
   if (entries.length === 0) {
-    console.error('Error: 没有需要添加的翻译');
+    console.error("Error: 没有需要添加的翻译");
     console.error(
-      'Usage: pnpm run i18n translate add <key> --zh "中文" --en "English" --ja "日本語" --ko "한국어" --ru "Русский" --fr "Français" --de "Deutsch"'
+      'Usage: pnpm run i18n translate add <key> --zh "中文" --en "English" --ja "日本語" --ko "한국어" --ru "Русский" --fr "Français" --de "Deutsch"',
     );
     process.exit(1);
   }
-  await addEntries(entries, '');
+  await addEntries(entries, "");
 }
 
 async function deleteKeys(keys: string[]): Promise<void> {
   if (keys.length === 0) {
-    console.error('Error: 请指定要删除的 key');
-    console.error('Usage: pnpm run i18n translate delete <key1> [<key2> ...]');
+    console.error("Error: 请指定要删除的 key");
+    console.error("Usage: pnpm run i18n translate delete <key1> [<key2> ...]");
     process.exit(1);
   }
 
   const localeData = await readAllLocaleData();
 
-  console.log('');
+  console.log("");
   for (const key of keys) {
     let found = false;
     for (const locale of ALL_LOCALES) {
@@ -299,32 +313,39 @@ async function deleteKeys(keys: string[]): Promise<void> {
         found = true;
       }
     }
-    console.log(`  ${found ? 'DELETE' : 'SKIP (not found)'} "${key}"`);
+    console.log(`  ${found ? "DELETE" : "SKIP (not found)"} "${key}"`);
   }
 
   for (const locale of ALL_LOCALES) {
     await writeLocaleFile(locale, localeData[locale]);
   }
 
-  console.log('\n  Done.\n');
-  console.log('--- Sync check ---\n');
+  console.log("\n  Done.\n");
+  console.log("--- Sync check ---\n");
   await checkSync();
 }
 
-async function generateTemplate(outputPathArg: string | undefined, keys: string[]): Promise<void> {
+async function generateTemplate(
+  outputPathArg: string | undefined,
+  keys: string[],
+): Promise<void> {
   if (!outputPathArg) {
-    console.error('Error: 请指定输出文件路径');
-    console.error('Usage: pnpm run i18n translate generate <output.json> <key1> [<key2> ...]');
+    console.error("Error: 请指定输出文件路径");
+    console.error(
+      "Usage: pnpm run i18n translate generate <output.json> <key1> [<key2> ...]",
+    );
     process.exit(1);
   }
 
   const cleanKeys = keys
-    .filter((k) => k !== '--')
+    .filter((k) => k !== "--")
     .map((k) => k.trim())
     .filter(Boolean);
   if (cleanKeys.length === 0) {
-    console.error('Error: 请至少指定一个 key');
-    console.error('Usage: pnpm run i18n translate generate <output.json> <key1> [<key2> ...]');
+    console.error("Error: 请至少指定一个 key");
+    console.error(
+      "Usage: pnpm run i18n translate generate <output.json> <key1> [<key2> ...]",
+    );
     process.exit(1);
   }
 
@@ -335,7 +356,7 @@ async function generateTemplate(outputPathArg: string | undefined, keys: string[
   for (const key of uniqueKeys) {
     template[key] = {};
     for (const locale of ALL_LOCALES) {
-      template[key][locale] = localeData[locale][key] ?? '';
+      template[key][locale] = localeData[locale][key] ?? "";
     }
   }
 
@@ -343,25 +364,31 @@ async function generateTemplate(outputPathArg: string | undefined, keys: string[
     ? outputPathArg
     : path.join(ROOT, outputPathArg);
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  await fs.writeFile(outputPath, `${JSON.stringify(template, null, 2)}\n`, 'utf8');
+  await fs.writeFile(
+    outputPath,
+    `${JSON.stringify(template, null, 2)}\n`,
+    "utf8",
+  );
 
   console.log(`\n  Template generated: ${outputPath}`);
   console.log(`  Keys: ${uniqueKeys.length}`);
-  console.log(`  Locales: ${ALL_LOCALES.join(', ')}\n`);
+  console.log(`  Locales: ${ALL_LOCALES.join(", ")}\n`);
 }
 
 async function applyTemplate(inputPathArg: string | undefined): Promise<void> {
   if (!inputPathArg) {
-    console.error('Error: 请指定输入文件路径');
-    console.error('Usage: pnpm run i18n translate apply <input.json>');
+    console.error("Error: 请指定输入文件路径");
+    console.error("Usage: pnpm run i18n translate apply <input.json>");
     process.exit(1);
   }
 
-  const inputPath = path.isAbsolute(inputPathArg) ? inputPathArg : path.join(ROOT, inputPathArg);
+  const inputPath = path.isAbsolute(inputPathArg)
+    ? inputPathArg
+    : path.join(ROOT, inputPathArg);
 
   let raw: string;
   try {
-    raw = await fs.readFile(inputPath, 'utf8');
+    raw = await fs.readFile(inputPath, "utf8");
   } catch (error) {
     console.error(`Error: 无法读取文件 ${inputPath}`);
     throw error;
@@ -369,26 +396,28 @@ async function applyTemplate(inputPathArg: string | undefined): Promise<void> {
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw.replace(/^\uFEFF/, '')) as unknown;
+    parsed = JSON.parse(raw.replace(/^\uFEFF/, "")) as unknown;
   } catch (error) {
     console.error(`Error: JSON 解析失败 (${inputPath})`);
     throw error;
   }
 
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     console.error(
-      'Error: 模板格式错误。需要对象格式: { "<key>": { "zh": "...", "en": "...", ... } }'
+      'Error: 模板格式错误。需要对象格式: { "<key>": { "zh": "...", "en": "...", ... } }',
     );
     process.exit(1);
   }
 
   const entries: AddEntry[] = [];
-  for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+  for (const [key, value] of Object.entries(
+    parsed as Record<string, unknown>,
+  )) {
     if (!key.trim()) {
-      console.error('Error: 检测到空 key');
+      console.error("Error: 检测到空 key");
       process.exit(1);
     }
-    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
       console.error(`Error: key "${key}" 的值必须是对象`);
       process.exit(1);
     }
@@ -397,7 +426,7 @@ async function applyTemplate(inputPathArg: string | undefined): Promise<void> {
     const missing = getMissingLocales(translations);
     if (missing.length > 0) {
       console.error(
-        `Error: key "${key}" 缺少或包含空翻译: ${missing.map((l) => `[${l}]`).join(', ')}`
+        `Error: key "${key}" 缺少或包含空翻译: ${missing.map((l) => `[${l}]`).join(", ")}`,
       );
       process.exit(1);
     }
@@ -405,17 +434,17 @@ async function applyTemplate(inputPathArg: string | undefined): Promise<void> {
     entries.push({
       key,
       translations: Object.fromEntries(
-        ALL_LOCALES.map((locale) => [locale, translations[locale].trim()])
+        ALL_LOCALES.map((locale) => [locale, translations[locale].trim()]),
       ),
     });
   }
 
   if (entries.length === 0) {
-    console.error('Error: 模板中没有可写入的 key');
+    console.error("Error: 模板中没有可写入的 key");
     process.exit(1);
   }
 
-  await addEntries(entries, 'from template');
+  await addEntries(entries, "from template");
 }
 
 function printTranslateUsage(): void {
@@ -437,7 +466,7 @@ Translate Commands
 }
 
 async function runTranslateCommand(args: string[]): Promise<void> {
-  if (args.includes('--help') || args.includes('-h')) {
+  if (args.includes("--help") || args.includes("-h")) {
     printTranslateUsage();
     return;
   }
@@ -449,25 +478,25 @@ async function runTranslateCommand(args: string[]): Promise<void> {
 
   const command = args[0];
 
-  if (command === 'add') {
+  if (command === "add") {
     await addTranslations(args);
     return;
   }
 
-  if (command === 'delete') {
-    const keys = args.slice(1).filter((a) => a !== '--');
+  if (command === "delete") {
+    const keys = args.slice(1).filter((a) => a !== "--");
     await deleteKeys(keys);
     return;
   }
 
-  if (command === 'generate') {
+  if (command === "generate") {
     const outputPath = args[1];
     const keys = args.slice(2);
     await generateTemplate(outputPath, keys);
     return;
   }
 
-  if (command === 'apply') {
+  if (command === "apply") {
     const inputPath = args[1];
     await applyTemplate(inputPath);
     return;
@@ -490,11 +519,14 @@ Changelog Commands
 `);
 }
 
-async function appendChangelogItem(version: string | undefined, args: string[]): Promise<void> {
+async function appendChangelogItem(
+  version: string | undefined,
+  args: string[],
+): Promise<void> {
   if (!isNonEmptyString(version)) {
-    console.error('Error: changelog version is required.');
+    console.error("Error: changelog version is required.");
     console.error(
-      'Usage: pnpm run i18n changelog append <version> --zh "..." --en "..." --ja "..." --ko "..." --ru "..." --fr "..." --de "..."'
+      'Usage: pnpm run i18n changelog append <version> --zh "..." --en "..." --ja "..." --ko "..." --ru "..." --fr "..." --de "..."',
     );
     process.exit(1);
   }
@@ -503,7 +535,7 @@ async function appendChangelogItem(version: string | undefined, args: string[]):
   const missingLocales = getMissingLocales(translations);
   if (missingLocales.length > 0) {
     console.error(
-      `Error: missing translations for locales: ${missingLocales.map((l) => `--${l}`).join(' ')}`
+      `Error: missing translations for locales: ${missingLocales.map((l) => `--${l}`).join(" ")}`,
     );
     process.exit(1);
   }
@@ -517,39 +549,47 @@ async function appendChangelogItem(version: string | undefined, args: string[]):
   const availableVersions = Array.isArray(sourceSections)
     ? sourceSections
         .map((section) => section.version)
-        .filter((item): item is string => typeof item === 'string' && item.length > 0)
+        .filter(
+          (item): item is string => typeof item === "string" && item.length > 0,
+        )
     : [];
 
   for (const locale of ALL_LOCALES) {
     const sections = localeData[locale]?.changelog?.sections;
     if (!Array.isArray(sections)) {
-      console.error(`Error: changelog.sections is missing or invalid in locale "${locale}".`);
+      console.error(
+        `Error: changelog.sections is missing or invalid in locale "${locale}".`,
+      );
       process.exit(1);
     }
 
     const section = sections.find((item) => item?.version === version);
     if (!section) {
-      console.error(`Error: version "${version}" was not found in locale "${locale}".`);
+      console.error(
+        `Error: version "${version}" was not found in locale "${locale}".`,
+      );
       if (availableVersions.length > 0) {
-        console.error(`Available versions in ${SOURCE_LOCALE}: ${availableVersions.join(', ')}`);
+        console.error(
+          `Available versions in ${SOURCE_LOCALE}: ${availableVersions.join(", ")}`,
+        );
       }
       process.exit(1);
     }
 
     if (!Array.isArray(section.items)) {
       console.error(
-        `Error: changelog section "${version}" has invalid items in locale "${locale}".`
+        `Error: changelog section "${version}" has invalid items in locale "${locale}".`,
       );
       process.exit(1);
     }
   }
 
-  console.log('');
+  console.log("");
   let appendedCount = 0;
 
   for (const locale of ALL_LOCALES) {
     const section = localeData[locale].changelog?.sections?.find(
-      (item) => item?.version === version
+      (item) => item?.version === version,
     );
     if (!section || !Array.isArray(section.items)) continue;
 
@@ -568,13 +608,15 @@ async function appendChangelogItem(version: string | undefined, args: string[]):
     await writeAnnouncementLocaleFile(locale, localeData[locale]);
   }
 
-  console.log('');
-  console.log(`  Done. Appended to version "${version}" across ${ALL_LOCALES.length} locales.`);
+  console.log("");
+  console.log(
+    `  Done. Appended to version "${version}" across ${ALL_LOCALES.length} locales.`,
+  );
   console.log(`  Updated entries: ${appendedCount}/${ALL_LOCALES.length}`);
 }
 
 async function runChangelogCommand(args: string[]): Promise<void> {
-  if (args.includes('--help') || args.includes('-h')) {
+  if (args.includes("--help") || args.includes("-h")) {
     printChangelogUsage();
     return;
   }
@@ -585,7 +627,7 @@ async function runChangelogCommand(args: string[]): Promise<void> {
   }
 
   const [command, ...rest] = args;
-  if (command === 'append') {
+  if (command === "append") {
     const version = rest[0];
     const translationArgs = rest.slice(1);
     await appendChangelogItem(version, translationArgs);
@@ -610,8 +652,8 @@ type DynamicUsage = {
   text: string;
 };
 
-const SOURCE_EXTS = new Set(['.js', '.jsx', '.ts', '.tsx']);
-const IGNORED_DIRS = new Set(['node_modules', 'dist', '.git', 'public']);
+const SOURCE_EXTS = new Set([".js", ".jsx", ".ts", ".tsx"]);
+const IGNORED_DIRS = new Set(["node_modules", "dist", ".git", "public"]);
 
 function parsePruneArgs(argv: string[]): PruneOptions {
   const opts: PruneOptions = {
@@ -622,26 +664,26 @@ function parsePruneArgs(argv: string[]): PruneOptions {
   };
 
   for (const arg of argv) {
-    if (arg === '--write') opts.write = true;
-    else if (arg === '--force') opts.force = true;
-    else if (arg.startsWith('--keep=')) {
-      const raw = arg.slice('--keep='.length).trim();
+    if (arg === "--write") opts.write = true;
+    else if (arg === "--force") opts.force = true;
+    else if (arg.startsWith("--keep=")) {
+      const raw = arg.slice("--keep=".length).trim();
       if (raw)
         raw
-          .split(',')
+          .split(",")
           .map((s) => s.trim())
           .filter(Boolean)
           .forEach((k) => {
             opts.keep.add(k);
           });
-    } else if (arg.startsWith('--keep-prefix=')) {
-      const raw = arg.slice('--keep-prefix='.length).trim();
+    } else if (arg.startsWith("--keep-prefix=")) {
+      const raw = arg.slice("--keep-prefix=".length).trim();
       if (raw)
         opts.keepPrefixes.push(
           ...raw
-            .split(',')
+            .split(",")
             .map((s) => s.trim())
-            .filter(Boolean)
+            .filter(Boolean),
         );
     }
   }
@@ -650,13 +692,15 @@ function parsePruneArgs(argv: string[]): PruneOptions {
 }
 
 function printPruneUsage(): void {
-  console.log('Usage: pnpm run i18n prune [--write] [--force] [--keep=a,b] [--keep-prefix=p1,p2]');
-  console.log('');
-  console.log('Options:');
-  console.log('  --write         Apply changes (default is dry-run)');
-  console.log('  --force         Allow pruning when dynamic keys are detected');
-  console.log('  --keep=keys     Comma-separated keys to keep');
-  console.log('  --keep-prefix=  Comma-separated key prefixes to keep');
+  console.log(
+    "Usage: pnpm run i18n prune [--write] [--force] [--keep=a,b] [--keep-prefix=p1,p2]",
+  );
+  console.log("");
+  console.log("Options:");
+  console.log("  --write         Apply changes (default is dry-run)");
+  console.log("  --force         Allow pruning when dynamic keys are detected");
+  console.log("  --keep=keys     Comma-separated keys to keep");
+  console.log("  --keep-prefix=  Comma-separated key prefixes to keep");
 }
 
 async function walkFiles(dir: string, files: string[] = []): Promise<string[]> {
@@ -675,28 +719,36 @@ async function walkFiles(dir: string, files: string[] = []): Promise<string[]> {
 
 function getScriptKind(filePath: string): ts.ScriptKind {
   const ext = path.extname(filePath);
-  if (ext === '.tsx') return ts.ScriptKind.TSX;
-  if (ext === '.ts') return ts.ScriptKind.TS;
-  if (ext === '.jsx') return ts.ScriptKind.JSX;
+  if (ext === ".tsx") return ts.ScriptKind.TSX;
+  if (ext === ".ts") return ts.ScriptKind.TS;
+  if (ext === ".jsx") return ts.ScriptKind.JSX;
   return ts.ScriptKind.JS;
 }
 
 function isLocalesAccess(expr: ts.Expression): boolean {
   if (ts.isPropertyAccessExpression(expr)) {
-    return ts.isIdentifier(expr.expression) && expr.expression.text === 'locales';
+    return (
+      ts.isIdentifier(expr.expression) && expr.expression.text === "locales"
+    );
   }
   if (ts.isElementAccessExpression(expr)) {
-    return ts.isIdentifier(expr.expression) && expr.expression.text === 'locales';
+    return (
+      ts.isIdentifier(expr.expression) && expr.expression.text === "locales"
+    );
   }
   return false;
 }
 
 function isLocaleObjectExpr(expr: ts.Expression): boolean {
   if (isLocalesAccess(expr)) return true;
-  if (ts.isParenthesizedExpression(expr)) return isLocaleObjectExpr(expr.expression);
+  if (ts.isParenthesizedExpression(expr))
+    return isLocaleObjectExpr(expr.expression);
   if (ts.isBinaryExpression(expr)) {
     const op = expr.operatorToken.kind;
-    if (op === ts.SyntaxKind.BarBarToken || op === ts.SyntaxKind.QuestionQuestionToken) {
+    if (
+      op === ts.SyntaxKind.BarBarToken ||
+      op === ts.SyntaxKind.QuestionQuestionToken
+    ) {
       return isLocaleObjectExpr(expr.left) || isLocaleObjectExpr(expr.right);
     }
   }
@@ -704,10 +756,13 @@ function isLocaleObjectExpr(expr: ts.Expression): boolean {
 }
 
 function isTCallExpression(expr: ts.Expression): boolean {
-  if (ts.isIdentifier(expr)) return expr.text === 't';
-  if (ts.isPropertyAccessExpression(expr)) return expr.name.text === 't';
+  if (ts.isIdentifier(expr)) return expr.text === "t";
+  if (ts.isPropertyAccessExpression(expr)) return expr.name.text === "t";
   if (ts.isElementAccessExpression(expr)) {
-    return ts.isStringLiteral(expr.argumentExpression) && expr.argumentExpression.text === 't';
+    return (
+      ts.isStringLiteral(expr.argumentExpression) &&
+      expr.argumentExpression.text === "t"
+    );
   }
   return false;
 }
@@ -722,14 +777,14 @@ function collectUsedKeysFromFile(
   filePath: string,
   sourceText: string,
   usedKeys: Set<string>,
-  dynamicUsages: DynamicUsage[]
+  dynamicUsages: DynamicUsage[],
 ): void {
   const sourceFile = ts.createSourceFile(
     filePath,
     sourceText,
     ts.ScriptTarget.Latest,
     true,
-    getScriptKind(filePath)
+    getScriptKind(filePath),
   );
   const localeVars = new Set<string>();
 
@@ -756,13 +811,18 @@ function collectUsedKeysFromFile(
     const tsWithChain = ts as { isCallChain?: (n: ts.Node) => boolean };
     if (ts.isCallExpression(node) || tsWithChain.isCallChain?.(node)) {
       const callExpr = node as ts.CallExpression;
-      if (isTCallExpression(callExpr.expression) && callExpr.arguments.length > 0) {
+      if (
+        isTCallExpression(callExpr.expression) &&
+        callExpr.arguments.length > 0
+      ) {
         const arg = callExpr.arguments[0];
         const literal = getLiteralKey(arg);
         if (literal) {
           usedKeys.add(literal);
         } else {
-          const { line } = sourceFile.getLineAndCharacterOfPosition(callExpr.pos);
+          const { line } = sourceFile.getLineAndCharacterOfPosition(
+            callExpr.pos,
+          );
           dynamicUsages.push({
             file: filePath,
             line: line + 1,
@@ -774,15 +834,23 @@ function collectUsedKeysFromFile(
 
     if (ts.isPropertyAccessExpression(node)) {
       const base = node.expression;
-      if ((ts.isIdentifier(base) && localeVars.has(base.text)) || isLocaleObjectExpr(base)) {
+      if (
+        (ts.isIdentifier(base) && localeVars.has(base.text)) ||
+        isLocaleObjectExpr(base)
+      ) {
         usedKeys.add(node.name.text);
       }
     }
 
     if (ts.isElementAccessExpression(node)) {
       const base = node.expression;
-      if ((ts.isIdentifier(base) && localeVars.has(base.text)) || isLocaleObjectExpr(base)) {
-        const literal = node.argumentExpression ? getLiteralKey(node.argumentExpression) : null;
+      if (
+        (ts.isIdentifier(base) && localeVars.has(base.text)) ||
+        isLocaleObjectExpr(base)
+      ) {
+        const literal = node.argumentExpression
+          ? getLiteralKey(node.argumentExpression)
+          : null;
         if (literal) usedKeys.add(literal);
       }
     }
@@ -794,7 +862,7 @@ function collectUsedKeysFromFile(
 }
 
 async function collectUsedKeys(
-  srcDir: string
+  srcDir: string,
 ): Promise<{ usedKeys: Set<string>; dynamicUsages: DynamicUsage[] }> {
   const files = await walkFiles(srcDir);
   const usedKeys = new Set<string>();
@@ -802,9 +870,9 @@ async function collectUsedKeys(
 
   await Promise.all(
     files.map(async (file) => {
-      const text = await fs.readFile(file, 'utf8');
+      const text = await fs.readFile(file, "utf8");
       collectUsedKeysFromFile(file, text, usedKeys, dynamicUsages);
-    })
+    }),
   );
 
   return { usedKeys, dynamicUsages };
@@ -815,18 +883,18 @@ async function getLocaleJsonFiles(): Promise<string[]> {
   return entries
     .filter((name) => /^locales\..+\.json$/.test(name))
     .map((name) => path.join(LOCALES_DIR, name))
-    .filter((name) => name !== path.join(LOCALES_DIR, 'locales.json'));
+    .filter((name) => name !== path.join(LOCALES_DIR, "locales.json"));
 }
 
 async function pruneLocaleFile(
   filePath: string,
   usedKeys: Set<string>,
-  opts: PruneOptions
+  opts: PruneOptions,
 ): Promise<{ pruned: Record<string, string>; unusedKeys: string[] }> {
-  const text = await fs.readFile(filePath, 'utf8');
+  const text = await fs.readFile(filePath, "utf8");
   let data: Record<string, string>;
   try {
-    data = JSON.parse(text.replace(/^\uFEFF/, '')) as Record<string, string>;
+    data = JSON.parse(text.replace(/^\uFEFF/, "")) as Record<string, string>;
   } catch (error) {
     throw new Error(`Failed to parse JSON in ${filePath}: ${String(error)}`);
   }
@@ -847,7 +915,7 @@ async function pruneLocaleFile(
 }
 
 async function runPruneCommand(args: string[]): Promise<void> {
-  if (args.includes('--help') || args.includes('-h')) {
+  if (args.includes("--help") || args.includes("-h")) {
     printPruneUsage();
     return;
   }
@@ -856,13 +924,15 @@ async function runPruneCommand(args: string[]): Promise<void> {
   const localeFiles = await getLocaleJsonFiles();
 
   if (localeFiles.length === 0) {
-    throw new Error('No locale files found. Expected src/i18n/locales.*.json');
+    throw new Error("No locale files found. Expected src/i18n/locales.*.json");
   }
 
   const { usedKeys, dynamicUsages } = await collectUsedKeys(SRC_DIR);
 
   if (dynamicUsages.length > 0 && opts.write && !opts.force) {
-    console.error('Dynamic translation key usage found. Run with --force to prune anyway:');
+    console.error(
+      "Dynamic translation key usage found. Run with --force to prune anyway:",
+    );
     for (const usage of dynamicUsages) {
       console.error(`- ${usage.file}:${usage.line} ${usage.text}`);
     }
@@ -870,7 +940,9 @@ async function runPruneCommand(args: string[]): Promise<void> {
   }
 
   if (dynamicUsages.length > 0 && (!opts.write || opts.force)) {
-    console.warn('Dynamic translation key usage found (review before pruning):');
+    console.warn(
+      "Dynamic translation key usage found (review before pruning):",
+    );
     for (const usage of dynamicUsages) {
       console.warn(`- ${usage.file}:${usage.line} ${usage.text}`);
     }
@@ -884,8 +956,8 @@ async function runPruneCommand(args: string[]): Promise<void> {
       if (opts.write) {
         const locale = path
           .basename(file)
-          .replace(/^locales\./, '')
-          .replace(/\.json$/, '');
+          .replace(/^locales\./, "")
+          .replace(/\.json$/, "");
         await writeLocaleFile(locale, pruned);
       }
       console.log(`[keep] ${path.relative(ROOT, file)} (0 unused keys)`);
@@ -897,24 +969,28 @@ async function runPruneCommand(args: string[]): Promise<void> {
     if (opts.write) {
       const locale = path
         .basename(file)
-        .replace(/^locales\./, '')
-        .replace(/\.json$/, '');
+        .replace(/^locales\./, "")
+        .replace(/\.json$/, "");
       await writeLocaleFile(locale, pruned);
-      console.log(`[pruned] ${path.relative(ROOT, file)} (-${unusedKeys.length} keys)`);
+      console.log(
+        `[pruned] ${path.relative(ROOT, file)} (-${unusedKeys.length} keys)`,
+      );
     } else {
-      console.log(`[report] ${path.relative(ROOT, file)} (${unusedKeys.length} unused keys)`);
-      console.log(`  Unused: ${unusedKeys.join(', ')}`);
+      console.log(
+        `[report] ${path.relative(ROOT, file)} (${unusedKeys.length} unused keys)`,
+      );
+      console.log(`  Unused: ${unusedKeys.join(", ")}`);
     }
   }
 
   if (!opts.write) {
-    console.log('');
-    console.log('Dry run complete. Use --write to apply changes.');
+    console.log("");
+    console.log("Dry run complete. Use --write to apply changes.");
   } else {
-    console.log('');
+    console.log("");
     console.log(`Prune complete. Removed ${totalRemoved} keys.`);
-    console.log('');
-    console.log('--- Sync check ---\n');
+    console.log("");
+    console.log("--- Sync check ---\n");
     await checkSync();
   }
 }
@@ -946,7 +1022,7 @@ Compatible aliases:
 
 async function main(): Promise<void> {
   const raw = process.argv.slice(2);
-  const args = raw[0] === '--' ? raw.slice(1) : raw;
+  const args = raw[0] === "--" ? raw.slice(1) : raw;
 
   if (args.length === 0) {
     await runTranslateCommand([]);
@@ -955,28 +1031,28 @@ async function main(): Promise<void> {
 
   const [topCommand, ...rest] = args;
 
-  if (topCommand === '--help' || topCommand === '-h' || topCommand === 'help') {
+  if (topCommand === "--help" || topCommand === "-h" || topCommand === "help") {
     printMainUsage();
     return;
   }
 
-  if (topCommand === 'translate') {
+  if (topCommand === "translate") {
     await runTranslateCommand(rest);
     return;
   }
 
-  if (topCommand === 'prune') {
+  if (topCommand === "prune") {
     await runPruneCommand(rest);
     return;
   }
 
-  if (topCommand === 'changelog') {
+  if (topCommand === "changelog") {
     await runChangelogCommand(rest);
     return;
   }
 
   // Legacy compatibility for alias script: pnpm run i18n:translate add ...
-  if (['add', 'delete', 'generate', 'apply'].includes(topCommand)) {
+  if (["add", "delete", "generate", "apply"].includes(topCommand)) {
     await runTranslateCommand(args);
     return;
   }

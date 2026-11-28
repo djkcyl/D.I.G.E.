@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useI18n } from '../../../i18n';
-import ImagePreviewContentModal from './ImagePreviewContentModal';
-import ImagePreviewZoomModal from './ImagePreviewZoomModal';
-import useImagePreviewZoom from './useImagePreviewZoom';
+import { useCallback, useEffect, useState } from "react";
+import { useI18n } from "../../../i18n";
+import ImagePreviewContentModal from "./ImagePreviewContentModal";
+import ImagePreviewZoomModal from "./ImagePreviewZoomModal";
+import useImagePreviewZoom from "./useImagePreviewZoom";
 
 export interface ImagePreviewModalProps {
   show: boolean;
@@ -20,8 +20,8 @@ export default function ImagePreviewModal({
   title,
 }: ImagePreviewModalProps) {
   const { t } = useI18n();
-  const [previewUrl, setPreviewUrl] = useState('');
-  const [message, setMessage] = useState('');
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [message, setMessage] = useState("");
 
   const {
     zoomOpen,
@@ -48,7 +48,7 @@ export default function ImagePreviewModal({
 
   useEffect(() => {
     if (!blob) {
-      setPreviewUrl('');
+      setPreviewUrl("");
       return undefined;
     }
     const nextUrl = URL.createObjectURL(blob);
@@ -59,18 +59,18 @@ export default function ImagePreviewModal({
   useEffect(() => {
     if (show) return;
     closeZoom();
-    setMessage('');
+    setMessage("");
   }, [closeZoom, show]);
 
-  const titleText = title || t('completeImagePreviewTitle');
+  const titleText = title || t("completeImagePreviewTitle");
   const canShare =
-    typeof navigator !== 'undefined' &&
-    'share' in navigator &&
-    typeof navigator.share === 'function' &&
+    typeof navigator !== "undefined" &&
+    "share" in navigator &&
+    typeof navigator.share === "function" &&
     Boolean(blob);
 
   const closePreview = useCallback(() => {
-    setMessage('');
+    setMessage("");
     closeZoom();
     onClose?.();
   }, [closeZoom, onClose]);
@@ -78,10 +78,10 @@ export default function ImagePreviewModal({
   const handleDownload = useCallback(() => {
     if (!blob || !fileName) return;
     const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
+    const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = fileName;
-    anchor.rel = 'noopener';
+    anchor.rel = "noopener";
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -92,31 +92,36 @@ export default function ImagePreviewModal({
     if (!blob) return;
     try {
       if (
-        typeof navigator === 'undefined' ||
+        typeof navigator === "undefined" ||
         !navigator.clipboard?.write ||
-        typeof ClipboardItem === 'undefined'
+        typeof ClipboardItem === "undefined"
       ) {
-        setMessage(t('copyImageFailed'));
+        setMessage(t("copyImageFailed"));
         return;
       }
       await navigator.clipboard.write([
         new ClipboardItem({
-          'image/png': blob,
+          "image/png": blob,
         }),
       ]);
-      setMessage(t('copyImageSuccess'));
+      setMessage(t("copyImageSuccess"));
     } catch (error) {
-      console.error('Copy image failed:', error);
-      setMessage(t('copyImageFailed'));
+      console.error("Copy image failed:", error);
+      setMessage(t("copyImageFailed"));
     }
   }, [blob, t]);
 
   const handleShare = useCallback(async () => {
-    if (typeof navigator === 'undefined' || !blob || !navigator.share) return;
+    if (typeof navigator === "undefined" || !blob || !navigator.share) return;
     try {
-      const file = new File([blob], fileName || 'dige_export.png', { type: 'image/png' });
-      if (typeof navigator.canShare === 'function' && !navigator.canShare({ files: [file] })) {
-        setMessage(t('shareUnavailable'));
+      const file = new File([blob], fileName || "dige_export.png", {
+        type: "image/png",
+      });
+      if (
+        typeof navigator.canShare === "function" &&
+        !navigator.canShare({ files: [file] })
+      ) {
+        setMessage(t("shareUnavailable"));
         return;
       }
       await navigator.share({
@@ -124,9 +129,9 @@ export default function ImagePreviewModal({
         title: titleText,
       });
     } catch (error) {
-      if ((error as Error)?.name === 'AbortError') return;
-      console.error('Share image failed:', error);
-      setMessage(t('shareUnavailable'));
+      if ((error as Error)?.name === "AbortError") return;
+      console.error("Share image failed:", error);
+      setMessage(t("shareUnavailable"));
     }
   }, [blob, fileName, t, titleText]);
 

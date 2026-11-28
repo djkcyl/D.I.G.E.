@@ -1,0 +1,61 @@
+# APK CI template (not active until copied to .github/workflows/).
+# Upstream enable:
+#   mkdir -p .github/workflows && cp scripts/ci/build-apk.yml .github/workflows/build-apk.yml
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.13.0
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web app
+        run: pnpm build
+
+      - name: Add / sync Capacitor Android
+        run: |
+          if [ ! -d android ]; then
+            pnpm exec cap add android
+          fi
+          pnpm exec cap sync android
+
+      - name: Assemble debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DIGE-Android-Debug-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk

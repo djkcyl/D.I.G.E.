@@ -33,7 +33,7 @@
         "items": [
           "Set target power in the left control panel",
           "Select primary fuel (required) and secondary fuel (optional)",
-          "Adjust minimum battery level and max waste limits",
+          "Pick pickup-port count and redundancy on the 3×3 board",
           "Click \"Calculate\" to get optimal solutions",
           "View solution details and diagrams on the right"
         ]
@@ -79,9 +79,63 @@
   "changelog": {
     "sections": [
       {
+        "version": "v1.12.1.0",
+        "title": "What's new in v1.12.1.0",
+        "defaultOpen": true,
+        "items": [
+          "The decision board and saved profiles stay pinned while scrolling on mobile, with power and battery details clearly shown on a separate second line.",
+          "Drag the mobile decision board by its title, with the surrounding page clearly visible and still scrollable.",
+          "Added a Center Board button to bring a dragged decision board back into place.",
+          "Custom pool feed above one generator's full speed now becomes multiple full-speed generators plus an oscillating remainder, with the split shown clearly.",
+          "Failed calculations now suggest likely causes first and provide a copyable technical error message."
+        ]
+      },
+      {
+        "version": "v1.12.0",
+        "title": "What's new in v1.12.0",
+        "defaultOpen": false,
+        "items": [
+          "Game 1.7 support: added the HC Wuling Battery (6400W / 40s) as a selectable primary or secondary fuel.",
+          "Repository, issue tracker and site metadata are centralised in one config for easier maintenance.",
+          "Target power ceiling raised to 65535W; existing share-code fields stay unchanged, larger values use a new tail slot.",
+          "Added custom base and custom oscillation thermal pools: arrange base generators per fuel, or pick one battery with an items-per-minute cap and let the tool build the oscillation plan; power and fuel usage are included in the stats."
+        ]
+      },
+      {
+        "version": "v1.11.1",
+        "title": "v1.11.1 Updates",
+        "defaultOpen": false,
+        "items": [
+          "Game 1.5 ready: the solver now auto-searches 1–4 pickup ports with a 1000W waste window and 5% battery floor — no more guessing maxWaste / maxBranches / minBattery.",
+          "A single calculate pass runs two tracks: auto base-fill and pure oscillating/manual, then buckets results with five-level Pareto ranking.",
+          "The board is now a 3×3 grid: rows are pickup ports 1–3, columns are tens / hundreds / kilowatts of waste; empty cells get a red slash, and the bottom-right dead corner stays unselectable.",
+          "On PC the board sits left of a solution dashboard; on mobile, tapping the top chip opens a centered translucent 3×3 modal instead of a bottom sheet.",
+          "The sidebar dropped the old constraint sliders and now keeps only target power, fuel, base power, and other settings.",
+          "Added industrial-white / polar-night themes. Toggle from the top-right; without a manual override, 6:00–18:00 local time uses the light theme."
+        ]
+      },
+      {
+        "version": "v1.11.0",
+        "title": "v1.11.0 Updates",
+        "defaultOpen": false,
+        "items": [
+          "Solver can auto-apply item-gate rate limits on oscillating branches to reduce or remove multi-stage splitters.",
+          "Added layered base power (core / manual / auto-fill) with unified full-network fuel consumption stats.",
+          "Supports mixed primary/secondary fuel on independent branches, with smart-mix and other fuel strategies.",
+          "Solution ranking is more practical: prefer lower waste, fewer devices, fewer branches, and a steadier grid.",
+          "Advanced constraints are tucked into a collapsible sidebar section; when no solution is found, actionable tips are shown.",
+          "Hardened stability for extreme parameters to avoid freezes or crashes from ultra-long simulation periods.",
+          "Defaults lean mid-game: 5800W, SC Wuling + Valley High batteries, with auto base planning and smart fuel mix on by default.",
+          "Share and import power-grid codes: copy a DIGE blueprint code from Share, or paste a code/link from the profile menu to load a local archive.",
+          "Local multi-slot grid profiles with autosave, Valley IV / Wuling presets, Save as, and quick switching.",
+          "Choose factory region (Valley IV / Wuling / Free build); in Valley, Wuling batteries cannot use item-gate limiters, with a clear cross-region hint.",
+          "Fixed mixed primary/secondary fuel headers that showed only one battery name; branch fuels and watts are clearer. Sidebar copy is leaner."
+        ]
+      },
+      {
         "version": "v1.10.0",
         "title": "v1.10.0 Updates",
-        "defaultOpen": true,
+        "defaultOpen": false,
         "items": [
           "This release focuses on internal refactoring and stability improvements; core features and workflows remain the same.",
           "Keyboard usability is improved: the language menu, More menu, and image preview now support more complete keyboard navigation.",
