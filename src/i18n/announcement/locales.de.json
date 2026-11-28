@@ -87,7 +87,7 @@
           "Repository, Issue-Tracker und Seiten-Metadaten liegen jetzt in einer Konfiguration — leichter zu pflegen und zu erweitern.",
           "Obergrenze der Zielleistung auf 65535 W erhöht; das Format der Freigabecodes bleibt gleich, größere Werte nutzen ein neues Feld am Ende.",
           "Benutzerdefinierte Grundlast- und Schwingungs-Thermalpools hinzugefügt: Grundlast-Generatoren je Brennstoff frei anordnen oder eine Batterie mit Zufuhr-Obergrenze pro Minute wählen; Leistung und Brennstoffverbrauch werden mitgezählt.",
-          "Auf Mobilgeräten bleiben Entscheidungsbrett und Speicherleiste beim Scrollen oben fixiert.",
+          "Auf Mobilgeräten bleiben Entscheidungsbrett und Speicherleiste oben fixiert; Leistung und Batteriestand stehen vollständig in einer eigenen zweiten Zeile.",
           "Das mobile Entscheidungsbrett lässt sich am Titel ziehen; die Seite dahinter bleibt sichtbar und scrollbar.",
           "Neue Schaltfläche zentriert das verschobene Entscheidungsbrett wieder.",
           "Übersteigt die Pool-Zuführung die Volllast eines Generators, wird sie auf mehrere Generatoren und einen Rest aufgeteilt und angezeigt.",
