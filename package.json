@@ -1,7 +1,7 @@
 {
   "name": "dige",
   "private": true,
-  "version": "1.12.0",
+  "version": "1.12.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

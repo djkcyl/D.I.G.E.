@@ -136,8 +136,8 @@ scripts/
 
 | 规则 | 说明 |
 |------|------|
-| package.json | 版本号按实际发布更新；本仓库按 minor 递增（如 1.11.1 → 1.12.0） |
-| changelog | **小版本（minor）开新小节**（如 `v1.12.0`）；同一小版本内的补丁与修补直接追加到该小节 `items`，不再为 `1.12.1` 之类单开小节 |
+| package.json | 版本号按实际发布更新；本仓库统一写满四位 `x.y.z.w`，功能模块递增第三位，如 `1.12.0.0 → 1.12.1.0`；不能擅自缩成三位 |
+| changelog | **功能模块版本开新小节**（如 `v1.12.1.0`），同样保持四段；历史小节不伪改版本。第四位补丁的归属与递增见 `docs/dev-history/VERSIONING.md`，不自动改应用版本 |
 
 ### 文件位置
 
@@ -186,4 +186,4 @@ changelog 结构：`changelog.sections[].items` 为字符串数组，按版本�
 | 修复 | `fix: 描述` | `fix: prevent auto-translate DOM mutation` |
 | 重构 | `refactor(scope): 描述` | `refactor(i18n): merge translate and prune into unified CLI` |
 
-版本发布时 scope 使用 `v1.x.x`。
+版本发布时 scope 使用完整四位版本，例如 `v1.12.1.0`。

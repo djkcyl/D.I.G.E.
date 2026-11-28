@@ -79,19 +79,26 @@
   "changelog": {
     "sections": [
       {
-        "version": "v1.12.0",
-        "title": "Neuerungen in v1.12.0",
+        "version": "v1.12.1.0",
+        "title": "Neuerungen in v1.12.1.0",
         "defaultOpen": true,
         "items": [
-          "Spiel-1.7-Unterstützung: HK Wuling-Batterie (6400 W / 40 s) als Haupt- oder Zweitbrennstoff hinzugefügt.",
-          "Repository, Issue-Tracker und Seiten-Metadaten liegen jetzt in einer Konfiguration — leichter zu pflegen und zu erweitern.",
-          "Obergrenze der Zielleistung auf 65535 W erhöht; das Format der Freigabecodes bleibt gleich, größere Werte nutzen ein neues Feld am Ende.",
-          "Benutzerdefinierte Grundlast- und Schwingungs-Thermalpools hinzugefügt: Grundlast-Generatoren je Brennstoff frei anordnen oder eine Batterie mit Zufuhr-Obergrenze pro Minute wählen; Leistung und Brennstoffverbrauch werden mitgezählt.",
           "Auf Mobilgeräten bleiben Entscheidungsbrett und Speicherleiste oben fixiert; Leistung und Batteriestand stehen vollständig in einer eigenen zweiten Zeile.",
           "Das mobile Entscheidungsbrett lässt sich am Titel ziehen; die Seite dahinter bleibt sichtbar und scrollbar.",
           "Neue Schaltfläche zentriert das verschobene Entscheidungsbrett wieder.",
           "Übersteigt die Pool-Zuführung die Volllast eines Generators, wird sie auf mehrere Generatoren und einen Rest aufgeteilt und angezeigt.",
           "Schlägt die Berechnung fehl, erscheint zuerst eine mögliche Ursache; der technische Fehlertext ist kopierbar."
+        ]
+      },
+      {
+        "version": "v1.12.0",
+        "title": "Neuerungen in v1.12.0",
+        "defaultOpen": false,
+        "items": [
+          "Spiel-1.7-Unterstützung: HK Wuling-Batterie (6400 W / 40 s) als Haupt- oder Zweitbrennstoff hinzugefügt.",
+          "Repository, Issue-Tracker und Seiten-Metadaten liegen jetzt in einer Konfiguration — leichter zu pflegen und zu erweitern.",
+          "Obergrenze der Zielleistung auf 65535 W erhöht; das Format der Freigabecodes bleibt gleich, größere Werte nutzen ein neues Feld am Ende.",
+          "Benutzerdefinierte Grundlast- und Schwingungs-Thermalpools hinzugefügt: Grundlast-Generatoren je Brennstoff frei anordnen oder eine Batterie mit Zufuhr-Obergrenze pro Minute wählen; Leistung und Brennstoffverbrauch werden mitgezählt."
         ]
       },
       {
