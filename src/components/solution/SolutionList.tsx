@@ -288,14 +288,16 @@ export default function SolutionList({
         <div ref={sentinelRef} className="h-px w-full" aria-hidden="true" />
 
         {isMobile ? (
-          <StickyHud
-            selectedSolution={selectedSolution}
-            selection={selection}
-            isMobile
-            onOpenPicker={() => openPicker(false)}
-            onOpenPickerCentered={() => openPicker(true)}
-            profile={profile}
-          />
+          <div className="sticky top-0 z-20">
+            <StickyHud
+              selectedSolution={selectedSolution}
+              selection={selection}
+              isMobile
+              onOpenPicker={() => openPicker(false)}
+              onOpenPickerCentered={() => openPicker(true)}
+              profile={profile}
+            />
+          </div>
         ) : (
           <>
             <div className="p-2 sm:p-4 border-b border-endfield-gray-light bg-endfield-dark/50">
