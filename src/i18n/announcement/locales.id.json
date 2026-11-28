@@ -88,7 +88,7 @@
           "Batas daya target dinaikkan ke 65535W; format kode berbagi tetap sama, nilai lebih besar memakai slot ekor baru.",
           "Menambahkan kumpulan termal dasar dan osilasi kustom: atur generator dasar per bahan bakar, atau pilih satu baterai dengan batas item per menit untuk menyusun osilasi; daya dan konsumsi bahan bakar ikut dihitung.",
           "Di perangkat seluler, papan keputusan dan arsip tetap berada di atas saat menggulir.",
-          "Papan keputusan seluler dapat digeser lewat judul, dengan efek kaca buram dan halaman sekitar tetap dapat digulir.",
+          "Papan keputusan seluler dapat digeser lewat judul tanpa menutupi halaman sekitar, yang tetap dapat digulir.",
           "Ditambahkan tombol untuk memusatkan kembali papan keputusan yang digeser.",
           "Jika umpan pool kustom melebihi kecepatan penuh satu generator, umpan dipecah menjadi beberapa generator penuh dan sisa, lalu rinciannya ditampilkan.",
           "Jika perhitungan gagal, kemungkinan penyebab ditampilkan lebih dulu beserta detail teknis yang dapat disalin."

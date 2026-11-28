@@ -88,7 +88,7 @@
           "Target power ceiling raised to 65535W; existing share-code fields stay unchanged, larger values use a new tail slot.",
           "Added custom base and custom oscillation thermal pools: arrange base generators per fuel, or pick one battery with an items-per-minute cap and let the tool build the oscillation plan; power and fuel usage are included in the stats.",
           "The decision board and saved profiles now stay pinned at the top while scrolling on mobile.",
-          "Drag the mobile decision board by its title, with a frosted-glass backdrop and scrollable content behind it.",
+          "Drag the mobile decision board by its title, with the surrounding page clearly visible and still scrollable.",
           "Added a Center Board button to bring a dragged decision board back into place.",
           "Custom pool feed above one generator's full speed now becomes multiple full-speed generators plus an oscillating remainder, with the split shown clearly.",
           "Failed calculations now suggest likely causes first and provide a copyable technical error message."
