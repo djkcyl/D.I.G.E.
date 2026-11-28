@@ -1,25 +1,58 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "../../../i18n";
 import CloseButton from "../../ui/CloseButton";
+import useDraggablePanel from "../../ui/useDraggablePanel";
 
 export interface DecisionMatrixModalProps {
   show: boolean;
   onClose: () => void;
-  title?: React.ReactNode;
+  title?: string;
   children?: React.ReactNode;
+  /** 每次自增拉回居中位置；用于 HUD 的绿色按钮。 */
+  recenterSignal?: number;
 }
 
-/** Centered industrial modal for the 3×3 decision board (mobile). */
+const MAX_PANEL_WIDTH = 352;
+const VIEWPORT_MARGIN = 12;
+
+function panelWidthForViewport() {
+  if (typeof window === "undefined") return MAX_PANEL_WIDTH;
+  return Math.max(
+    1,
+    Math.min(MAX_PANEL_WIDTH, window.innerWidth - VIEWPORT_MARGIN * 2),
+  );
+}
+
+/** 非模态决策盘：移动端可拖动、可隔层滚动，用毛玻璃表达聚焦。 */
 export default function DecisionMatrixModal({
   show,
   onClose,
   title,
   children,
+  recenterSignal = 0,
 }: DecisionMatrixModalProps) {
   const { t } = useI18n();
   const panelRef = useRef<HTMLDivElement>(null);
   const lastFocusedRef = useRef<HTMLElement | null>(null);
+  const [panelWidth, setPanelWidth] = useState(panelWidthForViewport);
+  const { position, recenter, dragHandlers } = useDraggablePanel({
+    width: panelWidth,
+    initialPlacement: "center",
+    recenterSignal,
+  });
+
+  useEffect(() => {
+    const onResize = () => setPanelWidth(panelWidthForViewport());
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // 不持久化移动端位置，每次展开都重新拉回居中。
+  useEffect(() => {
+    if (show) recenter();
+  }, [show, recenter]);
 
   useEffect(() => {
     if (!show || typeof document === "undefined") return;
@@ -36,11 +69,8 @@ export default function DecisionMatrixModal({
       }
     };
     document.addEventListener("keydown", onKeyDown);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = prevOverflow;
       const lastFocused = lastFocusedRef.current;
       if (lastFocused && document.contains(lastFocused)) {
         lastFocused.focus();
@@ -51,24 +81,29 @@ export default function DecisionMatrixModal({
   if (!show) return null;
 
   const node = (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-3"
-      role="dialog"
-      aria-modal="true"
-    >
-      <button
-        type="button"
-        aria-label={t("close")}
-        className="absolute inset-0 bg-[var(--ef-scrim)] backdrop-blur-[2px] cursor-default"
-        onClick={onClose}
+    <>
+      <div
+        aria-hidden="true"
+        className="fixed inset-0 z-[60] bg-black/20 backdrop-blur-md pointer-events-none"
       />
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="relative w-full max-w-[22rem] bg-endfield-gray/90 backdrop-blur-md border border-endfield-yellow/45 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+        role="dialog"
+        aria-label={title}
+        className="fixed z-[61] flex flex-col bg-endfield-gray/90 backdrop-blur-md border border-endfield-yellow/45 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+        style={{
+          left: position.x,
+          top: position.y,
+          width: panelWidth,
+          maxHeight: "85vh",
+        }}
       >
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <div className="text-sm font-bold text-endfield-text uppercase tracking-widest">
+        <div
+          className="mb-2 flex shrink-0 items-center justify-between gap-2 cursor-move select-none touch-none"
+          {...dragHandlers}
+        >
+          <div className="min-w-0 truncate text-sm font-bold text-endfield-text uppercase tracking-widest">
             {title}
           </div>
           <CloseButton
@@ -77,9 +112,9 @@ export default function DecisionMatrixModal({
             sizeClass="w-7 h-7"
           />
         </div>
-        {children}
+        <div className="min-h-0 overflow-y-auto">{children}</div>
       </div>
-    </div>
+    </>
   );
 
   if (typeof document === "undefined") return node;

@@ -293,7 +293,7 @@ export default function SolutionList({
               selectedSolution={selectedSolution}
               selection={selection}
               isMobile
-              onOpenPicker={() => openPicker(false)}
+              onOpenPicker={() => setPickerOpen((prev) => !prev)}
               onOpenPickerCentered={() => openPicker(true)}
               profile={profile}
             />
@@ -444,6 +444,7 @@ export default function SolutionList({
           show={pickerOpen}
           onClose={() => setPickerOpen(false)}
           title={t("decisionMatrixTitle")}
+          recenterSignal={pickerRecenter}
         >
           {matrixCard}
         </DecisionMatrixModal>
