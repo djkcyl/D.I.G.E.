@@ -83,7 +83,9 @@ function StickyHud({
     : t("hudPlanTrigger", { count: row + 1, band: wasteLabel, waste });
 
   return (
-    <div className="h-[38px] px-2 sm:px-3 border-b border-endfield-gray-light bg-endfield-dark/90 backdrop-blur-[6px] flex items-center gap-2 min-w-0">
+    <div
+      className={`${isMobile ? "min-h-[38px] py-1 flex-wrap gap-y-1" : "h-[38px]"} px-2 sm:px-3 border-b border-endfield-gray-light bg-endfield-dark/90 backdrop-blur-[6px] flex items-center gap-2 min-w-0`}
+    >
       <button
         type="button"
         onClick={onOpenPicker}
@@ -107,7 +109,13 @@ function StickyHud({
           )}
         </button>
       ) : null}
-      <div className="flex-1 min-w-0 text-xs text-endfield-text-light truncate">
+      <div
+        className={`text-xs text-endfield-text-light ${
+          isMobile
+            ? "order-last w-full shrink-0 leading-4"
+            : "flex-1 min-w-0 truncate"
+        }`}
+      >
         {t("currentPower")}: {power}w · {t("minBatteryShort")}: {minBat}%
       </div>
       {profile ? (
