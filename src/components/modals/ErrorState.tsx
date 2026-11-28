@@ -31,8 +31,26 @@ export default function ErrorState({
       />
     ) : null;
 
+  const errorDetail = poolAdjust?.error ? (
+    <div className="space-y-1 border-t border-current/15 pt-2 text-xs">
+      <p className="opacity-75">{t("diagTechnicalErrorHeader")}</p>
+      <pre className="whitespace-pre-wrap break-all font-mono select-text">
+        {poolAdjust.error}
+      </pre>
+    </div>
+  ) : null;
+
   const message = diagnosis ? (
     <div className="space-y-3">
+      {diagnosis.inferredCause ? (
+        <p
+          className="text-xs opacity-75 truncate"
+          title={diagnosis.inferredCause}
+        >
+          <span className="font-semibold">{t("diagCauseHeader")}</span>{" "}
+          {diagnosis.inferredCause}
+        </p>
+      ) : null}
       <p>{diagnosis.primaryHint}</p>
       {diagnosis.secondaryHints.length > 0 ? (
         <div className="space-y-1.5">
@@ -47,11 +65,13 @@ export default function ErrorState({
         </div>
       ) : null}
       {trace}
+      {errorDetail}
     </div>
-  ) : trace ? (
+  ) : trace || errorDetail ? (
     <div className="space-y-3">
       <p>{t("errorSuggestion")}</p>
       {trace}
+      {errorDetail}
     </div>
   ) : (
     t("errorSuggestion")

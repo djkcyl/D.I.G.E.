@@ -16,6 +16,8 @@ export interface DiagnosisResult {
   title?: string;
   primaryHint: string;
   secondaryHints: string[];
+  /** 根据失败场景推断用户可能做过的操作；不确定时不显示 */
+  inferredCause?: string;
   /** 方案 B：poolExceedsTarget 场景下 Σ未钳制池额定功率 − 目标（W）；其它场景缺省 */
   surplusW?: number;
 }
@@ -123,6 +125,14 @@ function uniqueHints(hints: string[]): string[] {
   });
 }
 
+/** 功率缺口分支的推断；单独可测，不引入内部状态或随机猜测。 */
+export function inferGapCause(
+  t: TranslateFn,
+  autoBaseEnabled: boolean,
+): string {
+  return t(autoBaseEnabled ? "diagCauseGapFuelCap" : "diagCauseGapAutoOff");
+}
+
 /**
  * 无解诊断：场景 A 功率缺口过大；场景 B 约束/配置偏紧。
  */
@@ -131,7 +141,14 @@ export function diagnoseNoSolution(
   t: TranslateFn,
   /** 第 3 步：worker 回传的池蓄电预检结果；null/undefined = 未触发或预检出错 */
   precheck?: PoolPrecheckReport | null,
+  /** 调整链内部错误；只用于补充推断，不改变原主诊断与 fail-open 语义 */
+  adjustmentError?: string | null,
 ): DiagnosisResult {
+  const rawAdjustmentError =
+    typeof adjustmentError === "string" ? adjustmentError.trim() : "";
+  const adjustmentCause = rawAdjustmentError
+    ? t("diagCauseAdjustError", { error: rawAdjustmentError })
+    : undefined;
   // 场景 D（第 3 步）：候选解本来有，但富余都不够让蓄电池兜住池零头的熄火段，被预检全部剔除
   if (precheck?.allRemoved) {
     return {
@@ -145,6 +162,17 @@ export function diagnoseNoSolution(
         t("diagCheckDecisionMatrix"),
         t("diagAddManualBase"),
       ]),
+      inferredCause:
+        adjustmentCause ??
+        (precheck.requiredWaste > 0 &&
+        (params.oscPools ?? []).some(
+          (cfg) =>
+            cfg.enabled !== false &&
+            splitPoolFeed(cfg.fuelId, cfg.maxPerMin, params.fuelOverrides)
+              .needsOscillation,
+        )
+          ? t("diagCausePoolRemainder")
+          : undefined),
     };
   }
 
@@ -173,6 +201,7 @@ export function diagnoseNoSolution(
         cap: Math.round(wasteCap),
       }),
       secondaryHints: uniqueHints([t("diagCheckDecisionMatrix")]),
+      inferredCause: adjustmentCause ?? t("diagCausePoolOverTarget"),
       surplusW,
     };
   }
@@ -200,7 +229,11 @@ export function diagnoseNoSolution(
     }
     secondaryHints.push(t("diagAddManualBase"));
     secondaryHints.push(t("diagUpgradeFuel"));
-    return { primaryHint, secondaryHints: uniqueHints(secondaryHints) };
+    return {
+      primaryHint,
+      secondaryHints: uniqueHints(secondaryHints),
+      inferredCause: adjustmentCause ?? inferGapCause(t, autoOn),
+    };
   }
 
   // 场景 C：自定义震荡热能池的零头确实有熄火段，且蓄电池可用电量兜不住（wNeed > 0）。
@@ -220,6 +253,7 @@ export function diagnoseNoSolution(
         t("diagAddManualBase"),
         t("diagEnableAutoBase"),
       ]),
+      inferredCause: adjustmentCause ?? t("diagCauseBatteryShort"),
     };
   }
 
@@ -238,11 +272,13 @@ export function diagnoseNoSolution(
     return {
       primaryHint: t("diagGeneralFailure"),
       secondaryHints: [t("errorSuggestion")],
+      inferredCause: adjustmentCause ?? t("diagCauseConstraintsTight"),
     };
   }
 
   return {
     primaryHint: t("diagGeneralFailure"),
     secondaryHints: uniqueHints(secondaryHints),
+    inferredCause: adjustmentCause ?? t("diagCauseConstraintsTight"),
   };
 }

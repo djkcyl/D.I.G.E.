@@ -251,6 +251,7 @@ function AppContent({
             calcParams,
             t,
             payload.poolPrecheck ?? null,
+            payload.poolAdjust?.error,
           );
           setLastDiagnosis(diagnosis);
           setLastPoolAdjust(payload.poolAdjust ?? null);

@@ -52,6 +52,7 @@ jobs:
         run: |
           pnpm exec tsx --test \
             src/components/ui/useDraggablePanel.test.ts \
+            src/utils/failureDiagnose.test.ts \
             src/utils/poolFeedSplit.test.ts \
             src/utils/poolAdjustChain.test.ts \
             src/utils/poolChartSegments.test.ts \
