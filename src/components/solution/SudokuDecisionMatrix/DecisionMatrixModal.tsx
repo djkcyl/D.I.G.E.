@@ -24,7 +24,7 @@ function panelWidthForViewport() {
   );
 }
 
-/** 非模态决策盘：移动端可拖动、可隔层滚动，用毛玻璃表达聚焦。 */
+/** 非模态决策盘：可拖动、窗外可滚动；无全屏遮罩，实体面板保持内容清晰。 */
 export default function DecisionMatrixModal({
   show,
   onClose,
@@ -83,15 +83,11 @@ export default function DecisionMatrixModal({
   const node = (
     <>
       <div
-        aria-hidden="true"
-        className="fixed inset-0 z-[60] bg-black/20 backdrop-blur-md pointer-events-none"
-      />
-      <div
         ref={panelRef}
         tabIndex={-1}
         role="dialog"
         aria-label={title}
-        className="fixed z-[61] flex flex-col bg-endfield-gray/90 backdrop-blur-md border border-endfield-yellow/45 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+        className="fixed z-[61] flex flex-col bg-endfield-gray border border-endfield-yellow/45 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
         style={{
           left: position.x,
           top: position.y,
