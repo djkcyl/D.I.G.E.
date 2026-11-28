@@ -131,6 +131,7 @@
   "gridCodeLabel": "Kode cetak biru grid",
   "hoverDetails": "Detail saat diarahkan",
   "hudPlanTrigger": "Sekarang: {{count}} port · {{band}} (+{{waste}}w)",
+  "hudRecenterPicker": "Pusatkan papan",
   "ignoreWarning": "Abaikan",
   "imageZoomView": "Tampilan Zoom Gambar",
   "importantNote": "Penting",

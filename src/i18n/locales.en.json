@@ -131,6 +131,7 @@
   "gridCodeLabel": "Grid blueprint code",
   "hoverDetails": "Hover details",
   "hudPlanTrigger": "Now: {{count}} ports · {{band}} (+{{waste}}w)",
+  "hudRecenterPicker": "Center board",
   "ignoreWarning": "Ignore",
   "imageZoomView": "Image zoom view",
   "importantNote": "Important",

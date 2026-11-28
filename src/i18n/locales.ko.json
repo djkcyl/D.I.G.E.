@@ -131,6 +131,7 @@
   "gridCodeLabel": "전력망 블루프린트 코드",
   "hoverDetails": "호버 상세",
   "hudPlanTrigger": "현재: {{count}}로·{{band}} (+{{waste}}w)",
+  "hudRecenterPicker": "결정판 가운데로",
   "ignoreWarning": "무시",
   "imageZoomView": "이미지 확대 보기",
   "importantNote": "중요",

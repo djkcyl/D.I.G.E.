@@ -131,6 +131,7 @@
   "gridCodeLabel": "电网蓝图码",
   "hoverDetails": "悬浮详情",
   "hudPlanTrigger": "当前: {{count}}路·{{band}} (+{{waste}}w)",
+  "hudRecenterPicker": "决策盘居中",
   "ignoreWarning": "忽略",
   "imageZoomView": "图片缩放视图",
   "importantNote": "重要提示",

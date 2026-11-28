@@ -131,6 +131,7 @@
   "gridCodeLabel": "Code plan de réseau",
   "hoverDetails": "Détails au survol",
   "hudPlanTrigger": "Actuel : {{count}} ports · {{band}} (+{{waste}}w)",
+  "hudRecenterPicker": "Centrer le tableau",
   "ignoreWarning": "Ignorer",
   "imageZoomView": "Vue zoomée de l'image",
   "importantNote": "Important",

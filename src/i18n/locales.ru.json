@@ -131,6 +131,7 @@
   "gridCodeLabel": "Код чертежа сети",
   "hoverDetails": "Детали при наведении",
   "hudPlanTrigger": "Сейчас: {{count}} порт. · {{band}} (+{{waste}}Вт)",
+  "hudRecenterPicker": "Доску по центру",
   "ignoreWarning": "Игнорировать",
   "imageZoomView": "Просмотр изображения с масштабированием",
   "importantNote": "Важно",

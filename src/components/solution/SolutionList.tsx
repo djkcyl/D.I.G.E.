@@ -92,6 +92,21 @@ function StickyHud({
       >
         {triggerLabel} ▾
       </button>
+      {onOpenPickerCentered ? (
+        <button
+          type="button"
+          onClick={onOpenPickerCentered}
+          title={t("hudRecenterPicker")}
+          aria-label={t("hudRecenterPicker")}
+          className="shrink-0 h-7 px-2 text-xs border border-green-400/60 text-green-400 bg-green-400/10 hover:bg-green-400/20 hover:border-green-400 whitespace-nowrap"
+        >
+          {isMobile ? (
+            <Icon name="recenter" className="w-4 h-4" />
+          ) : (
+            t("hudRecenterPicker")
+          )}
+        </button>
+      ) : null}
       <div className="flex-1 min-w-0 text-xs text-endfield-text-light truncate">
         {t("currentPower")}: {power}w · {t("minBatteryShort")}: {minBat}%
       </div>

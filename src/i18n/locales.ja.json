@@ -131,6 +131,7 @@
   "gridCodeLabel": "電網ブループリントコード",
   "hoverDetails": "ホバー詳細",
   "hudPlanTrigger": "現在: {{count}}路·{{band}} (+{{waste}}w)",
+  "hudRecenterPicker": "決定盤を中央へ",
   "ignoreWarning": "無視",
   "imageZoomView": "画像ズームビュー",
   "importantNote": "重要",

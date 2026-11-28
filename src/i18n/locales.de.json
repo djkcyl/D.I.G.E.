@@ -131,6 +131,7 @@
   "gridCodeLabel": "Netz-Blueprint-Code",
   "hoverDetails": "Hover-Details",
   "hudPlanTrigger": "Aktuell: {{count}} Ports · {{band}} (+{{waste}}w)",
+  "hudRecenterPicker": "Brett zentrieren",
   "ignoreWarning": "Ignorieren",
   "imageZoomView": "Bild-Zoomansicht",
   "importantNote": "Wichtig",
